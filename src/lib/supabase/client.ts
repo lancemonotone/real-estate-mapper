@@ -5,6 +5,6 @@ import { requireEnv } from '../env';
 export function createSupabaseBrowserClient() {
   return createBrowserClient<Database>(
     requireEnv('PUBLIC_SUPABASE_URL'),
-    requireEnv('PUBLIC_SUPABASE_ANON_KEY'),
+    requireEnv('PUBLIC_SUPABASE_PUBLISHABLE_KEY'),
   );
 }

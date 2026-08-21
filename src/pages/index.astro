@@ -1,6 +1,6 @@
 ---
 const supabaseConfigured = Boolean(
-  import.meta.env.PUBLIC_SUPABASE_URL && import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+  import.meta.env.PUBLIC_SUPABASE_URL && import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
 ---
 <html lang="en">
@@ -19,7 +19,7 @@ const supabaseConfigured = Boolean(
     </p>
     {!supabaseConfigured && (
       <p role="alert">
-        Configure <code>PUBLIC_SUPABASE_URL</code> and <code>PUBLIC_SUPABASE_ANON_KEY</code> in
+        Configure <code>PUBLIC_SUPABASE_URL</code> and <code>PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> in
         <code>.env</code> (see <code>.env.example</code>).
       </p>
     )}

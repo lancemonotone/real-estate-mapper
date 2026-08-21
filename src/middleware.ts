@@ -9,9 +9,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-  const supabaseAnon = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnon) {
-    return new Response('Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_ANON_KEY', {
+  const supabasePublishable = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabasePublishable) {
+    return new Response('Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_PUBLISHABLE_KEY', {
       status: 500,
     });
   }

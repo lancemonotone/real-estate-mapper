@@ -6,7 +6,7 @@ import { requireEnv } from '../env';
 export function createSupabaseServerClient(request: Request, cookies: AstroCookies) {
   return createServerClient<Database>(
     requireEnv('PUBLIC_SUPABASE_URL'),
-    requireEnv('PUBLIC_SUPABASE_ANON_KEY'),
+    requireEnv('PUBLIC_SUPABASE_PUBLISHABLE_KEY'),
     {
       cookies: {
         getAll() {

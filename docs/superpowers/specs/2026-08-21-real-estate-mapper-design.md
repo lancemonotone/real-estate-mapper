@@ -129,7 +129,7 @@ All listing/tour data is workspace-scoped. RLS: only `workspace_members` may rea
 
 - Astro SSR + TypeScript
 - `@supabase/supabase-js` (server session pattern appropriate to Astro)
-- Env: `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only as needed), `GOOGLE_MAPS_API_KEY` (server), `PUBLIC_GOOGLE_MAPS_BROWSER_KEY`, Map ID for Advanced Markers as required by Google
+- Env: `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (server-only as needed), `GOOGLE_MAPS_API_KEY` (server), `PUBLIC_GOOGLE_MAPS_BROWSER_KEY`, Map ID for Advanced Markers as required by Google
 - Deploy host undecided; design assumes standard Node/serverless Astro adapter + env vars
 
 ## Testing
