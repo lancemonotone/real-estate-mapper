@@ -1,0 +1,67 @@
+---
+import { createSupabaseServerClient } from '../../lib/supabase/server';
+import { hashInviteToken } from '../../lib/crypto/invite-token';
+import { ensureWorkspaceForUser } from '../../lib/supabase/workspace';
+
+const token = Astro.params.token;
+if (!token) {
+  return Astro.redirect('/');
+}
+
+const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+const {
+  data: { user },
+} = await supabase.auth.getUser();
+
+if (!user) {
+  return Astro.redirect(`/login?redirect=${encodeURIComponent(`/invite/${token}`)}`);
+}
+
+await ensureWorkspaceForUser(supabase, user.id);
+
+const tokenHash = hashInviteToken(token);
+const { data: workspaceId, error: wsError } = await supabase.rpc(
+  'workspace_id_for_invite',
+  { token_hash: tokenHash },
+);
+
+let errorMessage = '';
+let joined = false;
+
+if (wsError) {
+  errorMessage = wsError.message;
+} else if (!workspaceId) {
+  errorMessage = 'Invalid or expired invite link.';
+} else {
+  const { error: joinError } = await supabase.from('workspace_members').insert({
+    workspace_id: workspaceId,
+    user_id: user.id,
+    role: 'member',
+  });
+  if (joinError) {
+    if (joinError.code === '23505') {
+      joined = true;
+    } else {
+      errorMessage = joinError.message;
+    }
+  } else {
+    joined = true;
+  }
+}
+
+if (joined && !errorMessage) {
+  return Astro.redirect('/app');
+}
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Invite — Real Estate Mapper</title>
+  </head>
+  <body>
+    <h1>Join workspace</h1>
+    {errorMessage && <p role="alert">{errorMessage}</p>}
+    <p><a href="/app">Back to app</a></p>
+  </body>
+</html>

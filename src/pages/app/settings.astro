@@ -1,0 +1,52 @@
+---
+import { createSupabaseServerClient } from '../../lib/supabase/server';
+import { generateInviteToken } from '../../lib/crypto/invite-token';
+import { getPrimaryWorkspaceId } from '../../lib/supabase/workspace';
+
+const user = Astro.locals.user!;
+const supabase = Astro.locals.supabase!;
+const workspaceId = await getPrimaryWorkspaceId(supabase, user.id);
+
+let inviteUrl: string | null = null;
+let errorMessage = '';
+let notice = '';
+
+if (!workspaceId) {
+  errorMessage = 'No workspace found.';
+} else if (Astro.request.method === 'POST') {
+  const { raw, hash } = generateInviteToken();
+  const { error } = await supabase
+    .from('workspaces')
+    .update({ invite_token_hash: hash })
+    .eq('id', workspaceId);
+  if (error) {
+    errorMessage = error.message;
+  } else {
+    const site = import.meta.env.PUBLIC_SITE_URL || Astro.url.origin;
+    inviteUrl = `${site.replace(/\/$/, '')}/invite/${raw}`;
+    notice = 'Invite link rotated. Copy it now — the raw token is not stored.';
+  }
+}
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Settings — Real Estate Mapper</title>
+  </head>
+  <body>
+    <p><a href="/app">← Workspace</a></p>
+    <h1>Settings</h1>
+    {errorMessage && <p role="alert">{errorMessage}</p>}
+    {notice && <p>{notice}</p>}
+    {inviteUrl && (
+      <p>
+        Invite link:
+        <input type="text" readonly value={inviteUrl} style="width:100%" />
+      </p>
+    )}
+    <form method="post">
+      <button type="submit">Generate / rotate invite link</button>
+    </form>
+  </body>
+</html>

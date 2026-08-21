@@ -56,6 +56,21 @@ as $$
   );
 $$;
 
+create or replace function public.workspace_id_for_invite(token_hash text)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id
+  from public.workspaces
+  where invite_token_hash = token_hash
+  limit 1;
+$$;
+
+grant execute on function public.workspace_id_for_invite(text) to authenticated;
+
 create policy "workspaces_select_member"
   on public.workspaces for select
   using (public.is_workspace_member(id));
