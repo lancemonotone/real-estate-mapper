@@ -1,17 +1,27 @@
 ---
-
+const supabaseConfigured = Boolean(
+  import.meta.env.PUBLIC_SUPABASE_URL && import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+);
 ---
-
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Real Estate Mapper</title>
+  </head>
+  <body>
+    <h1>Real Estate Mapper</h1>
+    <p>Organize listings with your household and plan efficient driving tours.</p>
+    <p>
+      <a href="/signup">Sign up</a>
+      ·
+      <a href="/login">Sign in</a>
+    </p>
+    {!supabaseConfigured && (
+      <p role="alert">
+        Configure <code>PUBLIC_SUPABASE_URL</code> and <code>PUBLIC_SUPABASE_ANON_KEY</code> in
+        <code>.env</code> (see <code>.env.example</code>).
+      </p>
+    )}
+  </body>
 </html>

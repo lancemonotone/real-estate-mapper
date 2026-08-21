@@ -60,6 +60,11 @@ create policy "workspaces_select_member"
   on public.workspaces for select
   using (public.is_workspace_member(id));
 
+create policy "workspaces_insert_authenticated"
+  on public.workspaces for insert
+  to authenticated
+  with check (true);
+
 create policy "workspaces_update_member"
   on public.workspaces for update
   using (public.is_workspace_member(id));

@@ -1,0 +1,39 @@
+---
+import { ensureWorkspaceForUser, getPrimaryWorkspaceId } from '../../lib/supabase/workspace';
+
+const user = Astro.locals.user!;
+const supabase = Astro.locals.supabase!;
+
+let workspaceId = await getPrimaryWorkspaceId(supabase, user.id);
+if (!workspaceId) {
+  workspaceId = await ensureWorkspaceForUser(supabase, user.id);
+}
+
+const { data: workspace } = await supabase
+  .from('workspaces')
+  .select('id, name')
+  .eq('id', workspaceId)
+  .single();
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Workspace — Real Estate Mapper</title>
+  </head>
+  <body>
+    <header>
+      <h1>{workspace?.name ?? 'Household'}</h1>
+      <nav>
+        <a href="/app/listings">Listings</a>
+        <a href="/app/unscheduled">Unscheduled</a>
+        <a href="/app/tours">Tours</a>
+        <a href="/app/settings">Settings</a>
+      </nav>
+    </header>
+    <p>Signed in as {user.email}</p>
+    <form method="post" action="/api/auth/logout">
+      <button type="submit">Sign out</button>
+    </form>
+  </body>
+</html>

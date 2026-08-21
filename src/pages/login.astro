@@ -1,0 +1,45 @@
+---
+import { createSupabaseServerClient } from '../lib/supabase/server';
+import { ensureWorkspaceForUser } from '../lib/supabase/workspace';
+
+const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+const {
+  data: { user },
+} = await supabase.auth.getUser();
+if (user) {
+  return Astro.redirect('/app');
+}
+
+const redirectTo = Astro.url.searchParams.get('redirect') || '/app';
+let errorMessage = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const email = String(form.get('email') ?? '');
+  const password = String(form.get('password') ?? '');
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    errorMessage = error.message;
+  } else if (data.user) {
+    await ensureWorkspaceForUser(supabase, data.user.id);
+    return Astro.redirect(redirectTo);
+  }
+}
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Sign in — Real Estate Mapper</title>
+  </head>
+  <body>
+    <h1>Sign in</h1>
+    {errorMessage && <p role="alert">{errorMessage}</p>}
+    <form method="post">
+      <label>Email <input type="email" name="email" required /></label>
+      <label>Password <input type="password" name="password" required /></label>
+      <button type="submit">Sign in</button>
+    </form>
+    <p><a href="/signup">Need an account? Sign up</a></p>
+  </body>
+</html>
