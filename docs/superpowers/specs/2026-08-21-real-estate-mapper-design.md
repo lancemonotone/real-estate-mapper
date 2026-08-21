@@ -1,7 +1,7 @@
 # Real Estate Mapper — Design Spec
 
 **Date:** 2026-08-21  
-**Status:** Approved in brainstorming; pending user review of this written spec  
+**Status:** Approved  
 **Repo:** https://github.com/lancemonotone/real-estate-mapper  
 
 ## Problem
