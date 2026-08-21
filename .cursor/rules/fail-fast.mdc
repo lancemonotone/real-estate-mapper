@@ -1,0 +1,34 @@
+---
+description: Fail Fast — no code fallbacks, legacy compatibility, or product default values; surface absence or misconfiguration explicitly.
+alwaysApply: true
+---
+
+# Fail Fast (project methodology)
+
+This project’s overriding approach is **Fail Fast**: prefer visible absence, explicit errors, or blocking misconfiguration over silent substitutes.
+
+## No fallbacks in application code
+
+- Do **not** add “just in case” branches that fake data, duplicate demo copy in PHP/JS, or substitute placeholder menus, links, or options so the UI “looks complete.”
+- Do **not** use `fallback_cb` (or equivalent) to emit invented navigation or content unless the **active plan** explicitly requires a named stub.
+- If required data is missing (ACF options unset, menu unassigned, env missing), output **nothing** for that fragment, show an **editor-only** empty state, or **fail visibly**—do not invent defaults in templates.
+
+## No legacy compatibility
+
+- Do **not** maintain parallel code paths for retired stacks, old field names, old URLs, or pre-migration behavior “so nothing breaks.”
+- Migrate data and references; remove shims once. If something must stay during a transition, the **plan** must name it and a removal step.
+
+## No default values (product / configuration)
+
+- Do **not** embed business copy, URLs, phone numbers, or demo strings as PHP/JS constants or second-source “defaults” when the source of truth is **options, ACF, or the database**.
+- **ACF field `default_value` in JSON** is allowed as *schema-level* editor defaults when that is the agreed configuration surface—not duplicate strings hardcoded in render templates.
+- Distinguish: **required third-party API parameters** (e.g. WordPress core signatures) are not “product defaults”; **invented business defaults** in templates are disallowed.
+
+## Conflict with other workspace rules
+
+- If another rule suggests stubs, mocks, or placeholder content **for production output**, **Fail Fast takes precedence** unless the user overrides for that task.
+- Structural/architecture stubs (empty files, comment-only assets) remain OK when the **active plan** calls for scaffolding only.
+
+## When unsure
+
+- Prefer **fewer branches**, **empty output**, or **ask the user** over adding a fallback.

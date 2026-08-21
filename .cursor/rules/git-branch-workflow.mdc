@@ -1,0 +1,35 @@
+---
+description: Git workflow for plans, feature branches, main, and staging
+alwaysApply: true
+---
+
+# Git branch workflow (plans → feature branches → staging → main)
+
+This repo is managed with **local branches** (no `origin`).
+
+## Branch roles
+
+- **`main`**: approved-only, always in a shippable state.
+- **`staging`** (aka `integration`): aggregates completed work that is not yet approved/shipped; base for new plan work.
+- **`feature/plan-XX-*`**: one branch per plan (or per slice).
+- **`fix/plan-XX-*`**: small follow-ups based on feedback.
+
+## Start new work
+
+- Branch from **`staging`** (not `main`) so prior work is available without shipping it.
+
+## Review / feedback loop
+
+- Merge **feature → staging** when a plan is ready for review.
+- Apply client feedback as **fix branches** off the correct base:
+  - off **`staging`** if not shipped yet
+  - off **`main`** if already shipped
+
+## Shipping
+
+- Merge **`staging` → `main`** only after approval.
+
+## History safety
+
+- Avoid rewriting history on branches that will be shared or merged repeatedly.
+- Local-only history rewrites (eg. resetting `main` back to init) are allowed **only** when explicitly requested.

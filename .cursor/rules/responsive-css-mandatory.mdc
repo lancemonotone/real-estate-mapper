@@ -1,0 +1,13 @@
+---
+description: All CSS edits must follow the responsive-css skill
+globs: "**/*.css"
+alwaysApply: false
+---
+
+# CSS tooling (mandatory)
+
+When creating or changing **any** `.css` file, **read and apply** the global **`responsive-css`** skill (`~/.cursor/skills/responsive-css/SKILL.md` or invoke `@responsive-css`).
+
+Standards: mobile-first, nested `@media`, breakpoints `768px` and `1024px`, custom properties for breakpoint overrides, `clamp` / container queries where appropriate, logical properties, native nesting (no BEM `&__` / `&--`). No SASS.
+
+This is required project CSS policy—not optional guidance.

@@ -1,0 +1,8 @@
+{
+  "cursorKitVersion": "1.0.0",
+  "cursorKitBootstrapped": true,
+  "machineSetupComplete": false,
+  "mattPocockSetup": true,
+  "bootstrappedAt": "2026-08-21T17:38:55Z",
+  "notes": "cursorKitBootstrapped is set true automatically by the workspaceOpen hook or bootstrap-project.sh. Run /setup-matt-pocock-skills once per repo, then set mattPocockSetup to true."
+}

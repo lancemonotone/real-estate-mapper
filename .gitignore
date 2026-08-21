@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build / Astro
+dist/
+.astro/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/*
+!.vscode/extensions.json
+
+# Scratch / local agent state
+.scratch/

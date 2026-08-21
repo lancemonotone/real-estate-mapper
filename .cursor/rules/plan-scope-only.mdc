@@ -1,0 +1,37 @@
+---
+description: Execute only the named plan; structural stubs only unless the plan explicitly requires content (CSS rules, copy, features).
+alwaysApply: true
+---
+
+# Plan scope only (no freelance scope)
+
+## Authority
+
+- The **active task** must name a single plan file (or a specific §/step within it). Treat that text as the **sole** scope of work for implementation.
+- **Do not** blend requirements from other plans, docs, or “product sense” unless the user explicitly says to pull them in for this task.
+
+## What “following the plan” means
+
+- Implement **only** what the plan’s steps require: files, classes, hooks, paths, wiring, and **minimal stubs** where the plan names an asset file but does not require styling or behavior yet.
+- **Structural / architecture plans** justify creating **empty or comment-only** `*.css` / `*.js` inputs and bundle pipelines. They do **not** justify filling stylesheets with rules, adding JS logic, or inventing visual design “to make it work.”
+
+## No mock interfaces (admin, front, or editor)
+
+- If the active step is **scaffolding / architecture / stubs only**, deliver **only** what that step names: class shells, hooks, file paths, empty or comment-only assets, minimal bootstrap.
+- Do **not** add a **mock or “complete-looking” UI** that the step does not explicitly require: no hand-built settings screens, placeholder forms, fake ACF groups, or front markup **“so you can see it working”** unless the plan bullet for this task says to ship that surface.
+- Same rule as CSS/JS: **stubs mean stubs**—not a parallel product demo.
+
+## Explicit exclusions (unless the plan says otherwise)
+
+- Do **not** add CSS rules beyond stubs/comments to satisfy structure.
+- Do **not** port, merge, or “align” demo/legacy styles unless the plan step explicitly calls for it (e.g. a demo CSS audit step).
+- Do **not** add features, refactors, or polish outside the plan’s bullets.
+
+## When unsure
+
+- Prefer **fewer lines** and **smaller diffs**. Leave TODO comments or empty files only if the plan names those paths.
+- If a step is ambiguous, **ask** or implement the **minimal** interpretation—do not expand scope.
+
+## Session preamble (user should state)
+
+For each coding task, the user may specify: **plan path**, **section/step**, and **out-of-scope** reminders (e.g. “architecture only—no CSS rules”). Follow that strictly.

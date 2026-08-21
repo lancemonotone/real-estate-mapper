@@ -1,0 +1,60 @@
+---
+description: When to run Asset Violation Detection — coding tasks only; no scans for read-only analysis
+alwaysApply: true
+---
+
+# Asset Violation Detection & Refactoring Protocol
+
+## Scope / trigger (gate)
+
+Run this protocol **only** when the current request will **write or modify code** in the repo, specifically:
+
+- Editing or creating any `.php` file
+- Any patch/diff that changes PHP
+- Refactoring PHP templates, hooks, enqueue logic, block rendering, admin pages
+- Adding or updating asset files because of PHP changes (enqueue, dependencies, handles)
+- Implementing a fix or feature delivered as code changes
+
+## Do not run this protocol for
+
+Research, general advice, architecture discussion, brainstorming, estimates, “where is X”, “what does this do”, planning-only, inventory-only, or **any response that does not include code changes** (including read-only code review or explanation).
+
+If the user only wants analysis or a file listing, **do not** run the three greps below and **do not** emit the “violations detected” escalation block.
+
+## When triggered — mandatory scans (run AFTER edits, BEFORE final response)
+
+Timing rule (so scans are not pointless):
+
+- Make your PHP edits first.
+- Then run the three scans below.
+- Then include scan results in your **final response** that describes the PHP code changes (and before any commit/PR if applicable).
+
+Run these three searches in **strict scope** and report matches.
+
+Strict scope rules (mandatory):
+
+- **Only scan files the agent edited in this session.**
+- If the tool cannot be limited to “edited files only”, restrict scans to the smallest relevant project paths (usually the specific plugin/theme you edited), e.g. `wp-content/plugins/<plugin>/` and/or `wp-content/themes/<theme>/`.
+- **Never scan WordPress core** directories: `wp-includes/`, `wp-admin/`.
+- **Never scan vendor trees** such as `node_modules/` or `vendor/` unless the agent edited those files (normally you should not).
+
+Search patterns:
+
+1. `\$\(|jQuery\(` — jQuery
+2. `wp_add_inline_script|<<<['"]JS` — inline JS
+3. `wp_add_inline_style|<<<['"]CSS` — inline CSS
+
+## If violations are found
+
+Stop and state clearly that refactoring is required per project standards (no jQuery, no inline script/style in PHP; use separate asset files and vanilla JS).
+
+## If no violations
+
+Proceed with the code change; do **not** use the “violations detected” escalation format.
+
+## Asset standards (when writing PHP that touches front/admin assets)
+
+- Do not use jQuery (including admin)
+- Do not use `wp_add_inline_script()` or `wp_add_inline_style()`
+- Use separate asset files; prefer vanilla JS
+- Check existing files under `assets/src/js/admin/` and `assets/src/css/admin/` before adding new ones

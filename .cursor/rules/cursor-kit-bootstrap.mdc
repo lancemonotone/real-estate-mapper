@@ -1,0 +1,32 @@
+---
+description: Project bootstrap — cursor-kit rules, global skills, Matt Pocock setup checklist
+alwaysApply: true
+---
+
+# Cursor kit bootstrap
+
+This project uses **cursor-kit** (shared rules + skills) and optionally **mattpocock/skills**.
+
+## Automatic bootstrap
+
+New projects are bootstrapped by the **workspaceOpen hook** (`~/.cursor/hooks/`): rules and `project-setup.json` are copied when you open a folder in Cursor. Manual bootstrap: `~/cursor-kit/scripts/bootstrap-project.sh .`
+
+## First session — Matt Pocock (blocking)
+
+Read `.cursor/project-setup.json` **before every reply**. If `mattPocockSetup` is false, **`matt-pocock-setup-pending.mdc` takes priority** over all other work until setup completes or the user explicitly skips.
+
+## Always apply in this project
+
+| Task | Use |
+|------|-----|
+| Any `.css` edit | **`responsive-css`** skill (mandatory) |
+| PHP / asset changes | **`asset-violation-protocol`** rule |
+| Missing data / config | **`fail-fast`** rule — no invented defaults |
+| New feature / bug | Matt Pocock: `/grill-with-docs`, `/tdd`, `/diagnose` when appropriate |
+| Plans | **`research-confirmed-plans`** — verify before speculative options |
+
+## Skills location
+
+Skills install globally to `~/.agents/skills/` (Cursor) via `npx skills add`. Project rules live in `.cursor/rules/`.
+
+After `npx skills update`, re-run `~/cursor-kit/scripts/apply-matt-pocock-prefs.sh` so the kit overlay keeps: default triage labels + always `AGENTS.md`.

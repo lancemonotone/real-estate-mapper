@@ -1,0 +1,26 @@
+---
+description: Plans and proposals must be concrete—resolve uncertainty with Context7 and/or web research before presenting “iffy” options.
+alwaysApply: true
+---
+
+# Research before uncertainty (plans and proposals)
+
+## No speculative or “iffy” plans
+
+- Do **not** ship plans that rely on **“if supported”**, **“optional fallback”**, or **“verify later”** as the primary answer when the facts are knowable.
+- Do **not** offer **parallel redundant mechanisms** (e.g. two different filters doing the same job “just in case”) when project methodology ([Fail Fast](fail-fast.mdc)) expects a **single** clear contract—unless the **active plan** explicitly names both and why.
+
+## When something is uncertain
+
+1. **Prefer primary docs:** Use **Context7** (or equivalent MCP docs) for APIs (WordPress, Gutenberg, ACF, libraries).
+2. **Use web research** when docs are incomplete or you need version-specific behavior.
+3. **Then** state a **single** recommended approach with **cited** or **verified** behavior, or ask the user **one** focused question if the docs genuinely do not decide it.
+
+## What to produce
+
+- **Concrete** steps, file paths, and one chosen pattern—not a menu of unverified alternatives.
+- If verification requires a **quick runtime check** (e.g. editor smoke test), name it as a **verification step**, not as permanent ambiguity.
+
+## Relationship to Fail Fast
+
+- Redundant “safety” paths that duplicate the same policy without a named exception are **out of scope** unless explicitly required.
