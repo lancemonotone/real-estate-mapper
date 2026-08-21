@@ -18,11 +18,17 @@ if (Astro.request.method === 'POST') {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) {
     errorMessage = error.message;
+  } else if (data.user && data.session) {
+    try {
+      await ensureWorkspaceForUser(supabase, data.user.id);
+      return Astro.redirect('/app');
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : 'Could not create workspace';
+    }
   } else if (data.user) {
-    await ensureWorkspaceForUser(supabase, data.user.id);
-    return Astro.redirect('/app');
-  } else {
     errorMessage = 'Check your email to confirm signup, then sign in.';
+  } else {
+    errorMessage = 'Signup did not return a user.';
   }
 }
 ---

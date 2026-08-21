@@ -12,26 +12,18 @@ export async function ensureWorkspaceForUser(supabase: Client, userId: string) {
     .limit(1)
     .maybeSingle();
 
-  if (memberError) throw memberError;
+  if (memberError) throw new Error(memberError.message);
   if (existing?.workspace_id) return existing.workspace_id;
 
   const { hash } = generateInviteToken();
-  const { data: workspace, error: wsError } = await supabase
-    .from('workspaces')
-    .insert({ name: 'Household', invite_token_hash: hash })
-    .select('id')
-    .single();
+  const { data: workspaceId, error: rpcError } = await supabase.rpc(
+    'create_household_workspace',
+    { p_invite_token_hash: hash },
+  );
 
-  if (wsError) throw wsError;
-
-  const { error: joinError } = await supabase.from('workspace_members').insert({
-    workspace_id: workspace.id,
-    user_id: userId,
-    role: 'owner',
-  });
-
-  if (joinError) throw joinError;
-  return workspace.id as string;
+  if (rpcError) throw new Error(rpcError.message);
+  if (!workspaceId) throw new Error('Workspace bootstrap returned no id');
+  return workspaceId as string;
 }
 
 export async function getPrimaryWorkspaceId(supabase: Client, userId: string) {
@@ -43,6 +35,6 @@ export async function getPrimaryWorkspaceId(supabase: Client, userId: string) {
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data?.workspace_id ?? null;
 }

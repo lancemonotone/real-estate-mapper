@@ -21,8 +21,12 @@ if (Astro.request.method === 'POST') {
   if (error) {
     errorMessage = error.message;
   } else if (data.user) {
-    await ensureWorkspaceForUser(supabase, data.user.id);
-    return Astro.redirect(redirectTo);
+    try {
+      await ensureWorkspaceForUser(supabase, data.user.id);
+      return Astro.redirect(redirectTo);
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : 'Could not create workspace';
+    }
   }
 }
 ---
