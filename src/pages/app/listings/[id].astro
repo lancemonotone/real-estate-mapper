@@ -1,0 +1,56 @@
+---
+import ListingForm from '../../../components/ListingForm.astro';
+
+const { id } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const { data: listing } = await supabase.from('listings').select('*').eq('id', id!).single();
+if (!listing) {
+  return new Response('Not found', { status: 404 });
+}
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{listing.name || 'Listing'}</title>
+  </head>
+  <body>
+    <p><a href="/app/listings">← Listings</a></p>
+    <h1>{listing.name || 'Listing'}</h1>
+    <form method="post" action="/api/listings/update" style="display:none">
+      <input type="hidden" name="id" value={listing.id} />
+    </form>
+    <ListingForm listing={listing} action="/api/listings/update" submitLabel="Update listing" />
+    <script define:vars={{ listingId: listing.id }}>
+      const form = document.querySelector('form[action="/api/listings/update"]');
+      if (form && !form.querySelector('[name="id"]')) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'id';
+        input.value = listingId;
+        form.prepend(input);
+      }
+    </script>
+    <form id="geocode-form">
+      <button type="submit">Retry geocode</button>
+    </form>
+    <p id="geocode-status"></p>
+    <script define:vars={{ listingId: listing.id }}>
+      document.getElementById('geocode-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const status = document.getElementById('geocode-status');
+        status!.textContent = 'Geocoding…';
+        const res = await fetch('/api/listings/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: listingId }),
+        });
+        const data = await res.json();
+        status!.textContent = data.ok
+          ? `Geocoded: ${data.lat}, ${data.lng}`
+          : data.error || 'Geocode failed';
+        if (data.ok) location.reload();
+      });
+    </script>
+  </body>
+</html>

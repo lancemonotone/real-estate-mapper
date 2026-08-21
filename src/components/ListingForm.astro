@@ -1,0 +1,40 @@
+---
+import type { Listing } from '../lib/types/database';
+import { listingBadges } from '../lib/listings/badges';
+
+interface Props {
+  listing?: Partial<Listing>;
+  action: string;
+  submitLabel: string;
+}
+
+const { listing = {}, action, submitLabel } = Astro.props;
+const badges = listing.id
+  ? listingBadges(listing as Listing)
+  : [];
+---
+{badges.length > 0 && (
+  <ul>
+    {badges.map((b) => (
+      <li>{b}</li>
+    ))}
+  </ul>
+)}
+<form method="post" action={action} enctype="multipart/form-data">
+  {listing.id && <input type="hidden" name="id" value={listing.id} />}
+  <label>Name <input name="name" value={listing.name ?? ''} /></label>
+  <label>Address <input name="address" value={listing.address ?? ''} /></label>
+  <label>Source URL <input name="source_url" type="url" value={listing.source_url ?? ''} /></label>
+  <label>Photo URL <input name="photo_url" type="url" value={listing.photo_url ?? ''} /></label>
+  <label>Upload photo <input name="photo" type="file" accept="image/*" /></label>
+  <label>
+    Appointment
+    <input
+      name="appointment_at"
+      type="datetime-local"
+      value={listing.appointment_at ? listing.appointment_at.slice(0, 16) : ''}
+    />
+  </label>
+  <label>Notes <textarea name="notes">{listing.notes ?? ''}</textarea></label>
+  <button type="submit">{submitLabel}</button>
+</form>

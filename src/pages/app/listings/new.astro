@@ -1,0 +1,50 @@
+---
+import ListingForm from '../../../components/ListingForm.astro';
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>New listing</title>
+  </head>
+  <body>
+    <p><a href="/app/listings">← Listings</a></p>
+    <h1>New listing</h1>
+    <section>
+      <h2>Import from URL</h2>
+      <form id="import-form">
+        <label>Listing URL <input type="url" name="url" id="import-url" required /></label>
+        <button type="submit">Fetch</button>
+      </form>
+      <p id="import-status"></p>
+    </section>
+    <ListingForm action="/api/listings/create" submitLabel="Save listing" />
+    <script>
+      const form = document.getElementById('import-form');
+      const status = document.getElementById('import-status');
+      form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const url = (document.getElementById('import-url') as HTMLInputElement).value;
+        status!.textContent = 'Fetching…';
+        const res = await fetch('/api/listings/import-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json();
+        const set = (name: string, value: string | null) => {
+          const el = document.querySelector(`form[action="/api/listings/create"] [name="${name}"]`) as
+            | HTMLInputElement
+            | HTMLTextAreaElement
+            | null;
+          if (el && value) el.value = value;
+        };
+        set('name', data.name);
+        set('address', data.address);
+        set('photo_url', data.photoUrl);
+        set('source_url', data.sourceUrl);
+        status!.textContent = 'Import finished — empty fields mean nothing was found (nothing invented).';
+      });
+    </script>
+  </body>
+</html>

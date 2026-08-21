@@ -1,0 +1,83 @@
+---
+const { id } = Astro.params;
+const supabase = Astro.locals.supabase!;
+
+const { data: tour } = await supabase.from('tour_days').select('*').eq('id', id!).single();
+if (!tour) return new Response('Not found', { status: 404 });
+
+const { data: stops } = await supabase
+  .from('tour_stops')
+  .select('*, listings(*)')
+  .eq('tour_day_id', tour.id)
+  .order('sort_order', { ascending: true, nullsFirst: false });
+
+const mapStops = (stops ?? [])
+  .filter((s) => s.listings && s.listings.lat != null && s.listings.lng != null)
+  .map((s) => ({
+    id: s.listing_id,
+    name: s.listings!.name || s.listings!.address || 'Stop',
+    lat: s.listings!.lat!,
+    lng: s.listings!.lng!,
+    photoUrl: s.listings!.photo_url,
+    photoPath: s.listings!.photo_path,
+    sortOrder: s.sort_order,
+    legDurationSec: s.leg_duration_sec,
+    isStart: s.is_start,
+  }));
+
+const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
+const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Tour {tour.tour_date}</title>
+  </head>
+  <body>
+    <p><a href="/app/tours">← Tours</a></p>
+    <h1>Tour {tour.tour_date}</h1>
+    <ol>
+      {(stops ?? []).map((stop) => (
+        <li>
+          {stop.is_start ? 'START · ' : ''}
+          {stop.listings?.name || stop.listings?.address || stop.listing_id}
+          {stop.leg_duration_sec != null && (
+            <span> — next leg ~{Math.round(stop.leg_duration_sec / 60)} min</span>
+          )}
+          {!stop.is_start && (
+            <form method="post" action="/api/tours/set-start" style="display:inline">
+              <input type="hidden" name="tour_day_id" value={tour.id} />
+              <input type="hidden" name="listing_id" value={stop.listing_id} />
+              <button type="submit">Set start</button>
+            </form>
+          )}
+        </li>
+      ))}
+    </ol>
+    <button type="button" id="optimize-btn">Optimize route</button>
+    <pre id="optimize-status"></pre>
+    <div
+      id="tour-map"
+      style="height:420px;margin-top:1rem"
+      data-stops={JSON.stringify(mapStops)}
+      data-key={browserKey}
+      data-map-id={mapId}
+    ></div>
+    <script src="/scripts/tour-map.js" type="module"></script>
+    <script define:vars={{ tourId: tour.id }}>
+      document.getElementById('optimize-btn')?.addEventListener('click', async () => {
+        const status = document.getElementById('optimize-status');
+        status!.textContent = 'Optimizing…';
+        const res = await fetch('/api/tours/optimize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tourDayId: tourId }),
+        });
+        const data = await res.json();
+        status!.textContent = JSON.stringify(data, null, 2);
+        if (data.ok) location.reload();
+      });
+    </script>
+  </body>
+</html>
