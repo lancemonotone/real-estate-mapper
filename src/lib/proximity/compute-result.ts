@@ -1,70 +1,54 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { computeRouteMatrix, type TravelMode } from '../google/route-matrix';
-import type {
-  Database,
-  Locale,
-  ProximityCriterion,
-  ProximityResult,
-  ProximityResultStatus,
-} from '../types/database';
-import { fillLocalePoisForType } from './fill-pois';
-import { googleMapsCoordUrl, googleMapsPlaceUrl } from './maps-url';
-import { pickWinnerByDuration } from './pick-winner';
+import { computeRouteMatrix } from '../google/route-matrix';
+import type { Database, ProximityResult, TravelMode } from '../types/database';
 import {
-  PLACE_TYPE_CATALOG,
-  PROXIMITY_SHORTLIST_N,
-  type PlaceTypeKey,
-  type PoiCandidate,
-} from './place-types';
-import { shortlistPois } from './shortlist';
+  evaluateCriterionProximity,
+  type ProximityOutcome,
+} from './compute-core';
+import { googleMapsDirectionsUrl } from './maps-url';
 
 type Client = SupabaseClient<Database>;
 
 export type ProximityResultRow = ProximityResult;
 
-type ResultUpsert = {
-  listing_id: string;
-  criterion_id: string;
-  status: ProximityResultStatus;
-  place_id?: string | null;
-  place_name?: string | null;
-  place_lat?: number | null;
-  place_lng?: number | null;
-  duration_sec?: number | null;
-  distance_m?: number | null;
-  maps_url?: string | null;
-  error_message?: string | null;
-};
-
-function isPlaceTypeKey(key: string): key is PlaceTypeKey {
-  return Object.prototype.hasOwnProperty.call(PLACE_TYPE_CATALOG, key);
-}
-
-function isTravelMode(mode: string): mode is TravelMode {
+export function shouldRefreshLockedRoute(row: {
+  locked: boolean;
+  status: string;
+  place_lat: number | null;
+  place_lng: number | null;
+  place_id: string | null;
+  place_name: string | null;
+}): boolean {
   return (
-    mode === 'DRIVE' ||
-    mode === 'WALK' ||
-    mode === 'BICYCLE' ||
-    mode === 'TRANSIT'
+    row.locked === true &&
+    row.status === 'ok' &&
+    row.place_lat != null &&
+    row.place_lng != null &&
+    row.place_id != null &&
+    row.place_name != null
   );
 }
 
 async function upsertResult(
   supabase: Client,
-  row: ResultUpsert,
+  listingId: string,
+  criterionId: string,
+  row: ProximityOutcome,
+  locked: boolean,
 ): Promise<ProximityResultRow> {
   const payload = {
-    listing_id: row.listing_id,
-    criterion_id: row.criterion_id,
+    listing_id: listingId,
+    criterion_id: criterionId,
     status: row.status,
-    place_id: row.place_id ?? null,
-    place_name: row.place_name ?? null,
-    place_lat: row.place_lat ?? null,
-    place_lng: row.place_lng ?? null,
-    duration_sec: row.duration_sec ?? null,
-    distance_m: row.distance_m ?? null,
-    maps_url: row.maps_url ?? null,
-    error_message: row.error_message ?? null,
+    place_id: row.place_id,
+    place_name: row.place_name,
+    place_lat: row.place_lat,
+    place_lng: row.place_lng,
+    duration_sec: row.duration_sec,
+    distance_m: row.distance_m,
+    maps_url: row.maps_url,
+    error_message: row.error_message,
+    locked,
     computed_at: new Date().toISOString(),
   };
 
@@ -80,193 +64,117 @@ async function upsertResult(
   return data;
 }
 
-async function loadLocalePois(
-  supabase: Client,
-  localeId: string,
-  placeTypeKey: string,
-): Promise<PoiCandidate[]> {
-  const { data, error } = await supabase
-    .from('locale_pois')
-    .select('place_id, name, lat, lng')
-    .eq('locale_id', localeId)
-    .eq('place_type_key', placeTypeKey);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data ?? []).map((row) => ({
-    placeId: row.place_id,
-    name: row.name,
-    lat: row.lat,
-    lng: row.lng,
-  }));
-}
-
-async function computeFixedPin(
+async function refreshLockedRoute(
   supabase: Client,
   listingId: string,
-  criterion: ProximityCriterion,
-  origin: { lat: number; lng: number },
+  criterionId: string,
+  existing: ProximityResultRow,
+  travelMode: TravelMode,
 ): Promise<ProximityResultRow> {
-  if (criterion.pin_lat == null || criterion.pin_lng == null) {
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'error',
-      error_message: 'Fixed pin criterion missing coordinates',
-    });
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('lat, lng')
+    .eq('id', listingId)
+    .single();
+
+  if (listingError || !listing) {
+    throw new Error(listingError?.message ?? 'Listing not found');
+  }
+  if (listing.lat == null || listing.lng == null) {
+    return upsertResult(
+      supabase,
+      listingId,
+      criterionId,
+      {
+        status: 'needs_geocode',
+        place_id: existing.place_id,
+        place_name: existing.place_name,
+        place_lat: existing.place_lat,
+        place_lng: existing.place_lng,
+        duration_sec: null,
+        distance_m: null,
+        maps_url: null,
+        error_message: null,
+      },
+      true,
+    );
   }
 
-  if (!isTravelMode(criterion.travel_mode)) {
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'error',
-      error_message: `Invalid travel mode: ${criterion.travel_mode}`,
-    });
-  }
+  const origin = { lat: listing.lat, lng: listing.lng };
+  const dest = {
+    lat: existing.place_lat!,
+    lng: existing.place_lng!,
+    placeId: existing.place_id,
+    name: existing.place_name,
+  };
 
   try {
     const legs = await computeRouteMatrix({
       origin,
-      destinations: [{ lat: criterion.pin_lat, lng: criterion.pin_lng }],
-      travelMode: criterion.travel_mode,
+      destinations: [{ lat: dest.lat, lng: dest.lng }],
+      travelMode,
     });
     const leg = legs.find((l) => l.destinationIndex === 0 && l.ok);
     if (!leg) {
-      return upsertResult(supabase, {
-        listing_id: listingId,
-        criterion_id: criterion.id,
-        status: 'error',
-        error_message: 'No route to fixed pin',
-      });
+      return upsertResult(
+        supabase,
+        listingId,
+        criterionId,
+        {
+          status: 'error',
+          place_id: existing.place_id,
+          place_name: existing.place_name,
+          place_lat: existing.place_lat,
+          place_lng: existing.place_lng,
+          duration_sec: null,
+          distance_m: null,
+          maps_url: null,
+          error_message: 'No route to locked place',
+        },
+        true,
+      );
     }
 
-    const maps_url = criterion.pin_place_id
-      ? googleMapsPlaceUrl(criterion.pin_place_id)
-      : googleMapsCoordUrl(criterion.pin_lat, criterion.pin_lng);
-
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'ok',
-      place_id: criterion.pin_place_id,
-      place_name: criterion.pin_name,
-      place_lat: criterion.pin_lat,
-      place_lng: criterion.pin_lng,
-      duration_sec: Math.round(leg.durationSec),
-      distance_m: Math.round(leg.distanceM),
-      maps_url,
-    });
+    return upsertResult(
+      supabase,
+      listingId,
+      criterionId,
+      {
+        status: 'ok',
+        place_id: existing.place_id,
+        place_name: existing.place_name,
+        place_lat: existing.place_lat,
+        place_lng: existing.place_lng,
+        duration_sec: Math.round(leg.durationSec),
+        distance_m: Math.round(leg.distanceM),
+        maps_url: googleMapsDirectionsUrl({
+          origin,
+          destination: dest,
+          travelMode,
+        }),
+        error_message: null,
+      },
+      true,
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Route matrix failed';
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'error',
-      error_message: message,
-    });
-  }
-}
-
-async function computePlaceType(
-  supabase: Client,
-  listingId: string,
-  criterion: ProximityCriterion,
-  locale: Locale,
-  origin: { lat: number; lng: number },
-): Promise<ProximityResultRow> {
-  const key = criterion.place_type_key;
-  if (!key || !isPlaceTypeKey(key)) {
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'error',
-      error_message: key
-        ? `Unknown place type key: ${key}`
-        : 'place_type criterion missing place_type_key',
-    });
-  }
-
-  if (!isTravelMode(criterion.travel_mode)) {
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'error',
-      error_message: `Invalid travel mode: ${criterion.travel_mode}`,
-    });
-  }
-
-  let pois = await loadLocalePois(supabase, locale.id, key);
-  if (pois.length === 0) {
-    try {
-      await fillLocalePoisForType(supabase, locale, key);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Places fill failed';
-      return upsertResult(supabase, {
-        listing_id: listingId,
-        criterion_id: criterion.id,
+    return upsertResult(
+      supabase,
+      listingId,
+      criterionId,
+      {
         status: 'error',
+        place_id: existing.place_id,
+        place_name: existing.place_name,
+        place_lat: existing.place_lat,
+        place_lng: existing.place_lng,
+        duration_sec: null,
+        distance_m: null,
+        maps_url: null,
         error_message: message,
-      });
-    }
-    pois = await loadLocalePois(supabase, locale.id, key);
-  }
-
-  if (pois.length === 0) {
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'no_place',
-    });
-  }
-
-  const shortlist = shortlistPois(origin, pois, PROXIMITY_SHORTLIST_N);
-  if (shortlist.length === 0) {
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'no_place',
-    });
-  }
-
-  try {
-    const legs = await computeRouteMatrix({
-      origin,
-      destinations: shortlist.map((p) => ({ lat: p.lat, lng: p.lng })),
-      travelMode: criterion.travel_mode,
-    });
-    const winner = pickWinnerByDuration(shortlist, legs);
-    if (!winner) {
-      return upsertResult(supabase, {
-        listing_id: listingId,
-        criterion_id: criterion.id,
-        status: 'error',
-        error_message: 'No route among shortlisted places',
-      });
-    }
-
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'ok',
-      place_id: winner.poi.placeId,
-      place_name: winner.poi.name,
-      place_lat: winner.poi.lat,
-      place_lng: winner.poi.lng,
-      duration_sec: Math.round(winner.durationSec),
-      distance_m: Math.round(winner.distanceM),
-      maps_url: googleMapsPlaceUrl(winner.poi.placeId),
-    });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'Route matrix failed';
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterion.id,
-      status: 'error',
-      error_message: message,
-    });
+      },
+      true,
+    );
   }
 }
 
@@ -274,17 +182,7 @@ export async function computeProximityResult(
   supabase: Client,
   listingId: string,
   criterionId: string,
-): Promise<ProximityResultRow> {
-  const { data: listing, error: listingError } = await supabase
-    .from('listings')
-    .select('id, locale_id, lat, lng')
-    .eq('id', listingId)
-    .single();
-
-  if (listingError || !listing) {
-    throw new Error(listingError?.message ?? 'Listing not found');
-  }
-
+): Promise<ProximityResultRow & { candidates?: ProximityOutcome['candidates'] }> {
   const { data: criterion, error: criterionError } = await supabase
     .from('proximity_criteria')
     .select('*')
@@ -295,40 +193,86 @@ export async function computeProximityResult(
     throw new Error(criterionError?.message ?? 'Criterion not found');
   }
 
-  if (listing.locale_id !== criterion.locale_id) {
-    throw new Error('Listing and criterion belong to different locales');
+  const { data: existing } = await supabase
+    .from('proximity_results')
+    .select('*')
+    .eq('listing_id', listingId)
+    .eq('criterion_id', criterionId)
+    .maybeSingle();
+
+  if (existing && shouldRefreshLockedRoute(existing)) {
+    const row = await refreshLockedRoute(
+      supabase,
+      listingId,
+      criterionId,
+      existing,
+      criterion.travel_mode,
+    );
+    return row;
   }
 
-  const { data: locale, error: localeError } = await supabase
-    .from('locales')
+  const outcome = await evaluateCriterionProximity(supabase, listingId, criterion);
+  const row = await upsertResult(
+    supabase,
+    listingId,
+    criterionId,
+    outcome,
+    existing?.locked ?? false,
+  );
+  return { ...row, candidates: outcome.candidates };
+}
+
+export async function setProximityResultLock(
+  supabase: Client,
+  listingId: string,
+  criterionId: string,
+  locked: boolean,
+): Promise<ProximityResultRow> {
+  const { data, error } = await supabase
+    .from('proximity_results')
+    .update({ locked })
+    .eq('listing_id', listingId)
+    .eq('criterion_id', criterionId)
     .select('*')
-    .eq('id', listing.locale_id)
     .single();
 
-  if (localeError || !locale) {
-    throw new Error(localeError?.message ?? 'Locale not found');
+  if (error || !data) {
+    throw new Error(error?.message ?? 'Failed to update lock');
   }
+  return data;
+}
 
-  if (listing.lat == null || listing.lng == null) {
-    return upsertResult(supabase, {
-      listing_id: listingId,
-      criterion_id: criterionId,
-      status: 'needs_geocode',
-    });
-  }
-
-  const origin = { lat: listing.lat, lng: listing.lng };
-
-  switch (criterion.kind) {
-    case 'fixed_pin':
-      return computeFixedPin(supabase, listingId, criterion, origin);
-    case 'place_type':
-      return computePlaceType(supabase, listingId, criterion, locale, origin);
-    default: {
-      const _exhaustive: never = criterion.kind;
-      throw new Error(`Unknown criterion kind: ${String(_exhaustive)}`);
-    }
-  }
+export async function upsertLockedProximityResult(
+  supabase: Client,
+  listingId: string,
+  criterionId: string,
+  place: {
+    place_id: string;
+    place_name: string;
+    place_lat: number;
+    place_lng: number;
+    duration_sec: number;
+    distance_m: number;
+    maps_url: string;
+  },
+): Promise<ProximityResultRow> {
+  return upsertResult(
+    supabase,
+    listingId,
+    criterionId,
+    {
+      status: 'ok',
+      place_id: place.place_id,
+      place_name: place.place_name,
+      place_lat: place.place_lat,
+      place_lng: place.place_lng,
+      duration_sec: place.duration_sec,
+      distance_m: place.distance_m,
+      maps_url: place.maps_url,
+      error_message: null,
+    },
+    true,
+  );
 }
 
 export async function computeStaleForLocale(
