@@ -45,6 +45,15 @@ export type Listing = {
   photo_url: string | null;
   appointment_at: string | null;
   notes: string | null;
+  price_monthly: number | null;
+  deposit: number | null;
+  fees_monthly: number | null;
+  sqft: number | null;
+  beds: number | null;
+  baths: number | null;
+  pet_rent_monthly: number | null;
+  pet_deposit: number | null;
+  amenities: string[] | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

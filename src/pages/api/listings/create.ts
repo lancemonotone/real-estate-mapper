@@ -3,6 +3,11 @@ import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { geocodeAddress } from '../../../lib/google/geocode';
 import { ensureLocaleCoversPoint } from '../../../lib/geo/ensure-locale-covers';
+import {
+  parseAmenities,
+  parseOptionalInt,
+  parseOptionalNumber,
+} from '../../../lib/listings/format-attributes';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -25,6 +30,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const notes = String(form.get('notes') ?? '').trim() || null;
   const appointmentRaw = String(form.get('appointment_at') ?? '').trim();
   const appointment_at = appointmentRaw ? new Date(appointmentRaw).toISOString() : null;
+  const price_monthly = parseOptionalNumber(form.get('price_monthly'));
+  const deposit = parseOptionalNumber(form.get('deposit'));
+  const fees_monthly = parseOptionalNumber(form.get('fees_monthly'));
+  const sqft = parseOptionalInt(form.get('sqft'));
+  const beds = parseOptionalNumber(form.get('beds'));
+  const baths = parseOptionalNumber(form.get('baths'));
+  const pet_rent_monthly = parseOptionalNumber(form.get('pet_rent_monthly'));
+  const pet_deposit = parseOptionalNumber(form.get('pet_deposit'));
+  const amenities = parseAmenities(form.get('amenities'));
 
   let lat: number | null = null;
   let lng: number | null = null;
@@ -52,6 +66,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       appointment_at,
       lat,
       lng,
+      price_monthly,
+      deposit,
+      fees_monthly,
+      sqft,
+      beds,
+      baths,
+      pet_rent_monthly,
+      pet_deposit,
+      amenities,
       created_by: user.id,
     })
     .select('id')

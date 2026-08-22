@@ -1,0 +1,121 @@
+---
+import AppLayout from '../../../../layouts/AppLayout.astro';
+import { getLocaleForNestMember } from '../../../../lib/supabase/nest';
+import {
+  formatAmenities,
+  formatMoney,
+  formatNumber,
+  formatSqft,
+} from '../../../../lib/listings/format-attributes';
+import type { Listing } from '../../../../lib/types/database';
+
+const { localeId } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
+if (!locale) return new Response('Not found', { status: 404 });
+
+const base = `/app/locales/${locale.id}`;
+
+const { data: listings } = await supabase
+  .from('listings')
+  .select(
+    'id, name, address, photo_url, price_monthly, deposit, fees_monthly, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities',
+  )
+  .eq('locale_id', locale.id)
+  .order('created_at', { ascending: false });
+
+const rows = (listings ?? []) as Pick<
+  Listing,
+  | 'id'
+  | 'name'
+  | 'address'
+  | 'photo_url'
+  | 'price_monthly'
+  | 'deposit'
+  | 'fees_monthly'
+  | 'sqft'
+  | 'beds'
+  | 'baths'
+  | 'pet_rent_monthly'
+  | 'pet_deposit'
+  | 'amenities'
+>[];
+
+const columns: { label: string; cell: (l: (typeof rows)[number]) => string }[] = [
+  { label: 'Price / mo', cell: (l) => formatMoney(l.price_monthly) },
+  { label: 'Deposit', cell: (l) => formatMoney(l.deposit) },
+  { label: 'Fees / mo', cell: (l) => formatMoney(l.fees_monthly) },
+  { label: 'Sq ft', cell: (l) => formatSqft(l.sqft) },
+  { label: 'Beds', cell: (l) => formatNumber(l.beds) },
+  { label: 'Baths', cell: (l) => formatNumber(l.baths) },
+  { label: 'Pet rent / mo', cell: (l) => formatMoney(l.pet_rent_monthly) },
+  { label: 'Pet deposit', cell: (l) => formatMoney(l.pet_deposit) },
+  { label: 'Amenities', cell: (l) => formatAmenities(l.amenities) },
+];
+---
+<AppLayout
+  title={`Attributes — ${locale.name}`}
+  crumbs={[
+    { href: '/app', label: 'Nest' },
+    { href: base, label: locale.name },
+    { label: 'Attributes' },
+  ]}
+>
+  <header class="compare-header">
+    <div class="compare-header__titles">
+      <h1 class="compare-header__title">Attributes</h1>
+      <p class="muted compare-header__sub">Listing details side by side for this Locale.</p>
+    </div>
+  </header>
+
+  {
+    rows.length === 0 ? (
+      <p class="muted">No listings in this Locale yet.</p>
+    ) : (
+      <div class="attributes-scroll">
+        <table class="data attributes-table">
+          <thead>
+            <tr>
+              <th class="attributes-table__listing">Listing</th>
+              {columns.map((col) => (
+                <th>{col.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((listing) => {
+              const title = listing.name || listing.address || listing.id;
+              const photo = listing.photo_url;
+              return (
+                <tr>
+                  <th scope="row" class="attributes-table__listing">
+                    <a class="attributes-listing" href={`${base}/listings/${listing.id}`}>
+                      <span class="attributes-listing__media">
+                        {photo ? (
+                          <img class="attributes-listing__thumb" src={photo} alt="" loading="lazy" />
+                        ) : (
+                          <span class="attributes-listing__thumb attributes-listing__thumb--empty" aria-hidden="true">
+                            No photo
+                          </span>
+                        )}
+                      </span>
+                      <span class="attributes-listing__text">
+                        <span class="attributes-listing__name">{title}</span>
+                        {listing.address && listing.name ? (
+                          <span class="muted attributes-listing__address">{listing.address}</span>
+                        ) : null}
+                      </span>
+                    </a>
+                  </th>
+                  {columns.map((col) => (
+                    <td>{col.cell(listing)}</td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</AppLayout>

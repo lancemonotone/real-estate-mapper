@@ -38,6 +38,87 @@ const badges = listing.id
     />
   </label>
   <label>Notes <textarea name="notes">{listing.notes ?? ''}</textarea></label>
+
+  <fieldset class="listing-form__attrs">
+    <legend>Attributes</legend>
+    <label>
+      Price / mo
+      <input
+        name="price_monthly"
+        type="number"
+        inputmode="decimal"
+        step="1"
+        min="0"
+        value={listing.price_monthly ?? ''}
+      />
+    </label>
+    <label>
+      Deposit
+      <input
+        name="deposit"
+        type="number"
+        inputmode="decimal"
+        step="1"
+        min="0"
+        value={listing.deposit ?? ''}
+      />
+    </label>
+    <label>
+      Fees / mo
+      <input
+        name="fees_monthly"
+        type="number"
+        inputmode="decimal"
+        step="1"
+        min="0"
+        value={listing.fees_monthly ?? ''}
+      />
+    </label>
+    <label>
+      Sq ft
+      <input name="sqft" type="number" inputmode="numeric" step="1" min="0" value={listing.sqft ?? ''} />
+    </label>
+    <label>
+      Beds
+      <input name="beds" type="number" inputmode="decimal" step="0.5" min="0" value={listing.beds ?? ''} />
+    </label>
+    <label>
+      Baths
+      <input name="baths" type="number" inputmode="decimal" step="0.5" min="0" value={listing.baths ?? ''} />
+    </label>
+    <label>
+      Pet rent / mo
+      <input
+        name="pet_rent_monthly"
+        type="number"
+        inputmode="decimal"
+        step="1"
+        min="0"
+        value={listing.pet_rent_monthly ?? ''}
+      />
+    </label>
+    <label>
+      Pet deposit
+      <input
+        name="pet_deposit"
+        type="number"
+        inputmode="decimal"
+        step="1"
+        min="0"
+        value={listing.pet_deposit ?? ''}
+      />
+    </label>
+    <label>
+      Amenities
+      <input
+        name="amenities"
+        type="text"
+        placeholder="comma-separated, e.g. pool, gym"
+        value={(listing.amenities ?? []).join(', ')}
+      />
+    </label>
+  </fieldset>
+
   <div class="listing-form__actions">
     <button type="submit">{submitLabel}</button>
     <slot name="actions" />
@@ -61,5 +142,34 @@ const badges = listing.id
     align-items: center;
     gap: var(--actions-gap);
     padding-block-start: 0.35rem;
+  }
+
+  .listing-form__attrs {
+    --attrs-gap: 0.85rem;
+    --attrs-cols: 1fr;
+
+    margin: 0;
+    padding: 0.85rem 1rem 1rem;
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-md);
+    background: var(--glass-wash);
+    display: grid;
+    grid-template-columns: var(--attrs-cols);
+    gap: var(--attrs-gap);
+
+    & legend {
+      font-family: var(--font-display);
+      font-weight: 600;
+      padding-inline: 0.35rem;
+    }
+
+    & label:last-of-type {
+      grid-column: 1 / -1;
+    }
+
+    @media (min-width: 768px) {
+      --attrs-cols: 1fr 1fr;
+      --attrs-gap: 1rem;
+    }
   }
 </style>
