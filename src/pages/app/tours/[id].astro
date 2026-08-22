@@ -63,6 +63,7 @@ const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
       data-stops={JSON.stringify(mapStops)}
       data-key={browserKey}
       data-map-id={mapId}
+      data-polyline={tour.encoded_polyline ?? ''}
     ></div>
     <script src="/scripts/tour-map.js" type="module"></script>
     <script define:vars={{ tourId: tour.id }}>

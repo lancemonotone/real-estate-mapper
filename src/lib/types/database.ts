@@ -42,6 +42,7 @@ export type TourDay = {
   workspace_id: string;
   tour_date: string;
   label: string | null;
+  encoded_polyline: string | null;
   created_at: string;
 };
 

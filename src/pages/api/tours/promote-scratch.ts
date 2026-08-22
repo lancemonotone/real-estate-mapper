@@ -17,6 +17,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     listingIdsInOrder?: string[];
     startListingId?: string;
     legs?: Array<{ durationSec: number; distanceM: number }>;
+    encodedPolyline?: string | null;
   };
 
   if (!body.tourDate || !body.listingIdsInOrder?.length || !body.startListingId) {
@@ -26,7 +27,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const { data: tourDay, error } = await supabase
     .from('tour_days')
     .upsert(
-      { workspace_id: workspaceId, tour_date: body.tourDate },
+      {
+        workspace_id: workspaceId,
+        tour_date: body.tourDate,
+        encoded_polyline: body.encodedPolyline ?? null,
+      },
       { onConflict: 'workspace_id,tour_date' },
     )
     .select('id')

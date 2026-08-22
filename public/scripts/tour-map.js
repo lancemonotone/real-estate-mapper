@@ -5,6 +5,7 @@ async function initTourMap() {
   const key = el.dataset.key;
   const mapId = el.dataset.mapId;
   const stops = JSON.parse(el.dataset.stops || '[]');
+  const encodedPolyline = el.dataset.polyline || '';
 
   if (!key || !mapId) {
     el.textContent = 'Missing PUBLIC_GOOGLE_MAPS_BROWSER_KEY or PUBLIC_GOOGLE_MAPS_MAP_ID';
@@ -58,6 +59,22 @@ async function initTourMap() {
 
     new AdvancedMarkerElement({ map, position, title: stop.name, content });
   }
+
+  if (encodedPolyline) {
+    const { encoding } = await google.maps.importLibrary('geometry');
+    const path = encoding.decodePath(encodedPolyline);
+    new google.maps.Polyline({
+      path,
+      map,
+      strokeColor: '#1a73e8',
+      strokeOpacity: 0.9,
+      strokeWeight: 5,
+    });
+    for (const point of path) {
+      bounds.extend(point);
+    }
+  }
+
   map.fitBounds(bounds);
 }
 

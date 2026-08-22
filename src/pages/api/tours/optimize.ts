@@ -78,6 +78,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           .eq('tour_day_id', tourDayId)
           .eq('listing_id', listingId);
       }
+      await supabase
+        .from('tour_days')
+        .update({ encoded_polyline: result.encodedPolyline ?? null })
+        .eq('id', tourDayId);
     }
 
     return Response.json({ ok: true, ...result });

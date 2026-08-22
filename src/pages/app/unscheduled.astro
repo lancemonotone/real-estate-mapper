@@ -104,6 +104,7 @@ const unscheduled = (listings ?? []).filter((l) => !assignedIds.has(l.id));
             listingIdsInOrder: lastResult.orderedIds,
             startListingId: lastResult.orderedIds[0],
             legs: lastResult.legs,
+            encodedPolyline: lastResult.encodedPolyline ?? null,
           }),
         });
         const data = await res.json();
