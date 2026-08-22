@@ -6,7 +6,10 @@ type OptimizePlan = ReturnType<typeof buildOptimizePlan>;
 export type RouteLeg = { durationSec: number; distanceM: number };
 
 export type OptimizedRoute = {
+  /** Listing ids in visit order (custom endpoints omitted). */
   orderedIds: string[];
+  /** Full path ids including nulls for custom start/end slots. */
+  fullPathIds: Array<string | null>;
   legs: RouteLeg[];
   encodedPolyline?: string;
 };
@@ -54,10 +57,17 @@ export async function computeOptimizedRoute(
   }
 
   const intermediateOrder = route.optimizedIntermediateWaypointIndex ?? [];
-  const orderedIntermediateIds = intermediateOrder.map(
-    (i) => plan.intermediateIds[i]!,
-  );
-  const orderedIds = [plan.originId, ...orderedIntermediateIds, plan.destinationId];
+  const orderedIntermediateIds =
+    intermediateOrder.length > 0
+      ? intermediateOrder.map((i) => plan.intermediateIds[i]!)
+      : [...plan.intermediateIds];
+
+  const fullPathIds: Array<string | null> = [
+    plan.originId,
+    ...orderedIntermediateIds,
+    plan.destinationId,
+  ];
+  const orderedIds = fullPathIds.filter((id): id is string => id != null);
 
   const legs: RouteLeg[] = (route.legs ?? []).map((leg) => ({
     durationSec: parseDurationSec(leg.duration),
@@ -66,6 +76,7 @@ export async function computeOptimizedRoute(
 
   return {
     orderedIds,
+    fullPathIds,
     legs,
     encodedPolyline: route.polyline?.encodedPolyline,
   };

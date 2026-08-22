@@ -21,5 +21,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     .eq('listing_id', listingId);
 
   if (error) return new Response(error.message, { status: 400 });
+
+  // Property start replaces custom start.
+  await supabase
+    .from('tour_days')
+    .update({ start_address: null, start_lat: null, start_lng: null })
+    .eq('id', tourDayId);
+
   return redirect(`/app/tours/${tourDayId}`);
 };

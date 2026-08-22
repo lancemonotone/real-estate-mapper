@@ -43,6 +43,12 @@ export type TourDay = {
   tour_date: string;
   label: string | null;
   encoded_polyline: string | null;
+  start_address: string | null;
+  start_lat: number | null;
+  start_lng: number | null;
+  end_address: string | null;
+  end_lat: number | null;
+  end_lng: number | null;
   created_at: string;
 };
 

@@ -1,4 +1,25 @@
 import { haversineMeters } from './haversine';
+import type { LatLng } from './haversine';
+
+export function pickFarthestPointId(
+  origin: LatLng,
+  points: Array<{ id: string; lat: number; lng: number }>,
+): string {
+  if (points.length < 1) {
+    throw new Error('Optimize requires at least 1 geocoded stop');
+  }
+
+  let best = points[0]!;
+  let bestDist = haversineMeters(origin, best);
+  for (const p of points.slice(1)) {
+    const d = haversineMeters(origin, p);
+    if (d > bestDist || (d === bestDist && p.id < best.id)) {
+      best = p;
+      bestDist = d;
+    }
+  }
+  return best.id;
+}
 
 export function pickDestinationListingId(
   startId: string,
@@ -10,15 +31,5 @@ export function pickDestinationListingId(
   if (others.length < 1) {
     throw new Error('Optimize requires at least 2 geocoded stops');
   }
-
-  let best = others[0]!;
-  let bestDist = haversineMeters(start, best);
-  for (const p of others.slice(1)) {
-    const d = haversineMeters(start, p);
-    if (d > bestDist || (d === bestDist && p.id < best.id)) {
-      best = p;
-      bestDist = d;
-    }
-  }
-  return best.id;
+  return pickFarthestPointId(start, others);
 }

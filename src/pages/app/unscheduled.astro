@@ -41,14 +41,23 @@ const unscheduled = (listings ?? []).filter((l) => !assignedIds.has(l.id));
             {listingBadges(listing).join(', ')}
           </label>
         ))}
+        <p>Start: use a custom address <em>or</em> pick a listing (custom wins if both).</p>
         <label>
-          Start listing id
+          Custom start address
+          <input type="text" name="customStartAddress" id="scratch-start-address" placeholder="optional" />
+        </label>
+        <label>
+          Start listing
           <select name="start" id="scratch-start">
-            <option value="">Select start</option>
+            <option value="">Select start listing</option>
             {unscheduled.map((l) => (
               <option value={l.id}>{l.name || l.address || l.id}</option>
             ))}
           </select>
+        </label>
+        <label>
+          Custom end address
+          <input type="text" name="customEndAddress" id="scratch-end-address" placeholder="optional" />
         </label>
         <button type="submit">Scratch optimize</button>
       </fieldset>
@@ -81,10 +90,21 @@ const unscheduled = (listings ?? []).filter((l) => !assignedIds.has(l.id));
         );
         const startEl = document.getElementById('scratch-start');
         const startListingId = startEl instanceof HTMLSelectElement ? startEl.value : '';
+        const startAddrEl = document.getElementById('scratch-start-address');
+        const endAddrEl = document.getElementById('scratch-end-address');
+        const customStartAddress =
+          startAddrEl instanceof HTMLInputElement ? startAddrEl.value.trim() : '';
+        const customEndAddress =
+          endAddrEl instanceof HTMLInputElement ? endAddrEl.value.trim() : '';
         const res = await fetch('/api/tours/optimize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scratchListingIds: ids, startListingId }),
+          body: JSON.stringify({
+            scratchListingIds: ids,
+            startListingId: customStartAddress ? undefined : startListingId || undefined,
+            customStartAddress: customStartAddress || undefined,
+            customEndAddress: customEndAddress || undefined,
+          }),
         });
         lastResult = await res.json();
         const resultEl = document.getElementById('scratch-result');
@@ -102,9 +122,14 @@ const unscheduled = (listings ?? []).filter((l) => !assignedIds.has(l.id));
           body: JSON.stringify({
             tourDate,
             listingIdsInOrder: lastResult.orderedIds,
-            startListingId: lastResult.orderedIds[0],
+            startListingId: lastResult.customStart
+              ? null
+              : lastResult.orderedIds[0],
+            fullPathIds: lastResult.fullPathIds,
             legs: lastResult.legs,
             encodedPolyline: lastResult.encodedPolyline ?? null,
+            customStart: lastResult.customStart,
+            customEnd: lastResult.customEnd,
           }),
         });
         const data = await res.json();

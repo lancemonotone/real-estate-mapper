@@ -16,7 +16,7 @@ Buyers and renters need an organizational tool to collect property listings (wit
 - **Appointment date/time** fields for organization; **route by calendar day** (different days → different routes).
 - **Unscheduled pool** for listings not on a day; allow **scratch optimize** without saving a tour; optional **promote to tour day**.
 - Show **estimated drive time between stops** so users can propose viewing times.
-- Per tour (or scratch run): user marks one listing as **Start here**.
+- Per tour (or scratch run): user sets an optional **custom start/end address** (non-listing), or marks one listing as **Start here**. If no custom start/end is set, fall back to a property (start listing / farthest destination).
 
 ## Non-goals (v1)
 
@@ -71,13 +71,13 @@ Google Maps Platform
 
 ### Optimize request shape
 
-Google Routes keeps origin and destination fixed and reorders intermediates only. v1 uses an **open path** (no home base):
+Google Routes keeps origin and destination fixed and reorders intermediates only. v1 uses an **open path**:
 
-- **Origin:** the stop marked `is_start`.
-- **Destination:** among the other geocoded stops, the one farthest from origin by geodesic distance (tie-break: lowest `listing_id`). This picks a terminal property without a second user gesture.
-- **Intermediates:** all remaining geocoded stops (`via` must be false).
+- **Origin:** optional custom start address (geocoded), else the stop marked `is_start`.
+- **Destination:** optional custom end address (geocoded), else among the other geocoded listing stops, the one farthest from origin by geodesic distance (tie-break: lowest `listing_id`).
+- **Intermediates:** all remaining geocoded listing stops (`via` must be false).
 - **Flags:** `travelMode: DRIVE`, `optimizeWaypointOrder: true`; request leg duration/distance fields in the field mask.
-- **Persist (tour day only):** `sort_order`, `leg_duration_sec`, `leg_distance_m` from the response.
+- **Persist (tour day only):** `sort_order`, `leg_duration_sec`, `leg_distance_m` from the response; optional `start_*` / `end_*` on `tour_days` for custom endpoints.
 - **Scratch:** keep order + ETAs in UI/session state only until “Save as tour for [date]”.
 
 ## Data model
@@ -90,7 +90,7 @@ All listing/tour data is workspace-scoped. RLS: only `workspace_members` may rea
 | **workspaces** | Household; invite secret stored hashed; raw token only in the invite URL |
 | **workspace_members** | `user_id`, `workspace_id`, role (`owner` \| `member`) |
 | **listings** | `name`, `address`, `lat`/`lng` (nullable until geocoded), `source_url`, `photo_path` and/or `photo_url`, `appointment_at` (nullable timestamptz), `notes`, `created_by` |
-| **tour_days** | `workspace_id`, `tour_date` (date), optional label |
+| **tour_days** | `workspace_id`, `tour_date` (date), optional label; optional custom `start_address`/`start_lat`/`start_lng` and `end_address`/`end_lat`/`end_lng` |
 | **tour_stops** | `tour_day_id`, `listing_id`, `is_start`, `sort_order` (nullable until optimized), `leg_duration_sec`, `leg_distance_m` |
 
 ### Domain rules

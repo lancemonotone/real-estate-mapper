@@ -15,13 +15,24 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const body = (await request.json()) as {
     tourDate?: string;
     listingIdsInOrder?: string[];
-    startListingId?: string;
+    startListingId?: string | null;
+    fullPathIds?: Array<string | null>;
     legs?: Array<{ durationSec: number; distanceM: number }>;
     encodedPolyline?: string | null;
+    customStart?: { lat: number; lng: number; address?: string | null } | null;
+    customEnd?: { lat: number; lng: number; address?: string | null } | null;
   };
 
-  if (!body.tourDate || !body.listingIdsInOrder?.length || !body.startListingId) {
-    return Response.json({ error: 'tourDate, listingIdsInOrder, startListingId required' }, { status: 400 });
+  if (!body.tourDate || !body.listingIdsInOrder?.length) {
+    return Response.json({ error: 'tourDate and listingIdsInOrder required' }, { status: 400 });
+  }
+
+  const hasCustomStart = Boolean(body.customStart?.lat != null && body.customStart?.lng != null);
+  if (!hasCustomStart && !body.startListingId) {
+    return Response.json(
+      { error: 'startListingId or customStart required' },
+      { status: 400 },
+    );
   }
 
   const { data: tourDay, error } = await supabase
@@ -31,6 +42,12 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         workspace_id: workspaceId,
         tour_date: body.tourDate,
         encoded_polyline: body.encodedPolyline ?? null,
+        start_address: hasCustomStart ? body.customStart?.address ?? null : null,
+        start_lat: hasCustomStart ? body.customStart!.lat : null,
+        start_lng: hasCustomStart ? body.customStart!.lng : null,
+        end_address: body.customEnd ? body.customEnd.address ?? null : null,
+        end_lat: body.customEnd?.lat ?? null,
+        end_lng: body.customEnd?.lng ?? null,
       },
       { onConflict: 'workspace_id,tour_date' },
     )
@@ -43,14 +60,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   await supabase.from('tour_stops').delete().eq('tour_day_id', tourDay.id);
 
-  const rows = body.listingIdsInOrder.map((listingId, i) => ({
-    tour_day_id: tourDay.id,
-    listing_id: listingId,
-    is_start: listingId === body.startListingId,
-    sort_order: i,
-    leg_duration_sec: body.legs?.[i]?.durationSec ?? null,
-    leg_distance_m: body.legs?.[i]?.distanceM ?? null,
-  }));
+  const fullPathIds = body.fullPathIds ?? body.listingIdsInOrder;
+  const rows = body.listingIdsInOrder.map((listingId, i) => {
+    const fullIdx = fullPathIds.indexOf(listingId);
+    const leg = fullIdx >= 0 ? body.legs?.[fullIdx] : body.legs?.[i];
+    return {
+      tour_day_id: tourDay.id,
+      listing_id: listingId,
+      is_start: !hasCustomStart && listingId === body.startListingId,
+      sort_order: i,
+      leg_duration_sec: leg?.durationSec ?? null,
+      leg_distance_m: leg?.distanceM ?? null,
+    };
+  });
 
   const { error: stopError } = await supabase.from('tour_stops').insert(rows);
   if (stopError) return Response.json({ error: stopError.message }, { status: 400 });

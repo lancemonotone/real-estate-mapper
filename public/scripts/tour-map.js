@@ -1,3 +1,12 @@
+function parseJsonAttr(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 async function initTourMap() {
   const el = document.getElementById('tour-map');
   if (!el) return;
@@ -6,12 +15,14 @@ async function initTourMap() {
   const mapId = el.dataset.mapId;
   const stops = JSON.parse(el.dataset.stops || '[]');
   const encodedPolyline = el.dataset.polyline || '';
+  const customStart = parseJsonAttr(el.dataset.customStart);
+  const customEnd = parseJsonAttr(el.dataset.customEnd);
 
   if (!key || !mapId) {
     el.textContent = 'Missing PUBLIC_GOOGLE_MAPS_BROWSER_KEY or PUBLIC_GOOGLE_MAPS_MAP_ID';
     return;
   }
-  if (!stops.length) {
+  if (!stops.length && !customStart && !customEnd) {
     el.textContent = 'No geocoded stops to show';
     return;
   }
@@ -35,8 +46,14 @@ async function initTourMap() {
       google.maps.importLibrary('marker'),
     ]);
 
+  const center = stops[0]
+    ? { lat: stops[0].lat, lng: stops[0].lng }
+    : customStart
+      ? { lat: customStart.lat, lng: customStart.lng }
+      : { lat: customEnd.lat, lng: customEnd.lng };
+
   const map = new Map(el, {
-    center: { lat: stops[0].lat, lng: stops[0].lng },
+    center,
     zoom: 11,
     mapId,
   });
@@ -70,7 +87,17 @@ async function initTourMap() {
       wrap.appendChild(addr);
     }
 
-    if (stop.isStart) {
+    if (stop.kind === 'custom-start') {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'color:#1a73e8;font-size:12px;font-weight:600;';
+      badge.textContent = 'Custom start';
+      wrap.appendChild(badge);
+    } else if (stop.kind === 'custom-end') {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'color:#188038;font-size:12px;font-weight:600;';
+      badge.textContent = 'Custom end';
+      wrap.appendChild(badge);
+    } else if (stop.isStart) {
       const badge = document.createElement('div');
       badge.style.cssText = 'color:#1a73e8;font-size:12px;font-weight:600;';
       badge.textContent = 'Start';
@@ -85,22 +112,15 @@ async function initTourMap() {
     return wrap;
   }
 
-  const bounds = new google.maps.LatLngBounds();
-  for (const [index, stop] of stops.entries()) {
+  function addMarker(stop, glyph, background, borderColor, header) {
     const position = { lat: stop.lat, lng: stop.lng };
     bounds.extend(position);
-
-    const glyph = stop.isStart
-      ? 'S'
-      : stop.sortOrder != null
-        ? String(stop.sortOrder + 1)
-        : String(index + 1);
 
     const pin = new PinElement({
       glyph,
       glyphColor: '#ffffff',
-      background: stop.isStart ? '#1a73e8' : '#ea4335',
-      borderColor: stop.isStart ? '#174ea6' : '#b31412',
+      background,
+      borderColor,
       scale: 1.1,
     });
 
@@ -114,10 +134,60 @@ async function initTourMap() {
 
     marker.addEventListener('gmp-click', () => {
       infoWindow.close();
-      infoWindow.setHeaderContent(stop.isStart ? 'Start' : `Stop ${glyph}`);
+      infoWindow.setHeaderContent(header);
       infoWindow.setContent(buildInfoContent(stop));
       infoWindow.open({ anchor: marker, map });
     });
+  }
+
+  const bounds = new google.maps.LatLngBounds();
+
+  if (customStart) {
+    addMarker(
+      {
+        name: 'Custom start',
+        address: customStart.address || '',
+        lat: customStart.lat,
+        lng: customStart.lng,
+        kind: 'custom-start',
+      },
+      'S',
+      '#1a73e8',
+      '#174ea6',
+      'Custom start',
+    );
+  }
+
+  for (const [index, stop] of stops.entries()) {
+    const isPropertyStart = !customStart && stop.isStart;
+    const glyph = isPropertyStart
+      ? 'S'
+      : stop.sortOrder != null
+        ? String(stop.sortOrder + 1)
+        : String(index + 1);
+    addMarker(
+      stop,
+      glyph,
+      isPropertyStart ? '#1a73e8' : '#ea4335',
+      isPropertyStart ? '#174ea6' : '#b31412',
+      isPropertyStart ? 'Start' : `Stop ${glyph}`,
+    );
+  }
+
+  if (customEnd) {
+    addMarker(
+      {
+        name: 'Custom end',
+        address: customEnd.address || '',
+        lat: customEnd.lat,
+        lng: customEnd.lng,
+        kind: 'custom-end',
+      },
+      'E',
+      '#188038',
+      '#0d652d',
+      'Custom end',
+    );
   }
 
   if (encodedPolyline) {
