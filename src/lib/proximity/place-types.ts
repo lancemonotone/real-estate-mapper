@@ -14,7 +14,7 @@ export const PLACE_TYPE_CATALOG: Record<
   PlaceTypeKey,
   { label: string; strategy: PlaceTypeStrategy }
 > = {
-  beach: { label: 'Beach', strategy: { kind: 'text', textQuery: 'beach' } },
+  beach: { label: 'Beach', strategy: { kind: 'nearby', includedTypes: ['beach'] } },
   park: { label: 'Park', strategy: { kind: 'nearby', includedTypes: ['park'] } },
   grocery: {
     label: 'Grocery',
@@ -32,6 +32,9 @@ export const PLACE_TYPE_CATALOG: Record<
 };
 
 export const PROXIMITY_SHORTLIST_N = 5;
+
+/** How many routed candidates to return for user choice (listing explore). */
+export const PROXIMITY_CHOICE_N = 3;
 
 export type PoiCandidate = {
   placeId: string;

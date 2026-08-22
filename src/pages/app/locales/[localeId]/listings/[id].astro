@@ -1,6 +1,9 @@
 ---
+import AppLayout from '../../../../../layouts/AppLayout.astro';
+import DirectionsOverlay from '../../../../../components/DirectionsOverlay.astro';
 import ListingForm from '../../../../../components/ListingForm.astro';
 import '../../../../../styles/listing-map.css';
+import { PLACE_TYPE_CATALOG } from '../../../../../lib/proximity/place-types';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
 
 const { localeId, id } = Astro.params;
@@ -13,26 +16,82 @@ if (!listing || listing.locale_id !== locale.id) {
   return new Response('Not found', { status: 404 });
 }
 
+function formatListingMeta(
+  durationSec: number | null | undefined,
+  distanceM: number | null | undefined,
+): string {
+  const parts: string[] = [];
+  if (durationSec != null && Number.isFinite(durationSec)) {
+    const minutes = Math.round(durationSec / 60);
+    if (minutes < 60) parts.push(`${minutes}m`);
+    else {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      parts.push(m ? `${h}h ${m}m` : `${h}h`);
+    }
+  }
+  if (distanceM != null && Number.isFinite(distanceM)) {
+    parts.push(`${(distanceM / 1609.34).toFixed(1)} mi`);
+  }
+  return parts.join(' · ');
+}
+
+const { data: listingPlaces } = await supabase
+  .from('listing_places')
+  .select('*')
+  .eq('listing_id', listing.id)
+  .order('updated_at', { ascending: false });
+
+const { data: lockedResults } = await supabase
+  .from('proximity_results')
+  .select('id, criterion_id, place_name, duration_sec, distance_m, locked, proximity_criteria(label)')
+  .eq('listing_id', listing.id)
+  .eq('locked', true);
+
 const hasLocation = listing.lat != null && listing.lng != null;
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
 const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 const photoUrl = listing.photo_url ?? '';
 const base = `/app/locales/${locale.id}`;
+const placeTypes = Object.entries(PLACE_TYPE_CATALOG).map(([key, v]) => ({
+  key,
+  label: v.label,
+}));
+const listingTitle = listing.name || 'Listing';
+const lockedRows = (lockedResults ?? []).map((row) => {
+  const crit = Array.isArray(row.proximity_criteria)
+    ? row.proximity_criteria[0]
+    : row.proximity_criteria;
+  const label =
+    crit && typeof crit === 'object' && crit !== null && 'label' in crit
+      ? String(crit.label)
+      : 'Compare column';
+  return {
+    criterionId: row.criterion_id,
+    label,
+    placeName: row.place_name,
+    durationSec: row.duration_sec,
+    distanceM: row.distance_m,
+  };
+});
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>{listing.name || 'Listing'}</title>
-  </head>
-  <body>
-    <p><a href={`${base}/listings`}>← Listings</a></p>
-    <h1>{listing.name || 'Listing'}</h1>
+<AppLayout
+  title={listingTitle}
+  crumbs={[
+    { href: '/app', label: 'Nest' },
+    { href: base, label: locale.name },
+    { href: `${base}/listings`, label: 'Listings' },
+    { label: listingTitle },
+  ]}
+>
+  <h1>{listingTitle}</h1>
+  <p class="muted"><a href={`${base}/compare`}>Compare</a></p>
 
-    {hasLocation ? (
+  {
+    hasLocation ? (
       <div
         id="listing-map"
-        class="listing-map"
+        class="listing-map map-well"
         data-key={browserKey}
         data-map-id={mapId}
         data-lat={String(listing.lat)}
@@ -41,40 +100,312 @@ const base = `/app/locales/${locale.id}`;
         data-photo-url={photoUrl}
       ></div>
     ) : (
-      <p class="listing-map-missing">
+      <p class="listing-map-missing muted">
         No map yet — add an address and geocode (or use Retry geocode below).
       </p>
-    )}
+    )
+  }
 
-    <ListingForm
-      listing={listing}
-      action="/api/listings/update"
-      submitLabel="Update listing"
-      localeId={locale.id}
-    />
-    <form id="geocode-form">
-      <button type="submit">Retry geocode</button>
-    </form>
-    <p id="geocode-status"></p>
-    {hasLocation && <script src="/scripts/listing-map.js" type="module"></script>}
-    <script define:vars={{ listingId: listing.id }}>
-      document.getElementById('geocode-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const status = document.getElementById('geocode-status');
-        if (status) status.textContent = 'Geocoding…';
-        const res = await fetch('/api/listings/geocode', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: listingId }),
-        });
-        const data = await res.json();
-        if (status) {
-          status.textContent = data.ok
-            ? `Geocoded: ${data.lat}, ${data.lng}`
-            : data.error || 'Geocode failed';
-        }
-        if (data.ok) location.reload();
+  <section class="proximity-panel panel glass stack" id="proximity-panel">
+    <h2>Proximity</h2>
+    <p class="muted prox-lede">
+      Find a nearby type or search an address/place. Then save it for this listing and/or add it as
+      a Compare column for the Locale.
+    </p>
+    <div class="prox-fields stack">
+      <label>
+        Mode
+        <select id="prox-mode-kind">
+          <option value="nearest">Nearest type</option>
+          <option value="search">Search place</option>
+        </select>
+      </label>
+      <div id="prox-nearest-fields" class="stack">
+        <label>
+          Place type
+          <select id="prox-place-type">
+            {placeTypes.map((t) => (
+              <option value={t.key}>{t.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div id="prox-search-fields" class="stack" hidden>
+        <div class="place-search" id="prox-place-search">
+          <label>
+            Place or address
+            <input type="search" data-place-search-input placeholder="Start typing…" autocomplete="off" />
+          </label>
+          <ul class="place-search__results stack" data-place-search-results hidden></ul>
+          <p class="alert" data-place-search-error hidden></p>
+        </div>
+      </div>
+      <label>
+        Travel mode
+        <select id="prox-mode">
+          <option value="DRIVE">Drive</option>
+          <option value="WALK">Walk</option>
+          <option value="BICYCLE">Bicycle</option>
+          <option value="TRANSIT">Transit</option>
+        </select>
+      </label>
+    </div>
+    <div class="prox-actions">
+      <button type="button" id="prox-run">Find route</button>
+      <button type="button" id="prox-use-listing" class="secondary" hidden>
+        Use for this listing
+      </button>
+      <button type="button" id="prox-add-compare" class="secondary" hidden>
+        Add to Compare
+      </button>
+    </div>
+    <div id="prox-choices" class="prox-choices stack" hidden></div>
+    <div id="prox-result" class="prox-result" hidden></div>
+
+    {
+      lockedRows.length > 0 && (
+        <div class="stack prox-locked">
+          <h3>Locked on Compare</h3>
+          <ul class="stack" id="prox-locked-list">
+            {lockedRows.map((row) => (
+              <li class="prox-saved-item">
+                <div>
+                  <strong>
+                    {row.label} · locked
+                  </strong>
+                  <span class="muted">
+                    {[row.placeName, formatListingMeta(row.durationSec, row.distanceM)]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  class="secondary prox-unlock"
+                  data-criterion-id={row.criterionId}
+                >
+                  Unlock
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    <div class="stack prox-saved">
+      <h3>Saved for this listing</h3>
+      {
+        (listingPlaces ?? []).length === 0 ? (
+          <p class="muted" id="listing-places-empty">None yet.</p>
+        ) : null
+      }
+      <ul class="stack" id="listing-places-list">
+        {(listingPlaces ?? []).map((p) => (
+          <li class="prox-saved-item" data-place-row-id={p.id}>
+            <div>
+              <strong>{p.name}</strong>
+              <span class="muted">
+                {[formatListingMeta(p.duration_sec, p.distance_m), p.travel_mode]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </div>
+            <div class="prox-saved-item__actions">
+              {p.maps_url && (
+                <a href={p.maps_url} target="_blank" rel="noopener">
+                  Open route
+                </a>
+              )}
+              <button type="button" class="secondary listing-place-remove" data-id={p.id}>
+                Remove
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <ListingForm
+    listing={listing}
+    action="/api/listings/update"
+    submitLabel="Update listing"
+    localeId={locale.id}
+  >
+    <button type="button" id="geocode-retry" class="secondary" slot="actions">
+      Retry geocode
+    </button>
+  </ListingForm>
+  <p id="geocode-status" class="muted"></p>
+  {hasLocation && <script src="/scripts/listing-map.js" type="module"></script>}
+  <script
+    define:vars={{
+      listingId: listing.id,
+      localeId: locale.id,
+      hasLocation,
+      mapKey: browserKey,
+      mapId,
+    }}
+  >
+    window.__WAYHOME_LISTING_PROX__ = { listingId, localeId, hasLocation, mapKey, mapId };
+  </script>
+  <DirectionsOverlay />
+  <script src="/scripts/directions-overlay.js" type="module"></script>
+  <script src="/scripts/listing-proximity.js" type="module"></script>
+  <script define:vars={{ listingId: listing.id }}>
+    document.getElementById('geocode-retry')?.addEventListener('click', async () => {
+      const status = document.getElementById('geocode-status');
+      if (status) status.textContent = 'Geocoding…';
+      const res = await fetch('/api/listings/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: listingId }),
       });
-    </script>
-  </body>
-</html>
+      const data = await res.json();
+      if (status) {
+        status.textContent = data.ok
+          ? `Geocoded: ${data.lat}, ${data.lng}`
+          : data.error || 'Geocode failed';
+      }
+      if (data.ok) location.reload();
+    });
+  </script>
+  <style>
+    .proximity-panel {
+      --prox-gap: 1.35rem;
+      gap: var(--prox-gap);
+      margin-block: 1.75rem;
+
+      @media (min-width: 768px) {
+        --prox-gap: 1.5rem;
+      }
+    }
+
+    .proximity-panel label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .proximity-panel .prox-lede {
+      margin: 0;
+      max-inline-size: 42rem;
+      line-height: 1.55;
+    }
+
+    .proximity-panel .prox-fields {
+      gap: 1.15rem;
+      padding-block: 0.25rem;
+    }
+
+    .proximity-panel .prox-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding-block: 0.5rem 0.15rem;
+    }
+
+    .proximity-panel .pin-fields[hidden],
+    .prox-choices[hidden],
+    .prox-result[hidden],
+    .place-search__results[hidden],
+    [data-place-search-error][hidden],
+    #prox-nearest-fields[hidden],
+    #prox-search-fields[hidden] {
+      display: none;
+    }
+
+    .place-search__results {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      gap: 0.35rem;
+    }
+
+    .place-search__option {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.2rem;
+      inline-size: 100%;
+      text-align: start;
+    }
+
+    .prox-saved-item {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding-block: 0.5rem;
+      border-block-end: 1px solid var(--border);
+
+      & strong,
+      & .muted {
+        display: block;
+      }
+    }
+
+    .prox-saved-item__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .prox-choices {
+      gap: 0.65rem;
+      padding-block-start: 0.25rem;
+    }
+
+    .prox-choice {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.35rem;
+      text-align: start;
+      inline-size: 100%;
+      padding-block: 0.7rem;
+      padding-inline: 0.9rem;
+    }
+
+    .prox-result {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      padding-block: 0.5rem 0.25rem;
+      padding-inline: 0;
+      font: inherit;
+      font-family: inherit;
+      line-height: 1.45;
+
+      & p {
+        margin: 0;
+        font-family: inherit;
+      }
+    }
+
+    .prox-result__name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      font-family: inherit;
+    }
+
+    .prox-result__meta {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-family: inherit;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .prox-result__status {
+      color: var(--text-muted);
+    }
+
+    .prox-result__status.is-error {
+      color: var(--danger);
+    }
+  </style>
+</AppLayout>

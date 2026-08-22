@@ -129,6 +129,16 @@ export async function fillLocalePoisForType(
     }
   }
 
+  const { error: deleteError } = await supabase
+    .from('locale_pois')
+    .delete()
+    .eq('locale_id', locale.id)
+    .eq('place_type_key', placeTypeKey);
+
+  if (deleteError) {
+    throw new Error(deleteError.message);
+  }
+
   const rows = [...byPlaceId.values()].map((poi) => ({
     locale_id: locale.id,
     place_type_key: placeTypeKey,

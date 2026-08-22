@@ -1,0 +1,185 @@
+---
+import AppLayout from '../../../../layouts/AppLayout.astro';
+import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
+import { PLACE_TYPE_CATALOG } from '../../../../lib/proximity/place-types';
+import { getLocaleForNestMember } from '../../../../lib/supabase/nest';
+
+const { localeId } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
+if (!locale) return new Response('Not found', { status: 404 });
+
+const base = `/app/locales/${locale.id}`;
+const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
+const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+
+const { data: listings } = await supabase
+  .from('listings')
+  .select('id, name, address, lat, lng')
+  .eq('locale_id', locale.id)
+  .order('created_at', { ascending: false });
+
+const { data: criteria } = await supabase
+  .from('proximity_criteria')
+  .select('*')
+  .eq('locale_id', locale.id)
+  .order('sort_order', { ascending: true })
+  .order('created_at', { ascending: true });
+
+const listingIds = (listings ?? []).map((l) => l.id);
+const { data: results } =
+  listingIds.length > 0
+    ? await supabase
+        .from('proximity_results')
+        .select('*')
+        .in('listing_id', listingIds)
+    : { data: [] as never[] };
+
+const resultMap = new Map<string, (typeof results)[number]>();
+for (const row of results ?? []) {
+  resultMap.set(`${row.listing_id}:${row.criterion_id}`, row);
+}
+
+const placeTypes = Object.entries(PLACE_TYPE_CATALOG).map(([key, v]) => ({
+  key,
+  label: v.label,
+}));
+---
+<AppLayout
+  title={`Compare — ${locale.name}`}
+  crumbs={[
+    { href: '/app', label: 'Nest' },
+    { href: base, label: locale.name },
+    { label: 'Compare' },
+  ]}
+>
+  <h1>Compare</h1>
+  <p class="muted">Travel time from each listing to Compare columns for this Locale.</p>
+
+  <section class="stack" style="margin-block-end:1.25rem">
+    <h2>Add Compare column</h2>
+    <form id="criterion-form" class="criterion-form stack">
+      <input type="hidden" name="locale_id" value={locale.id} />
+      <label>
+        Label
+        <input type="text" name="label" required placeholder="e.g. Beach drive" />
+      </label>
+      <label>
+        Kind
+        <select name="kind" id="criterion-kind">
+          <option value="place_type">Nearest place type</option>
+          <option value="fixed_pin">Shared place</option>
+        </select>
+      </label>
+      <label id="type-fields">
+        Place type
+        <select name="place_type_key">
+          {placeTypes.map((t) => (
+            <option value={t.key}>{t.label}</option>
+          ))}
+        </select>
+      </label>
+      <div id="pin-fields" class="pin-fields stack" hidden>
+        <div class="place-search" id="compare-place-search">
+          <label>
+            Place or address
+            <input type="search" data-place-search-input placeholder="Start typing…" autocomplete="off" />
+          </label>
+          <ul class="place-search__results stack" data-place-search-results hidden></ul>
+          <p class="alert" data-place-search-error hidden></p>
+        </div>
+      </div>
+      <label>
+        Travel mode
+        <select name="travel_mode">
+          <option value="DRIVE">Drive</option>
+          <option value="WALK">Walk</option>
+          <option value="BICYCLE">Bicycle</option>
+          <option value="TRANSIT">Transit</option>
+        </select>
+      </label>
+      <button type="submit">Add column</button>
+    </form>
+    <p id="criterion-status" class="muted"></p>
+  </section>
+
+  <p>
+    <button type="button" id="refresh-stale" class="secondary">Refresh stale cells</button>
+  </p>
+
+  {
+    !(listings ?? []).length ? (
+      <p class="muted">No listings in this Locale yet.</p>
+    ) : !(criteria ?? []).length ? (
+      <p class="muted">Add a Compare column above to start comparing.</p>
+    ) : (
+      <div style="overflow-x:auto">
+        <table class="compare" id="compare-table">
+          <thead>
+            <tr>
+              <th>Listing</th>
+              {(criteria ?? []).map((c) => (
+                <th data-criterion-id={c.id}>
+                  {c.label}
+                  <br />
+                  <small class="muted">
+                    {c.kind === 'place_type' ? `Nearest · ${c.place_type_key}` : 'Shared place'} ·{' '}
+                    {c.travel_mode}
+                  </small>
+                  <br />
+                  <button type="button" class="delete-criterion secondary" data-criterion-id={c.id}>
+                    Delete
+                  </button>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(listings ?? []).map((listing) => (
+              <tr>
+                <th scope="row">
+                  <a href={`${base}/listings/${listing.id}`}>
+                    {listing.name || listing.address || listing.id}
+                  </a>
+                </th>
+                {(criteria ?? []).map((c) => {
+                  const row = resultMap.get(`${listing.id}:${c.id}`);
+                  return (
+                    <td
+                      data-listing-id={listing.id}
+                      data-criterion-id={c.id}
+                      data-listing-lat={listing.lat != null ? String(listing.lat) : ''}
+                      data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
+                      data-travel-mode={c.travel_mode}
+                      data-status={row?.status ?? ''}
+                    >
+                      {row ? (
+                        <span class="seeded" data-seeded="1" hidden>
+                          {JSON.stringify(row)}
+                        </span>
+                      ) : null}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  <script
+    define:vars={{
+      localeId: locale.id,
+      mapKey: browserKey,
+      mapId,
+    }}
+  >
+    window.__WAYHOME_LOCALE_ID__ = localeId;
+    window.__WAYHOME_MAPS__ = { mapKey, mapId };
+  </script>
+  <DirectionsOverlay />
+  <script src="/scripts/directions-overlay.js" type="module"></script>
+  <script src="/scripts/proximity-compare.js" type="module"></script>
+</AppLayout>
