@@ -24,26 +24,29 @@ import ListingForm from '../../../components/ListingForm.astro';
       const status = document.getElementById('import-status');
       form?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const url = (document.getElementById('import-url') as HTMLInputElement).value;
-        status!.textContent = 'Fetching…';
+        const urlInput = document.getElementById('import-url');
+        const url = urlInput instanceof HTMLInputElement ? urlInput.value : '';
+        if (status) status.textContent = 'Fetching…';
         const res = await fetch('/api/listings/import-url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url }),
         });
         const data = await res.json();
-        const set = (name: string, value: string | null) => {
-          const el = document.querySelector(`form[action="/api/listings/create"] [name="${name}"]`) as
-            | HTMLInputElement
-            | HTMLTextAreaElement
-            | null;
-          if (el && value) el.value = value;
+        const set = (name, value) => {
+          const el = document.querySelector(
+            `form[action="/api/listings/create"] [name="${name}"]`,
+          );
+          if (el && value && 'value' in el) el.value = value;
         };
         set('name', data.name);
         set('address', data.address);
         set('photo_url', data.photoUrl);
         set('source_url', data.sourceUrl);
-        status!.textContent = 'Import finished — empty fields mean nothing was found (nothing invented).';
+        if (status) {
+          status.textContent =
+            'Import finished — empty fields mean nothing was found (nothing invented).';
+        }
       });
     </script>
   </body>

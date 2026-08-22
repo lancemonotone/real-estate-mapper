@@ -77,22 +77,25 @@ const unscheduled = (listings ?? []).filter((l) => !assignedIds.has(l.id));
       document.getElementById('scratch-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const ids = [...document.querySelectorAll('input[name="listing"]:checked')].map(
-          (el) => (el as HTMLInputElement).value,
+          (el) => el.value,
         );
-        const startListingId = (document.getElementById('scratch-start') as HTMLSelectElement).value;
+        const startEl = document.getElementById('scratch-start');
+        const startListingId = startEl instanceof HTMLSelectElement ? startEl.value : '';
         const res = await fetch('/api/tours/optimize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ scratchListingIds: ids, startListingId }),
         });
         lastResult = await res.json();
-        document.getElementById('scratch-result')!.textContent = JSON.stringify(lastResult, null, 2);
-        document.getElementById('promote-form')!.hidden = !lastResult.ok;
+        const resultEl = document.getElementById('scratch-result');
+        const promoteForm = document.getElementById('promote-form');
+        if (resultEl) resultEl.textContent = JSON.stringify(lastResult, null, 2);
+        if (promoteForm) promoteForm.hidden = !lastResult.ok;
       });
       document.getElementById('promote-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!lastResult?.ok) return;
-        const tourDate = new FormData(e.target as HTMLFormElement).get('tourDate');
+        const tourDate = new FormData(e.target).get('tourDate');
         const res = await fetch('/api/tours/promote-scratch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
