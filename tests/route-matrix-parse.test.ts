@@ -67,4 +67,16 @@ describe('mapRouteMatrixElements', () => {
       { destinationIndex: 3, durationSec: 3.5, distanceM: 100, ok: true },
     ]);
   });
+
+  it('throws when ROUTE_EXISTS row is missing distanceMeters', () => {
+    expect(() =>
+      mapRouteMatrixElements([
+        {
+          destinationIndex: 0,
+          duration: '10s',
+          condition: 'ROUTE_EXISTS',
+        },
+      ]),
+    ).toThrow(/distanceMeters/i);
+  });
 });

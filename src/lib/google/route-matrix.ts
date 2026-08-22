@@ -52,10 +52,14 @@ export function mapRouteMatrixElements(
       };
     }
 
+    if (el.distanceMeters == null) {
+      throw new Error('Route matrix distanceMeters is missing');
+    }
+
     return {
       destinationIndex,
       durationSec: parseDurationSec(el.duration),
-      distanceM: el.distanceMeters ?? 0,
+      distanceM: el.distanceMeters,
       ok: true,
     };
   });
