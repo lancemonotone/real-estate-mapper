@@ -1,0 +1,43 @@
+---
+/**
+ * Mostly full-screen overlay for listing source URLs.
+ * Many sites (Zillow, etc.) block iframes — Fail Fast with open-externally.
+ * Script: /scripts/source-overlay.js
+ */
+---
+<div
+  id="source-overlay"
+  class="source-overlay"
+  hidden
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="source-overlay-title"
+>
+  <div class="source-overlay__backdrop" data-source-overlay-close></div>
+  <div class="source-overlay__panel glass glass--strong">
+    <header class="source-overlay__header">
+      <h2 id="source-overlay-title">Listing source</h2>
+      <div class="source-overlay__header-actions">
+        <a
+          id="source-overlay-external"
+          class="secondary"
+          href="#"
+          target="_blank"
+          rel="noopener"
+        >
+          Open in new tab
+        </a>
+        <button type="button" class="secondary" data-source-overlay-close aria-label="Close">
+          Close
+        </button>
+      </div>
+    </header>
+    <p id="source-overlay-status" class="source-overlay__status muted" hidden></p>
+    <iframe
+      id="source-overlay-frame"
+      class="source-overlay__frame"
+      title="Listing source"
+      referrerpolicy="no-referrer"
+    ></iframe>
+  </div>
+</div>

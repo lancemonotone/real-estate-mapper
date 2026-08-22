@@ -14,4 +14,10 @@ describe('PLACE_TYPE_CATALOG', () => {
       includedTypes: ['park'],
     });
   });
+  it('maps restaurant to nearby restaurant type', () => {
+    expect(PLACE_TYPE_CATALOG.restaurant.strategy).toEqual({
+      kind: 'nearby',
+      includedTypes: ['restaurant'],
+    });
+  });
 });

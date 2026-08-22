@@ -1,4 +1,5 @@
 ---
+import AppLayout from '../../../layouts/AppLayout.astro';
 import '../../../styles/locale-map.css';
 import {
   DEFAULT_LOCALE_RADIUS_MILES,
@@ -6,152 +7,144 @@ import {
   milesToMeters,
 } from '../../../lib/geo/locale-radius';
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>New Locale — Wayhome</title>
-  </head>
-  <body>
-    <h1>New Locale</h1>
-    <p><a href="/app">Back to Nest</a></p>
-    <form id="locale-form">
-      <label>
-        Name
-        <input name="name" id="locale-name" required placeholder="e.g. Tampa Bay" />
-      </label>
-      <label>
-        Center place
-        <input
-          name="place"
-          id="locale-place"
-          required
-          placeholder="City, neighborhood, or address"
-        />
-      </label>
-      <label>
-        Radius
-        <select name="radius_miles" id="locale-radius" required>
-          {
-            LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
-              <option value={m} selected={m === DEFAULT_LOCALE_RADIUS_MILES}>
-                {m} miles
-              </option>
-            ))
-          }
-        </select>
-      </label>
-      <button type="submit">Create Locale</button>
-    </form>
-    <div
-      id="locale-map"
-      class="locale-map"
-      data-key={import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? ''}
-      data-map-id={import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? ''}
-      data-radius-m={String(milesToMeters(DEFAULT_LOCALE_RADIUS_MILES))}
-      data-title="New Locale"
-    ></div>
-    <p id="map-hint" class="locale-map-missing">Enter a place name to preview the map.</p>
-    <p id="error" hidden></p>
-    <script src="/scripts/locale-map.js" type="module"></script>
-    <script>
-      const form = document.getElementById('locale-form');
-      const errorEl = document.getElementById('error');
-      const placeEl = document.getElementById('locale-place');
-      const radiusEl = document.getElementById('locale-radius');
-      const nameEl = document.getElementById('locale-name');
-      const mapEl = document.getElementById('locale-map');
-      const hintEl = document.getElementById('map-hint');
-      let previewTimer = null;
-      let lastCenter = null;
+<AppLayout title="New Locale" crumbs={[{ href: '/app', label: 'Nest' }, { label: 'New Locale' }]}>
+  <h1>New Locale</h1>
+  <form id="locale-form">
+    <label>
+      Name
+      <input name="name" id="locale-name" required placeholder="e.g. Tampa Bay" />
+    </label>
+    <label>
+      Center place
+      <input
+        name="place"
+        id="locale-place"
+        required
+        placeholder="City, neighborhood, or address"
+      />
+    </label>
+    <label>
+      Radius
+      <select name="radius_miles" id="locale-radius" required>
+        {
+          LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
+            <option value={m} selected={m === DEFAULT_LOCALE_RADIUS_MILES}>
+              {m} miles
+            </option>
+          ))
+        }
+      </select>
+    </label>
+    <button type="submit">Create Locale</button>
+  </form>
+  <div
+    id="locale-map"
+    class="locale-map map-well"
+    data-key={import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? ''}
+    data-map-id={import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? ''}
+    data-radius-m={String(milesToMeters(DEFAULT_LOCALE_RADIUS_MILES))}
+    data-title="New Locale"
+  ></div>
+  <p id="map-hint" class="locale-map-missing muted">Enter a place name to preview the map.</p>
+  <p id="error" class="alert" hidden></p>
+  <script src="/scripts/locale-map.js" type="module"></script>
+  <script>
+    const form = document.getElementById('locale-form');
+    const errorEl = document.getElementById('error');
+    const placeEl = document.getElementById('locale-place');
+    const radiusEl = document.getElementById('locale-radius');
+    const nameEl = document.getElementById('locale-name');
+    const mapEl = document.getElementById('locale-map');
+    const hintEl = document.getElementById('map-hint');
+    let previewTimer = null;
+    let lastCenter = null;
 
-      const milesToMeters = (m) => m * 1609.344;
+    const milesToMeters = (m) => m * 1609.344;
 
-      function pushMapUpdate(detail) {
-        mapEl?.dispatchEvent(new CustomEvent('locale-map:update', { detail }));
+    function pushMapUpdate(detail) {
+      mapEl?.dispatchEvent(new CustomEvent('locale-map:update', { detail }));
+    }
+
+    async function previewPlace() {
+      const place = placeEl instanceof HTMLInputElement ? placeEl.value.trim() : '';
+      if (!place) return;
+      const res = await fetch('/api/locales/preview-place', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ place }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        if (hintEl) hintEl.textContent = data.error ?? 'Place not found';
+        return;
       }
+      lastCenter = { lat: data.lat, lng: data.lng };
+      const miles =
+        radiusEl instanceof HTMLSelectElement ? Number(radiusEl.value) : 10;
+      const title =
+        nameEl instanceof HTMLInputElement && nameEl.value.trim()
+          ? nameEl.value.trim()
+          : data.formattedAddress;
+      if (hintEl) hintEl.textContent = data.formattedAddress;
+      pushMapUpdate({
+        lat: data.lat,
+        lng: data.lng,
+        radiusM: milesToMeters(miles),
+        title,
+      });
+    }
 
-      async function previewPlace() {
-        const place = placeEl instanceof HTMLInputElement ? placeEl.value.trim() : '';
-        if (!place) return;
-        const res = await fetch('/api/locales/preview-place', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ place }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) {
-          if (hintEl) hintEl.textContent = data.error ?? 'Place not found';
-          return;
-        }
-        lastCenter = { lat: data.lat, lng: data.lng };
-        const miles =
-          radiusEl instanceof HTMLSelectElement ? Number(radiusEl.value) : 10;
-        const title =
-          nameEl instanceof HTMLInputElement && nameEl.value.trim()
-            ? nameEl.value.trim()
-            : data.formattedAddress;
-        if (hintEl) hintEl.textContent = data.formattedAddress;
-        pushMapUpdate({
-          lat: data.lat,
-          lng: data.lng,
-          radiusM: milesToMeters(miles),
-          title,
-        });
+    placeEl?.addEventListener('input', () => {
+      if (previewTimer) clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => {
+        previewPlace().catch(() => {});
+      }, 450);
+    });
+
+    radiusEl?.addEventListener('change', () => {
+      const miles = Number(radiusEl.value);
+      if (!lastCenter) {
+        pushMapUpdate({ radiusM: milesToMeters(miles) });
+        return;
       }
-
-      placeEl?.addEventListener('input', () => {
-        if (previewTimer) clearTimeout(previewTimer);
-        previewTimer = setTimeout(() => {
-          previewPlace().catch(() => {});
-        }, 450);
+      pushMapUpdate({
+        lat: lastCenter.lat,
+        lng: lastCenter.lng,
+        radiusM: milesToMeters(miles),
       });
+    });
 
-      radiusEl?.addEventListener('change', () => {
-        const miles = Number(radiusEl.value);
-        if (!lastCenter) {
-          pushMapUpdate({ radiusM: milesToMeters(miles) });
-          return;
+    nameEl?.addEventListener('input', () => {
+      const title =
+        nameEl instanceof HTMLInputElement && nameEl.value.trim()
+          ? nameEl.value.trim()
+          : 'Locale';
+      pushMapUpdate({ title });
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!(form instanceof HTMLFormElement)) return;
+      const fd = new FormData(form);
+      const body = {
+        name: String(fd.get('name') ?? ''),
+        place: String(fd.get('place') ?? ''),
+        radius_miles: Number(fd.get('radius_miles')),
+      };
+      const res = await fetch('/api/locales/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (errorEl) {
+          errorEl.hidden = false;
+          errorEl.textContent = data.error ?? 'Create failed';
         }
-        pushMapUpdate({
-          lat: lastCenter.lat,
-          lng: lastCenter.lng,
-          radiusM: milesToMeters(miles),
-        });
-      });
-
-      nameEl?.addEventListener('input', () => {
-        const title =
-          nameEl instanceof HTMLInputElement && nameEl.value.trim()
-            ? nameEl.value.trim()
-            : 'Locale';
-        pushMapUpdate({ title });
-      });
-
-      form?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!(form instanceof HTMLFormElement)) return;
-        const fd = new FormData(form);
-        const body = {
-          name: String(fd.get('name') ?? ''),
-          place: String(fd.get('place') ?? ''),
-          radius_miles: Number(fd.get('radius_miles')),
-        };
-        const res = await fetch('/api/locales/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          if (errorEl) {
-            errorEl.hidden = false;
-            errorEl.textContent = data.error ?? 'Create failed';
-          }
-          return;
-        }
-        window.location.href = `/app/locales/${data.id}`;
-      });
-    </script>
-  </body>
-</html>
+        return;
+      }
+      window.location.href = `/app/locales/${data.id}`;
+    });
+  </script>
+</AppLayout>

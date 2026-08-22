@@ -6,7 +6,7 @@ Organize Nest listings by Locale and plan efficient driving tours.
 
 - Astro SSR (`@astrojs/node`)
 - Supabase (Auth, Postgres, Storage)
-- Google Maps Platform (Maps JavaScript API, Geocoding API, Routes API)
+- Google Maps Platform (Maps JavaScript API, Geocoding API, Routes API, Places API (New))
 
 ## Setup
 
@@ -27,10 +27,12 @@ After that, new migrations are just:
 npm run db:push
 ```
 
-4. In Google Cloud, enable **Maps JavaScript API**, **Geocoding API**, and **Routes API**. Create:
-   - A **server** API key → `GOOGLE_MAPS_API_KEY`
-   - A **browser** API key (HTTP referrer restricted) → `PUBLIC_GOOGLE_MAPS_BROWSER_KEY`
+4. In Google Cloud, enable **Maps JavaScript API**, **Geocoding API**, **Routes API**, and **Places API (New)** (`places.googleapis.com`). Create:
+   - A **server** API key → `GOOGLE_MAPS_API_KEY` (must allow Geocoding, Routes, and Places API (New) — including Text Search / Nearby Search)
+   - A **browser** API key (HTTP referrer restricted to `http://localhost:4321/*`) → `PUBLIC_GOOGLE_MAPS_BROWSER_KEY`
    - A Map ID for Advanced Markers → `PUBLIC_GOOGLE_MAPS_MAP_ID`
+
+   Proximity Compare uses Places on the **server** key. If cells show `Places API (New) has not been used…` or `API_KEY_SERVICE_BLOCKED`, enable the API and add Places to that key’s API restrictions, then wait a few minutes and use **Refresh stale cells**.
 5. Run the app:
 
 ```bash
@@ -45,6 +47,8 @@ npm run dev
 - `npm run db:push` — apply pending SQL migrations to the linked Supabase project
 - `npm run db:status` — local vs remote migration list
 - `npm run db:login` / `npm run db:link` — one-time CLI auth + project link
+
+Agents: prefer these scripts and the **Supabase MCP** over asking someone to paste SQL in the dashboard. See `docs/agents/supabase.md`.
 
 ## Product notes
 

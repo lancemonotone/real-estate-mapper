@@ -74,7 +74,7 @@ export function mountPlaceSearch(rootEl, options) {
           btn.appendChild(primary);
           if (s.secondaryText) {
             const secondary = document.createElement('span');
-            secondary.className = 'muted';
+            secondary.className = 'place-search__secondary muted';
             secondary.textContent = s.secondaryText;
             btn.appendChild(secondary);
           }

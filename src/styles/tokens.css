@@ -1,0 +1,99 @@
+/* Wayhome design tokens — light/dark via prefers-color-scheme; accents via data-theme
+ *
+ * --primary: links, breadcrumbs, filled primary buttons
+ * --accent: solid container outlines + subtle container wash
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --font-display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.85rem;
+  --radius-lg: 1.25rem;
+
+  --space-page: clamp(1rem, 3vw, 2rem);
+  --header-pad: 0.75rem 1rem;
+  --main-max: 72rem;
+
+  /* Light defaults (sea) */
+  --bg-0: #e8eef2;
+  --bg-1: #f4f7fa;
+  --bg-mesh-a: color-mix(in srgb, var(--primary) 18%, transparent);
+  --bg-mesh-b: color-mix(in srgb, var(--accent) 14%, transparent);
+  --text: #0f172a;
+  --text-muted: #475569;
+  --border: rgba(15, 23, 42, 0.12);
+  --border-accent: var(--accent);
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.72);
+  --glass-wash: color-mix(in srgb, var(--accent) 7%, var(--glass));
+  --glass-wash-strong: color-mix(in srgb, var(--accent) 9%, var(--glass-strong));
+  --shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+  --danger: #b91c1c;
+  --ok: #15803d;
+
+  --primary: #0d9488;
+  --primary-contrast: #ffffff;
+  --accent: #2563eb;
+  --focus: color-mix(in srgb, var(--primary) 55%, transparent);
+
+  @media (prefers-color-scheme: dark) {
+    --bg-0: #0b1220;
+    --bg-1: #111827;
+    --bg-mesh-a: color-mix(in srgb, var(--primary) 14%, transparent);
+    --bg-mesh-b: color-mix(in srgb, var(--accent) 12%, transparent);
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: rgba(226, 232, 240, 0.14);
+    --border-accent: var(--accent);
+    --glass: rgba(17, 24, 39, 0.55);
+    --glass-strong: rgba(17, 24, 39, 0.78);
+    --glass-wash: color-mix(in srgb, var(--accent) 9%, var(--glass));
+    --glass-wash-strong: color-mix(in srgb, var(--accent) 11%, var(--glass-strong));
+    --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    --danger: #f87171;
+    --ok: #4ade80;
+    --primary: #2dd4bf;
+    --primary-contrast: #042f2e;
+    --accent: #93c5fd;
+  }
+}
+
+html[data-theme='sea'] {
+  --primary: #0d9488;
+  --primary-contrast: #ffffff;
+  --accent: #2563eb;
+
+  @media (prefers-color-scheme: dark) {
+    --primary: #2dd4bf;
+    --primary-contrast: #042f2e;
+    --accent: #93c5fd;
+  }
+}
+
+html[data-theme='steel'] {
+  --primary: #3b82f6;
+  --primary-contrast: #ffffff;
+  --accent: #7c3aed;
+
+  @media (prefers-color-scheme: dark) {
+    --primary: #60a5fa;
+    --primary-contrast: #0b1220;
+    --accent: #c4b5fd;
+  }
+}
+
+html[data-theme='sand'] {
+  --primary: #d97706;
+  --primary-contrast: #ffffff;
+  --accent: #c2410c;
+
+  @media (prefers-color-scheme: dark) {
+    --primary: #fbbf24;
+    --primary-contrast: #1c1408;
+    --accent: #fdba74;
+  }
+}

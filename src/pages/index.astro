@@ -1,27 +1,24 @@
 ---
+import AuthLayout from '../layouts/AuthLayout.astro';
+
 const supabaseConfigured = Boolean(
   import.meta.env.PUBLIC_SUPABASE_URL && import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>Wayhome</title>
-  </head>
-  <body>
-    <h1>Wayhome</h1>
-    <p>Organize listings in your Nest by Locale and plan efficient driving tours.</p>
-    <p>
-      <a href="/signup">Sign up</a>
-      ·
-      <a href="/login">Sign in</a>
-    </p>
-    {!supabaseConfigured && (
-      <p role="alert">
+<AuthLayout title="Welcome">
+  <h1>Wayhome</h1>
+  <p class="muted">Organize listings in your Nest by Locale and plan efficient driving tours.</p>
+  <p>
+    <a href="/signup">Sign up</a>
+    ·
+    <a href="/login">Sign in</a>
+  </p>
+  {
+    !supabaseConfigured && (
+      <p class="alert" role="alert">
         Configure <code>PUBLIC_SUPABASE_URL</code> and <code>PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> in
         <code>.env</code> (see <code>.env.example</code>).
       </p>
-    )}
-  </body>
-</html>
+    )
+  }
+</AuthLayout>

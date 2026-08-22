@@ -1,0 +1,13 @@
+---
+description: How agents apply Supabase migrations and use MCP in this repo
+alwaysApply: true
+---
+
+# Supabase tooling
+
+This project already has:
+
+1. **npm scripts** — `db:push`, `db:status`, `db:login`, `db:link` in `package.json`
+2. **Supabase MCP** — use for migrations, SQL, schema, advisors (load the supabase skill when relevant)
+
+When a migration needs applying, run **`npm run db:push`** (or use MCP `apply_migration` / list status) instead of telling the user to paste SQL into the dashboard. See `docs/agents/supabase.md` and `AGENTS.md`.

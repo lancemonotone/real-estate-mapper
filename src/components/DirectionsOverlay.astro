@@ -1,0 +1,43 @@
+---
+/**
+ * Shared directions modal markup. Include once per page that opens routes.
+ * Script: /scripts/directions-overlay.js
+ */
+---
+<div
+  id="directions-overlay"
+  class="directions-overlay"
+  hidden
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="directions-overlay-title"
+>
+  <div class="directions-overlay__backdrop" data-overlay-close></div>
+  <div class="directions-overlay__panel glass glass--strong">
+    <header class="directions-overlay__header">
+      <h2 id="directions-overlay-title">Route</h2>
+      <button type="button" class="secondary" data-overlay-close aria-label="Close">
+        Close
+      </button>
+    </header>
+    <p id="directions-overlay-meta" class="directions-overlay__meta muted"></p>
+    <div id="directions-overlay-map" class="directions-overlay__map map-well"></div>
+    <p class="directions-overlay__actions">
+      <a
+        id="directions-overlay-external"
+        class="secondary icon-btn"
+        href="#"
+        target="_blank"
+        rel="noopener"
+        aria-label="Open in Google Maps"
+        title="Open in Google Maps"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
+          <path d="M12 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
+        </svg>
+      </a>
+    </p>
+    <p id="directions-overlay-error" class="alert" hidden></p>
+  </div>
+</div>

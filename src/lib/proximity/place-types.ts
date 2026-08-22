@@ -2,6 +2,7 @@ export type PlaceTypeKey =
   | 'beach'
   | 'park'
   | 'grocery'
+  | 'restaurant'
   | 'school'
   | 'gym'
   | 'transit';
@@ -19,6 +20,10 @@ export const PLACE_TYPE_CATALOG: Record<
   grocery: {
     label: 'Grocery',
     strategy: { kind: 'nearby', includedTypes: ['grocery_store'] },
+  },
+  restaurant: {
+    label: 'Restaurant',
+    strategy: { kind: 'nearby', includedTypes: ['restaurant'] },
   },
   school: {
     label: 'School',

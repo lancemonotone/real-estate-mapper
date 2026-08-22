@@ -1,4 +1,5 @@
 import { mountPlaceSearch } from './place-search.js';
+import { iconBtn, iconBtnSpacer, iconMapPin, iconRoute, iconX } from './ui-icons.js';
 
 function formatDuration(sec) {
   if (sec == null || !Number.isFinite(sec)) return '';
@@ -12,6 +13,10 @@ function formatDuration(sec) {
 function formatMiles(meters) {
   if (meters == null || !Number.isFinite(meters)) return '';
   return `${(meters / 1609.34).toFixed(1)} mi`;
+}
+
+function formatMeta(durationSec, distanceM) {
+  return [formatDuration(durationSec), formatMiles(distanceM)].filter(Boolean).join(' · ');
 }
 
 function normalizePlaceId(placeId) {
@@ -28,24 +33,21 @@ const TRAVELMODE = {
   TRANSIT: 'transit',
 };
 
-function directionsHref(origin, result, travelMode) {
-  if (!origin || result?.place_lat == null || result?.place_lng == null) {
-    return result?.maps_url || null;
+function directionsHref(origin, dest, travelMode) {
+  if (!origin || dest?.lat == null || dest?.lng == null) {
+    return dest?.maps_url || null;
   }
   const params = new URLSearchParams({
     api: '1',
     origin: `${origin.lat},${origin.lng}`,
     travelmode: TRAVELMODE[travelMode] || 'driving',
   });
-  const placeId = normalizePlaceId(result.place_id);
+  const placeId = normalizePlaceId(dest.place_id);
   if (placeId) {
-    params.set(
-      'destination',
-      result.place_name || `${result.place_lat},${result.place_lng}`,
-    );
+    params.set('destination', dest.place_name || `${dest.lat},${dest.lng}`);
     params.set('destination_place_id', placeId);
   } else {
-    params.set('destination', `${result.place_lat},${result.place_lng}`);
+    params.set('destination', `${dest.lat},${dest.lng}`);
   }
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
@@ -57,6 +59,24 @@ function listingOrigin() {
   const lng = Number(el.dataset.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   return { lat, lng };
+}
+
+function mapsConfig() {
+  return window.__WAYHOME_LISTING_PROX__ || window.__WAYHOME_MAPS__ || {};
+}
+
+function openRouteOverlay({ origin, destination, travelMode, title, durationLabel, externalUrl }) {
+  const cfg = mapsConfig();
+  window.openDirectionsOverlay?.({
+    origin,
+    destination,
+    travelMode,
+    title,
+    durationLabel,
+    externalUrl,
+    mapKey: cfg.mapKey,
+    mapId: cfg.mapId,
+  });
 }
 
 function setProxResultStatus(message, { error = false } = {}) {
@@ -101,9 +121,7 @@ function renderProxResult(result) {
     name.textContent = result.place_name;
     el.appendChild(name);
   }
-  const metaText = [formatDuration(result.duration_sec), formatMiles(result.distance_m)]
-    .filter(Boolean)
-    .join(' · ');
+  const metaText = formatMeta(result.duration_sec, result.distance_m);
   if (metaText) {
     const meta = document.createElement('p');
     meta.className = 'prox-result__meta';
@@ -121,7 +139,7 @@ function setActionButtons(visible) {
 
 let lastResult = null;
 let lastTravelMode = 'DRIVE';
-let lastExplore = null; // { kind: 'nearest'|'search', place_type_key?, place? }
+let lastExplore = null;
 let placeSearch = null;
 let poiMarker = null;
 let mapRef = null;
@@ -173,17 +191,16 @@ async function ensureMapOverlay(result) {
 }
 
 function openLastRoute() {
-  const cfg = window.__WAYHOME_LISTING_PROX__;
   const origin = listingOrigin();
-  if (!cfg || !lastResult || lastResult.status !== 'ok' || !origin) return;
-  const href = directionsHref(origin, lastResult, lastTravelMode);
-  const durationLabel = [
-    formatDuration(lastResult.duration_sec),
-    formatMiles(lastResult.distance_m),
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  window.openDirectionsOverlay?.({
+  if (!lastResult || lastResult.status !== 'ok' || !origin) return;
+  const href = directionsHref(origin, {
+    lat: lastResult.place_lat,
+    lng: lastResult.place_lng,
+    place_id: lastResult.place_id,
+    place_name: lastResult.place_name,
+    maps_url: lastResult.maps_url,
+  }, lastTravelMode);
+  openRouteOverlay({
     origin,
     destination: {
       lat: lastResult.place_lat,
@@ -193,10 +210,8 @@ function openLastRoute() {
     },
     travelMode: lastTravelMode,
     title: lastResult.place_name ? `Listing → ${lastResult.place_name}` : 'Route',
-    durationLabel,
+    durationLabel: formatMeta(lastResult.duration_sec, lastResult.distance_m),
     externalUrl: href,
-    mapKey: cfg.mapKey,
-    mapId: cfg.mapId,
   });
 }
 
@@ -209,7 +224,16 @@ function applyChosenCandidate(candidate, origin) {
     place_lng: candidate.place_lng,
     duration_sec: candidate.duration_sec,
     distance_m: candidate.distance_m,
-    maps_url: directionsHref(origin, candidate, lastTravelMode),
+    maps_url: directionsHref(
+      origin,
+      {
+        lat: candidate.place_lat,
+        lng: candidate.place_lng,
+        place_id: candidate.place_id,
+        place_name: candidate.place_name,
+      },
+      lastTravelMode,
+    ),
     error_message: null,
   };
 }
@@ -240,15 +264,11 @@ function renderChoices(result, origin) {
     btn.type = 'button';
     btn.className = 'prox-choice secondary';
     const title = document.createElement('strong');
+    title.className = 'prox-choice__name';
     title.textContent = candidate.place_name || 'Place';
     const meta = document.createElement('span');
-    meta.className = 'muted';
-    meta.textContent = [
-      formatDuration(candidate.duration_sec),
-      formatMiles(candidate.distance_m),
-    ]
-      .filter(Boolean)
-      .join(' · ');
+    meta.className = 'prox-choice__meta muted';
+    meta.textContent = formatMeta(candidate.duration_sec, candidate.distance_m);
     btn.appendChild(title);
     btn.appendChild(meta);
     btn.addEventListener('click', async () => {
@@ -285,6 +305,250 @@ function syncModeFields() {
   if (search) search.hidden = val !== 'search';
 }
 
+function ensurePlaceThumb(li, placeId) {
+  if (!placeId) return;
+  const media = li.querySelector('[data-prox-thumb]');
+  if (!media) return;
+  let img = media.querySelector('img.prox-saved-item__thumb');
+  const src = `/api/places/photo?place_id=${encodeURIComponent(placeId)}&max=120`;
+  if (!img) {
+    img = document.createElement('img');
+    img.className = 'prox-saved-item__thumb';
+    img.alt = '';
+    img.loading = 'lazy';
+    img.width = 72;
+    img.height = 54;
+    img.addEventListener('error', () => {
+      img.hidden = true;
+    });
+    media.replaceChildren(img);
+  }
+  if (img.getAttribute('src') !== src) {
+    img.hidden = false;
+    img.src = src;
+  }
+}
+
+function fillCompareCellActions(li, result) {
+  const actions = li.querySelector('[data-cell-actions]');
+  const meta = li.querySelector('.prox-cell-meta');
+  const title = li.querySelector('strong');
+  if (!actions) return;
+  actions.replaceChildren();
+
+  const columnLabel = li.dataset.columnLabel || 'Compare column';
+  if (title) {
+    title.textContent = columnLabel;
+  }
+
+  if (!result) {
+    if (meta) meta.textContent = 'Computing…';
+    return;
+  }
+
+  if (result.status !== 'ok') {
+    if (meta) {
+      meta.textContent = [result.status, result.error_message].filter(Boolean).join(' — ');
+    }
+    return;
+  }
+
+  ensurePlaceThumb(li, result.place_id);
+
+  if (meta) {
+    meta.textContent = [result.place_name, formatMeta(result.duration_sec, result.distance_m)]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  const origin = {
+    lat: Number(li.dataset.listingLat),
+    lng: Number(li.dataset.listingLng),
+  };
+  const canOverlay =
+    Number.isFinite(origin.lat) &&
+    Number.isFinite(origin.lng) &&
+    result.place_lat != null &&
+    result.place_lng != null;
+  const href = directionsHref(
+    canOverlay ? origin : null,
+    {
+      lat: result.place_lat,
+      lng: result.place_lng,
+      place_id: result.place_id,
+      place_name: result.place_name,
+      maps_url: result.maps_url,
+    },
+    li.dataset.travelMode || 'DRIVE',
+  );
+
+  // Leading spacer so route/maps align with listing-only rows (remove + route + maps).
+  actions.appendChild(iconBtnSpacer());
+
+  if (canOverlay) {
+    actions.appendChild(
+      iconBtn({
+        label: 'Show the route on a map overlay',
+        icon: iconRoute,
+        onClick: () =>
+          openRouteOverlay({
+            origin,
+            destination: {
+              lat: result.place_lat,
+              lng: result.place_lng,
+              placeId: result.place_id,
+              name: result.place_name,
+            },
+            travelMode: li.dataset.travelMode || 'DRIVE',
+            title: result.place_name ? `Listing → ${result.place_name}` : 'Route',
+            durationLabel: formatMeta(result.duration_sec, result.distance_m),
+            externalUrl: href,
+          }),
+      }),
+    );
+  }
+
+  if (href) {
+    actions.appendChild(
+      iconBtn({
+        label: 'Open turn-by-turn directions in Google Maps',
+        icon: iconMapPin,
+        href,
+      }),
+    );
+  }
+}
+
+async function hydrateCompareCells() {
+  const cells = [...document.querySelectorAll('[data-listing-prox-cell]')];
+  for (const li of cells) {
+    const seeded = li.querySelector('.seeded');
+    let row = null;
+    if (seeded) {
+      try {
+        row = JSON.parse(seeded.textContent || '');
+      } catch {
+        row = null;
+      }
+    }
+    if (row?.status === 'ok') {
+      fillCompareCellActions(li, row);
+      continue;
+    }
+    fillCompareCellActions(li, null);
+    const listingId = li.dataset.listingId;
+    const criterionId = li.dataset.criterionId;
+    if (!listingId || !criterionId) continue;
+    try {
+      const res = await fetch('/api/proximity/compute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listing_id: listingId, criterion_id: criterionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        fillCompareCellActions(li, {
+          status: 'error',
+          error_message: data.error || `HTTP ${res.status}`,
+        });
+        continue;
+      }
+      fillCompareCellActions(li, data.result);
+    } catch (e) {
+      fillCompareCellActions(li, {
+        status: 'error',
+        error_message: e instanceof Error ? e.message : 'Compute failed',
+      });
+    }
+  }
+}
+
+function initListingPlaceActions() {
+  const origin = listingOrigin();
+  document.querySelectorAll('#listing-places-list > li').forEach((li) => {
+    const actions = li.querySelector('[data-listing-place-actions]');
+    if (!actions) return;
+    actions.replaceChildren();
+
+    const lat = Number(li.dataset.placeLat);
+    const lng = Number(li.dataset.placeLng);
+    const durationSec = li.dataset.durationSec ? Number(li.dataset.durationSec) : null;
+    const distanceM = li.dataset.distanceM ? Number(li.dataset.distanceM) : null;
+    const travelMode = li.dataset.travelMode || 'DRIVE';
+    const mapsUrl = li.dataset.mapsUrl || null;
+    const placeName = li.dataset.placeName || 'Place';
+    const canOverlay =
+      origin && Number.isFinite(lat) && Number.isFinite(lng);
+    const href =
+      mapsUrl ||
+      (canOverlay
+        ? directionsHref(
+            origin,
+            {
+              lat,
+              lng,
+              place_id: li.dataset.placeId,
+              place_name: placeName,
+            },
+            travelMode,
+          )
+        : null);
+
+    actions.appendChild(
+      iconBtn({
+        label: 'Remove this place from the listing-only list',
+        icon: iconX,
+        onClick: async () => {
+          const id = li.getAttribute('data-place-row-id');
+          if (!id) return;
+          const res = await fetch(`/api/proximity/listing-places?id=${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            alert(data.error || 'Remove failed');
+            return;
+          }
+          location.reload();
+        },
+      }),
+    );
+
+    if (canOverlay) {
+      actions.appendChild(
+        iconBtn({
+          label: 'Show the route on a map overlay',
+          icon: iconRoute,
+          onClick: () =>
+            openRouteOverlay({
+              origin,
+              destination: {
+                lat,
+                lng,
+                placeId: li.dataset.placeId,
+                name: placeName,
+              },
+              travelMode,
+              title: `Listing → ${placeName}`,
+              durationLabel: formatMeta(durationSec, distanceM),
+              externalUrl: href,
+            }),
+        }),
+      );
+    }
+
+    if (href) {
+      actions.appendChild(
+        iconBtn({
+          label: 'Open turn-by-turn directions in Google Maps',
+          icon: iconMapPin,
+          href,
+        }),
+      );
+    }
+  });
+}
+
 function initProximityPanel() {
   const cfg = window.__WAYHOME_LISTING_PROX__;
   if (!cfg) return;
@@ -301,49 +565,11 @@ function initProximityPanel() {
   if (searchRoot) {
     placeSearch = mountPlaceSearch(searchRoot, {
       localeId: cfg.localeId,
-      onResolved() {
-        /* stored via getResolved */
-      },
     });
   }
 
-  document.querySelectorAll('.prox-unlock').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const criterionId = btn.getAttribute('data-criterion-id');
-      if (!criterionId) return;
-      const res = await fetch('/api/proximity/lock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listing_id: cfg.listingId,
-          criterion_id: criterionId,
-          locked: false,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || 'Unlock failed');
-        return;
-      }
-      location.reload();
-    });
-  });
-
-  document.querySelectorAll('.listing-place-remove').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      if (!id) return;
-      const res = await fetch(`/api/proximity/listing-places?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || 'Remove failed');
-        return;
-      }
-      location.reload();
-    });
-  });
+  initListingPlaceActions();
+  hydrateCompareCells();
 
   runBtn?.addEventListener('click', async () => {
     if (!cfg.hasLocation) {
@@ -458,7 +684,17 @@ function initProximityPanel() {
   addBtn?.addEventListener('click', async () => {
     if (!lastResult || lastResult.status !== 'ok' || !lastExplore) return;
     const origin = listingOrigin();
-    const href = directionsHref(origin, lastResult, lastTravelMode);
+    const href = directionsHref(
+      origin,
+      {
+        lat: lastResult.place_lat,
+        lng: lastResult.place_lng,
+        place_id: lastResult.place_id,
+        place_name: lastResult.place_name,
+        maps_url: lastResult.maps_url,
+      },
+      lastTravelMode,
+    );
 
     let criterionBody;
     if (lastExplore.kind === 'nearest') {
@@ -534,7 +770,7 @@ function initProximityPanel() {
       });
     }
 
-    location.href = `/app/locales/${cfg.localeId}/compare`;
+    location.reload();
   });
 }
 

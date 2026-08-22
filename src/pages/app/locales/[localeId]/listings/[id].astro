@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../../components/DirectionsOverlay.astro';
+import SourceOverlay from '../../../../../components/SourceOverlay.astro';
 import ListingForm from '../../../../../components/ListingForm.astro';
 import '../../../../../styles/listing-map.css';
 import { PLACE_TYPE_CATALOG } from '../../../../../lib/proximity/place-types';
@@ -42,11 +43,19 @@ const { data: listingPlaces } = await supabase
   .eq('listing_id', listing.id)
   .order('updated_at', { ascending: false });
 
-const { data: lockedResults } = await supabase
+const { data: criteria } = await supabase
+  .from('proximity_criteria')
+  .select('*')
+  .eq('locale_id', locale.id)
+  .order('sort_order', { ascending: true })
+  .order('created_at', { ascending: true });
+
+const { data: proximityResults } = await supabase
   .from('proximity_results')
-  .select('id, criterion_id, place_name, duration_sec, distance_m, locked, proximity_criteria(label)')
-  .eq('listing_id', listing.id)
-  .eq('locked', true);
+  .select('*')
+  .eq('listing_id', listing.id);
+
+const resultByCriterion = new Map((proximityResults ?? []).map((r) => [r.criterion_id, r]));
 
 const hasLocation = listing.lat != null && listing.lng != null;
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
@@ -58,20 +67,16 @@ const placeTypes = Object.entries(PLACE_TYPE_CATALOG).map(([key, v]) => ({
   label: v.label,
 }));
 const listingTitle = listing.name || 'Listing';
-const lockedRows = (lockedResults ?? []).map((row) => {
-  const crit = Array.isArray(row.proximity_criteria)
-    ? row.proximity_criteria[0]
-    : row.proximity_criteria;
-  const label =
-    crit && typeof crit === 'object' && crit !== null && 'label' in crit
-      ? String(crit.label)
-      : 'Compare column';
+
+const compareRows = (criteria ?? []).map((c) => {
+  const row = resultByCriterion.get(c.id);
   return {
-    criterionId: row.criterion_id,
-    label,
-    placeName: row.place_name,
-    durationSec: row.duration_sec,
-    distanceM: row.distance_m,
+    criterionId: c.id,
+    label: c.label,
+    travelMode: c.travel_mode,
+    kind: c.kind,
+    placeTypeKey: c.place_type_key,
+    result: row ?? null,
   };
 });
 ---
@@ -85,159 +90,327 @@ const lockedRows = (lockedResults ?? []).map((row) => {
   ]}
 >
   <h1>{listingTitle}</h1>
-  <p class="muted"><a href={`${base}/compare`}>Compare</a></p>
 
-  {
-    hasLocation ? (
-      <div
-        id="listing-map"
-        class="listing-map map-well"
-        data-key={browserKey}
-        data-map-id={mapId}
-        data-lat={String(listing.lat)}
-        data-lng={String(listing.lng)}
-        data-title={listing.name || listing.address || 'Listing'}
-        data-photo-url={photoUrl}
-      ></div>
-    ) : (
-      <p class="listing-map-missing muted">
-        No map yet — add an address and geocode (or use Retry geocode below).
-      </p>
-    )
-  }
-
-  <section class="proximity-panel panel glass stack" id="proximity-panel">
-    <h2>Proximity</h2>
-    <p class="muted prox-lede">
-      Find a nearby type or search an address/place. Then save it for this listing and/or add it as
-      a Compare column for the Locale.
-    </p>
-    <div class="prox-fields stack">
-      <label>
-        Mode
-        <select id="prox-mode-kind">
-          <option value="nearest">Nearest type</option>
-          <option value="search">Search place</option>
-        </select>
-      </label>
-      <div id="prox-nearest-fields" class="stack">
-        <label>
-          Place type
-          <select id="prox-place-type">
-            {placeTypes.map((t) => (
-              <option value={t.key}>{t.label}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div id="prox-search-fields" class="stack" hidden>
-        <div class="place-search" id="prox-place-search">
-          <label>
-            Place or address
-            <input type="search" data-place-search-input placeholder="Start typing…" autocomplete="off" />
-          </label>
-          <ul class="place-search__results stack" data-place-search-results hidden></ul>
-          <p class="alert" data-place-search-error hidden></p>
-        </div>
-      </div>
-      <label>
-        Travel mode
-        <select id="prox-mode">
-          <option value="DRIVE">Drive</option>
-          <option value="WALK">Walk</option>
-          <option value="BICYCLE">Bicycle</option>
-          <option value="TRANSIT">Transit</option>
-        </select>
-      </label>
-    </div>
-    <div class="prox-actions">
-      <button type="button" id="prox-run">Find route</button>
-      <button type="button" id="prox-use-listing" class="secondary" hidden>
-        Use for this listing
-      </button>
-      <button type="button" id="prox-add-compare" class="secondary" hidden>
-        Add to Compare
-      </button>
-    </div>
-    <div id="prox-choices" class="prox-choices stack" hidden></div>
-    <div id="prox-result" class="prox-result" hidden></div>
-
-    {
-      lockedRows.length > 0 && (
-        <div class="stack prox-locked">
-          <h3>Locked on Compare</h3>
-          <ul class="stack" id="prox-locked-list">
-            {lockedRows.map((row) => (
-              <li class="prox-saved-item">
-                <div>
-                  <strong>
-                    {row.label} · locked
-                  </strong>
-                  <span class="muted">
-                    {[row.placeName, formatListingMeta(row.durationSec, row.distanceM)]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  class="secondary prox-unlock"
-                  data-criterion-id={row.criterionId}
-                >
-                  Unlock
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )
-    }
-
-    <div class="stack prox-saved">
-      <h3>Saved for this listing</h3>
+  <section class="listing-hero">
+    <div class="listing-hero__meta glass panel stack">
       {
-        (listingPlaces ?? []).length === 0 ? (
-          <p class="muted" id="listing-places-empty">None yet.</p>
-        ) : null
+        listing.address && (
+          <p>
+            <span class="visually-hidden">Address</span>
+            {listing.address}
+          </p>
+        )
       }
-      <ul class="stack" id="listing-places-list">
-        {(listingPlaces ?? []).map((p) => (
-          <li class="prox-saved-item" data-place-row-id={p.id}>
-            <div>
-              <strong>{p.name}</strong>
-              <span class="muted">
-                {[formatListingMeta(p.duration_sec, p.distance_m), p.travel_mode]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-            </div>
-            <div class="prox-saved-item__actions">
-              {p.maps_url && (
-                <a href={p.maps_url} target="_blank" rel="noopener">
-                  Open route
-                </a>
-              )}
-              <button type="button" class="secondary listing-place-remove" data-id={p.id}>
-                Remove
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {
+        listing.appointment_at && (
+          <p>
+            <strong>Appointment</strong>
+            <br />
+            {new Date(listing.appointment_at).toLocaleString()}
+          </p>
+        )
+      }
+      {
+        listing.notes && (
+          <p>
+            <strong>Notes</strong>
+            <br />
+            {listing.notes}
+          </p>
+        )
+      }
+      <div class="listing-hero__links">
+        {
+          listing.source_url && (
+            <a
+              href={listing.source_url}
+              data-source-overlay
+              data-source-title="Listing source"
+            >
+              Listing source
+            </a>
+          )
+        }
+        <a href={`${base}/compare`}>Open Compare</a>
+      </div>
+
+      <div class="stack prox-saved">
+        <h3>Places</h3>
+        <p class="muted prox-places-lede">
+          Travel times from this listing.{' '}
+          <strong class="prox-lede-accent">On Compare</strong> also shows on the Locale Compare
+          page.{' '}
+          <strong>Listing only</strong> stays private to this listing.
+        </p>
+        {
+          compareRows.length === 0 && (listingPlaces ?? []).length === 0 ? (
+            <p class="muted" id="listing-places-empty">
+              None yet — use the Places tab below.
+            </p>
+          ) : null
+        }
+        <ul class="stack prox-places-list" id="listing-places-list">
+          {compareRows.map((row) => {
+            const placeId = row.result?.place_id ?? '';
+            return (
+              <li
+                class="prox-saved-item prox-saved-item--compare"
+                data-listing-prox-cell
+                data-column-label={row.label}
+                data-listing-id={listing.id}
+                data-criterion-id={row.criterionId}
+                data-listing-lat={listing.lat != null ? String(listing.lat) : ''}
+                data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
+                data-travel-mode={row.travelMode}
+              >
+                {row.result ? (
+                  <span class="seeded" hidden>
+                    {JSON.stringify(row.result)}
+                  </span>
+                ) : null}
+                <div class="prox-saved-item__media" data-prox-thumb>
+                  {
+                    placeId ? (
+                      <img
+                        class="prox-saved-item__thumb"
+                        src={`/api/places/photo?place_id=${encodeURIComponent(placeId)}&max=120`}
+                        alt=""
+                        loading="lazy"
+                        width="72"
+                        height="54"
+                        onerror="this.hidden=true"
+                      />
+                    ) : null
+                  }
+                </div>
+                <div class="prox-saved-item__body">
+                      <strong>
+                        {row.label}
+                      </strong>
+                  <span class="muted prox-cell-meta">
+                    {row.result?.status === 'ok'
+                      ? [
+                          row.result.place_name,
+                          formatListingMeta(row.result.duration_sec, row.result.distance_m),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : row.result
+                        ? row.result.status
+                        : 'Pending…'}
+                  </span>
+                  <span class="prox-place-tag prox-place-tag--compare">On Compare</span>
+                </div>
+                <div class="prox-saved-item__actions cell-actions" data-cell-actions></div>
+              </li>
+            );
+          })}
+          {(listingPlaces ?? []).map((p) => (
+            <li
+              class="prox-saved-item prox-saved-item--listing"
+              data-place-row-id={p.id}
+              data-place-lat={String(p.lat)}
+              data-place-lng={String(p.lng)}
+              data-place-id={p.place_id}
+              data-place-name={p.name}
+              data-travel-mode={p.travel_mode}
+              data-duration-sec={p.duration_sec != null ? String(p.duration_sec) : ''}
+              data-distance-m={p.distance_m != null ? String(p.distance_m) : ''}
+              data-maps-url={p.maps_url ?? ''}
+            >
+              <div class="prox-saved-item__media" data-prox-thumb>
+                {
+                  p.place_id ? (
+                    <img
+                      class="prox-saved-item__thumb"
+                      src={`/api/places/photo?place_id=${encodeURIComponent(p.place_id)}&max=120`}
+                      alt=""
+                      loading="lazy"
+                      width="72"
+                      height="54"
+                      onerror="this.hidden=true"
+                    />
+                  ) : null
+                }
+              </div>
+              <div class="prox-saved-item__body">
+                <strong>{p.name}</strong>
+                <span class="muted">
+                  {[formatListingMeta(p.duration_sec, p.distance_m), p.travel_mode]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+                <span class="prox-place-tag prox-place-tag--listing">Listing only</span>
+              </div>
+              <div class="prox-saved-item__actions cell-actions" data-listing-place-actions></div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+    <div class="listing-hero__visual stack">
+      {
+        photoUrl ? (
+          <img class="listing-hero__photo" src={photoUrl} alt="" />
+        ) : (
+          <p class="muted">No photo</p>
+        )
+      }
+      {
+        hasLocation ? (
+          <div
+            id="listing-map"
+            class="listing-map map-well"
+            data-key={browserKey}
+            data-map-id={mapId}
+            data-lat={String(listing.lat)}
+            data-lng={String(listing.lng)}
+            data-title={listing.name || listing.address || 'Listing'}
+            data-photo-url={photoUrl}
+          ></div>
+        ) : (
+          <p class="listing-map-missing muted">
+            No map yet — add an address and geocode (or use Retry geocode in Edit).
+          </p>
+        )
+      }
     </div>
   </section>
 
-  <ListingForm
-    listing={listing}
-    action="/api/listings/update"
-    submitLabel="Update listing"
-    localeId={locale.id}
-  >
-    <button type="button" id="geocode-retry" class="secondary" slot="actions">
-      Retry geocode
-    </button>
-  </ListingForm>
-  <p id="geocode-status" class="muted"></p>
+  <div class="listing-tabs" data-listing-tabs>
+    <ul class="listing-tabs__list" role="tablist">
+      <li>
+        <button
+          type="button"
+          class="secondary listing-tabs__tab"
+          role="tab"
+          id="tab-places"
+          aria-controls="panel-places"
+          aria-selected="true"
+          data-tab="places"
+        >
+          Places
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="secondary listing-tabs__tab"
+          role="tab"
+          id="tab-edit"
+          aria-controls="panel-edit"
+          aria-selected="false"
+          data-tab="edit"
+        >
+          Edit
+        </button>
+      </li>
+    </ul>
+
+    <section
+      class="listing-tabs__panel proximity-panel panel glass stack"
+      id="panel-places"
+      role="tabpanel"
+      aria-labelledby="tab-places"
+      data-panel="places"
+    >
+      <h2 class="visually-hidden">Places</h2>
+      <p class="muted prox-lede">
+        Find a nearby type or search a place. Save it as <strong>listing only</strong>, or
+        <strong>Add to Compare</strong> so it appears for every listing on the Locale Compare page.
+      </p>
+      <div class="prox-fields stack">
+        <label>
+          Mode
+          <select id="prox-mode-kind">
+            <option value="nearest">Nearest type</option>
+            <option value="search">Search place</option>
+          </select>
+        </label>
+        <div id="prox-nearest-fields" class="stack">
+          <label>
+            Place type
+            <select id="prox-place-type">
+              {placeTypes.map((t) => (
+                <option value={t.key}>{t.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div id="prox-search-fields" class="stack" hidden>
+          <div class="place-search" id="prox-place-search">
+            <label>
+              Place or address
+              <input
+                type="search"
+                data-place-search-input
+                placeholder="Start typing…"
+                autocomplete="off"
+              />
+            </label>
+            <ul class="place-search__results stack" data-place-search-results hidden></ul>
+            <p class="alert" data-place-search-error hidden></p>
+          </div>
+        </div>
+        <label>
+          Travel mode
+          <select id="prox-mode">
+            <option value="DRIVE">Drive</option>
+            <option value="WALK">Walk</option>
+            <option value="BICYCLE">Bicycle</option>
+            <option value="TRANSIT">Transit</option>
+          </select>
+        </label>
+      </div>
+      <div class="prox-actions">
+        <button type="button" id="prox-run" title="Find nearby places and drive times">
+          Find route
+        </button>
+        <button
+          type="button"
+          id="prox-use-listing"
+          class="secondary"
+          hidden
+          title="Save this place for this listing only"
+        >
+          Save as listing only
+        </button>
+        <button
+          type="button"
+          id="prox-add-compare"
+          class="secondary"
+          hidden
+          title="Add this place as a Locale Compare column"
+        >
+          Add to Compare
+        </button>
+      </div>
+      <div id="prox-choices" class="prox-choices stack" hidden></div>
+      <div id="prox-result" class="prox-result" hidden></div>
+    </section>
+
+    <section
+      class="listing-tabs__panel"
+      id="panel-edit"
+      role="tabpanel"
+      aria-labelledby="tab-edit"
+      data-panel="edit"
+      hidden
+    >
+      <ListingForm
+        listing={listing}
+        action="/api/listings/update"
+        submitLabel="Update listing"
+        localeId={locale.id}
+      >
+        <button type="button" id="geocode-retry" class="secondary" slot="actions">
+          Retry geocode
+        </button>
+      </ListingForm>
+      <p id="geocode-status" class="muted"></p>
+    </section>
+  </div>
+
   {hasLocation && <script src="/scripts/listing-map.js" type="module"></script>}
   <script
     define:vars={{
@@ -249,11 +422,28 @@ const lockedRows = (lockedResults ?? []).map((row) => {
     }}
   >
     window.__WAYHOME_LISTING_PROX__ = { listingId, localeId, hasLocation, mapKey, mapId };
+    window.__WAYHOME_MAPS__ = { mapKey, mapId };
   </script>
   <DirectionsOverlay />
+  <SourceOverlay />
   <script src="/scripts/directions-overlay.js" type="module"></script>
+  <script src="/scripts/source-overlay.js" type="module"></script>
   <script src="/scripts/listing-proximity.js" type="module"></script>
   <script define:vars={{ listingId: listing.id }}>
+    document.querySelectorAll('[data-listing-tabs] [role="tab"]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const name = tab.getAttribute('data-tab');
+        document.querySelectorAll('[data-listing-tabs] [role="tab"]').forEach((t) => {
+          const selected = t === tab;
+          t.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
+        document.querySelectorAll('[data-listing-tabs] [data-panel]').forEach((panel) => {
+          const el = panel;
+          el.hidden = el.getAttribute('data-panel') !== name;
+        });
+      });
+    });
+
     document.getElementById('geocode-retry')?.addEventListener('click', async () => {
       const status = document.getElementById('geocode-status');
       if (status) status.textContent = 'Geocoding…';
@@ -272,10 +462,22 @@ const lockedRows = (lockedResults ?? []).map((row) => {
     });
   </script>
   <style>
+    .visually-hidden {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .proximity-panel {
       --prox-gap: 1.35rem;
       gap: var(--prox-gap);
-      margin-block: 1.75rem;
+      margin-block: 0;
 
       @media (min-width: 768px) {
         --prox-gap: 1.5rem;
@@ -307,7 +509,6 @@ const lockedRows = (lockedResults ?? []).map((row) => {
       padding-block: 0.5rem 0.15rem;
     }
 
-    .proximity-panel .pin-fields[hidden],
     .prox-choices[hidden],
     .prox-result[hidden],
     .place-search__results[hidden],
@@ -317,20 +518,33 @@ const lockedRows = (lockedResults ?? []).map((row) => {
       display: none;
     }
 
-    .place-search__results {
-      list-style: none;
+    .prox-places-lede {
       margin: 0;
-      padding: 0;
-      gap: 0.35rem;
+      font-size: 0.9rem;
+      line-height: 1.45;
+
+      & strong {
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      & .prox-lede-accent {
+        color: var(--primary);
+      }
     }
 
-    .place-search__option {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.2rem;
-      inline-size: 100%;
-      text-align: start;
+    .prox-place-tag {
+      display: inline-block;
+      margin-block-start: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .prox-place-tag--compare {
+      color: var(--primary);
     }
 
     .prox-saved-item {
@@ -338,9 +552,53 @@ const lockedRows = (lockedResults ?? []).map((row) => {
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 0.75rem;
-      padding-block: 0.5rem;
+      gap: 0.65rem;
+      padding-block: 0.55rem;
+      padding-inline: 0.55rem 0.25rem;
+      margin-inline: -0.55rem;
       border-block-end: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .prox-saved-item--compare {
+      background: color-mix(in srgb, var(--primary) 12%, transparent);
+      border-inline-start: 3px solid var(--primary);
+      border-block-end-color: color-mix(in srgb, var(--primary) 25%, var(--border));
+    }
+
+    .prox-saved-item--compare .prox-saved-item__thumb {
+      border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+    }
+
+    .prox-saved-item--listing {
+      border-inline-start: 3px solid var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+
+    .prox-place-tag--listing {
+      color: var(--accent);
+    }
+
+    .prox-saved-item__media {
+      flex: 0 0 auto;
+    }
+
+    .prox-saved-item__thumb {
+      --thumb-w: 4.5rem;
+      --thumb-h: 3.4rem;
+
+      display: block;
+      inline-size: var(--thumb-w);
+      block-size: var(--thumb-h);
+      object-fit: cover;
+      border-radius: var(--radius-sm, 0.4rem);
+      border: 1px solid var(--border);
+      background: var(--bg-1);
+    }
+
+    .prox-saved-item__body {
+      min-inline-size: 0;
+      flex: 1 1 8rem;
 
       & strong,
       & .muted {
@@ -351,7 +609,7 @@ const lockedRows = (lockedResults ?? []).map((row) => {
     .prox-saved-item__actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.35rem;
       align-items: center;
     }
 
@@ -376,27 +634,21 @@ const lockedRows = (lockedResults ?? []).map((row) => {
       flex-direction: column;
       gap: 0.4rem;
       padding-block: 0.5rem 0.25rem;
-      padding-inline: 0;
-      font: inherit;
-      font-family: inherit;
       line-height: 1.45;
 
       & p {
         margin: 0;
-        font-family: inherit;
       }
     }
 
     .prox-result__name {
       font-size: 1.05rem;
       font-weight: 600;
-      font-family: inherit;
     }
 
     .prox-result__meta {
       color: var(--text-muted);
       font-size: 0.95rem;
-      font-family: inherit;
       font-variant-numeric: tabular-nums;
     }
 
@@ -406,6 +658,10 @@ const lockedRows = (lockedResults ?? []).map((row) => {
 
     .prox-result__status.is-error {
       color: var(--danger);
+    }
+
+    .listing-map {
+      margin-block: 0;
     }
   </style>
 </AppLayout>

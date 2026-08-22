@@ -1,4 +1,5 @@
 import { mountPlaceSearch } from './place-search.js';
+import { iconBtn, iconMapPin, iconRoute } from './ui-icons.js';
 
 function formatDuration(sec) {
   if (sec == null || !Number.isFinite(sec)) return '';
@@ -59,6 +60,35 @@ function directionsUrl(td, result) {
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
+function openCellRoute(td, result, href) {
+  const originLat = Number(td.dataset.listingLat);
+  const originLng = Number(td.dataset.listingLng);
+  const maps = window.__WAYHOME_MAPS__ || {};
+  const listingName =
+    td.closest('tr')?.querySelector('th')?.textContent?.trim() || 'Listing';
+  const durationLabel = [
+    formatDuration(result.duration_sec),
+    formatMiles(result.distance_m),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  window.openDirectionsOverlay?.({
+    origin: { lat: originLat, lng: originLng },
+    destination: {
+      lat: result.place_lat,
+      lng: result.place_lng,
+      placeId: result.place_id,
+      name: result.place_name,
+    },
+    travelMode: td.dataset.travelMode || 'DRIVE',
+    title: `${listingName} → ${result.place_name || 'Place'}`,
+    durationLabel,
+    externalUrl: href,
+    mapKey: maps.mapKey,
+    mapId: maps.mapId,
+  });
+}
+
 function renderCell(td, result) {
   td.replaceChildren();
   if (!result) {
@@ -72,12 +102,6 @@ function renderCell(td, result) {
   if (result.status === 'ok') {
     const wrap = document.createElement('div');
     wrap.className = 'cell-ok';
-    if (result.locked) {
-      const lock = document.createElement('div');
-      lock.className = 'muted';
-      lock.textContent = 'Locked';
-      wrap.appendChild(lock);
-    }
     const line = document.createElement('div');
     line.textContent = [formatDuration(result.duration_sec), formatMiles(result.distance_m)]
       .filter(Boolean)
@@ -98,75 +122,30 @@ function renderCell(td, result) {
       result.place_lat != null &&
       result.place_lng != null;
 
+    const actions = document.createElement('div');
+    actions.className = 'cell-actions';
+
     if (canOverlay) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'secondary';
-      btn.textContent = 'Show route';
-      btn.addEventListener('click', () => {
-        const maps = window.__WAYHOME_MAPS__ || {};
-        const listingName =
-          td.closest('tr')?.querySelector('th')?.textContent?.trim() || 'Listing';
-        const durationLabel = [
-          formatDuration(result.duration_sec),
-          formatMiles(result.distance_m),
-        ]
-          .filter(Boolean)
-          .join(' · ');
-        window.openDirectionsOverlay?.({
-          origin: { lat: originLat, lng: originLng },
-          destination: {
-            lat: result.place_lat,
-            lng: result.place_lng,
-            placeId: result.place_id,
-            name: result.place_name,
-          },
-          travelMode: td.dataset.travelMode || 'DRIVE',
-          title: `${listingName} → ${result.place_name || 'Place'}`,
-          durationLabel,
-          externalUrl: href,
-          mapKey: maps.mapKey,
-          mapId: maps.mapId,
-        });
-      });
-      wrap.appendChild(btn);
+      actions.appendChild(
+        iconBtn({
+          label: 'Show the route on a map overlay',
+          icon: iconRoute,
+          onClick: () => openCellRoute(td, result, href),
+        }),
+      );
     }
 
     if (href) {
-      const a = document.createElement('a');
-      a.href = href;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.textContent = 'Google Maps';
-      a.style.marginInlineStart = '0.5rem';
-      wrap.appendChild(a);
+      actions.appendChild(
+        iconBtn({
+          label: 'Open turn-by-turn directions in Google Maps',
+          icon: iconMapPin,
+          href,
+        }),
+      );
     }
 
-    if (result.locked) {
-      const unlock = document.createElement('button');
-      unlock.type = 'button';
-      unlock.className = 'secondary';
-      unlock.textContent = 'Unlock';
-      unlock.addEventListener('click', async () => {
-        const res = await fetch('/api/proximity/lock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            listing_id: td.dataset.listingId,
-            criterion_id: td.dataset.criterionId,
-            locked: false,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          alert(data.error || 'Unlock failed');
-          return;
-        }
-        await computeCell(td);
-      });
-      wrap.appendChild(unlock);
-    }
-
+    wrap.appendChild(actions);
     td.appendChild(wrap);
     td.dataset.status = 'ok';
     return;
@@ -227,6 +206,33 @@ function initKindToggle() {
   };
   kind.addEventListener('change', sync);
   sync();
+}
+
+function initCompareColumnOverlay() {
+  const overlay = document.getElementById('compare-column-overlay');
+  if (!(overlay instanceof HTMLElement)) return;
+
+  const open = () => {
+    overlay.hidden = false;
+    document.body.classList.add('compare-column-overlay-open');
+    const first = overlay.querySelector('input[name="label"]');
+    if (first instanceof HTMLElement) first.focus();
+  };
+
+  const close = () => {
+    overlay.hidden = true;
+    document.body.classList.remove('compare-column-overlay-open');
+  };
+
+  document.querySelectorAll('[data-compare-column-open]').forEach((el) => {
+    el.addEventListener('click', open);
+  });
+  overlay.querySelectorAll('[data-compare-column-close]').forEach((el) => {
+    el.addEventListener('click', close);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.hidden) close();
+  });
 }
 
 function initCriterionForm() {
@@ -301,33 +307,6 @@ function initDeleteButtons() {
   });
 }
 
-function initRefreshStale() {
-  const btn = document.getElementById('refresh-stale');
-  const localeId = window.__WAYHOME_LOCALE_ID__;
-  if (!btn || !localeId) return;
-
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    btn.textContent = 'Refreshing…';
-    try {
-      const res = await fetch('/api/proximity/compute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locale_id: localeId, refresh_stale: true }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || 'Refresh failed');
-        return;
-      }
-      location.reload();
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Refresh stale cells';
-    }
-  });
-}
-
 async function hydrateAndCompute() {
   const cells = [...document.querySelectorAll('td[data-listing-id][data-criterion-id]')];
   for (const td of cells) {
@@ -345,10 +324,31 @@ async function hydrateAndCompute() {
     }
     await computeCell(td);
   }
+  equalizeCompareRows();
+}
+
+function equalizeCompareRows() {
+  const rows = [...document.querySelectorAll('#compare-table tbody tr')];
+  if (!rows.length) return;
+
+  for (const row of rows) {
+    row.style.blockSize = '';
+    row.style.height = '';
+  }
+
+  const max = Math.max(...rows.map((row) => row.getBoundingClientRect().height));
+  if (!(max > 0)) return;
+
+  const px = `${Math.ceil(max)}px`;
+  for (const row of rows) {
+    row.style.blockSize = px;
+  }
 }
 
 initKindToggle();
+initCompareColumnOverlay();
 initCriterionForm();
 initDeleteButtons();
-initRefreshStale();
+equalizeCompareRows();
 hydrateAndCompute();
+window.addEventListener('resize', equalizeCompareRows);

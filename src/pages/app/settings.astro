@@ -1,14 +1,24 @@
 ---
+import AppLayout from '../../layouts/AppLayout.astro';
 import { generateInviteToken } from '../../lib/crypto/invite-token';
 import { getPrimaryNestId } from '../../lib/supabase/nest';
+import { listUiThemes, resolveUiThemeId } from '../../lib/ui/themes';
 
 const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
 const nestId = await getPrimaryNestId(supabase, user.id);
+const themes = listUiThemes();
 
 let inviteUrl: string | null = null;
 let errorMessage = '';
 let notice = '';
+
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('ui_theme_id')
+  .eq('id', user.id)
+  .maybeSingle();
+const currentThemeId = resolveUiThemeId(profile?.ui_theme_id);
 
 if (!nestId) {
   errorMessage = 'No Nest found.';
@@ -26,26 +36,90 @@ if (!nestId) {
     notice = 'Invite link rotated. Copy it now — the raw token is not stored.';
   }
 }
+
+const swatchVars: Record<string, { primary: string; accent: string }> = {
+  sea: { primary: '#0d9488', accent: '#2563eb' },
+  steel: { primary: '#3b82f6', accent: '#7c3aed' },
+  sand: { primary: '#d97706', accent: '#c2410c' },
+};
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>Settings — Wayhome</title>
-  </head>
-  <body>
-    <p><a href="/app">← Nest</a></p>
-    <h1>Settings</h1>
-    {errorMessage && <p role="alert">{errorMessage}</p>}
-    {notice && <p>{notice}</p>}
-    {inviteUrl && (
-      <p>
-        Invite link:
-        <input type="text" readonly value={inviteUrl} style="width:100%" />
-      </p>
-    )}
+<AppLayout title="Settings" crumbs={[{ href: '/app', label: 'Nest' }, { label: 'Settings' }]}>
+  <h1>Settings</h1>
+  {errorMessage && <p class="alert" role="alert">{errorMessage}</p>}
+  {notice && <p class="muted">{notice}</p>}
+
+  <section class="stack theme-section" style="margin-block-end:1.5rem">
+    <h2>Accent theme</h2>
+    <div class="theme-swatches" id="theme-swatches" role="radiogroup" aria-label="Accent theme">
+      {
+        themes.map((theme) => {
+          const swatch = swatchVars[theme.id] ?? {
+            primary: 'var(--primary)',
+            accent: 'var(--accent)',
+          };
+          return (
+            <label
+              class="theme-swatch"
+              style={`--swatch-primary:${swatch.primary};--swatch-accent:${swatch.accent}`}
+            >
+              <input
+                type="radio"
+                name="ui_theme_id"
+                value={theme.id}
+                checked={theme.id === currentThemeId}
+              />
+              <span class="theme-swatch__dots" aria-hidden="true">
+                <span class="theme-swatch__dot" title="Primary"></span>
+                <span class="theme-swatch__dot theme-swatch__dot--accent" title="Accent"></span>
+              </span>
+              {theme.label}
+            </label>
+          );
+        })
+      }
+    </div>
+    <p id="theme-status" class="theme-status muted" aria-live="polite"></p>
+  </section>
+
+  <section class="stack">
+    <h2>Nest invite</h2>
+    {
+      inviteUrl && (
+        <p>
+          Invite link:
+          <input type="text" readonly value={inviteUrl} style="inline-size:100%" />
+        </p>
+      )
+    }
     <form method="post">
       <button type="submit">Generate / rotate invite link</button>
     </form>
-  </body>
-</html>
+  </section>
+
+  <script>
+    const status = document.getElementById('theme-status');
+    const group = document.getElementById('theme-swatches');
+    group?.addEventListener('change', async (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLInputElement) || target.name !== 'ui_theme_id') return;
+      const ui_theme_id = target.value;
+      document.documentElement.dataset.theme = ui_theme_id;
+      if (status) status.textContent = 'Saving…';
+      try {
+        const res = await fetch('/api/profile/theme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ui_theme_id }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (status) status.textContent = data.error || 'Could not save theme';
+          return;
+        }
+        if (status) status.textContent = '';
+      } catch {
+        if (status) status.textContent = 'Could not save theme';
+      }
+    });
+  </script>
+</AppLayout>

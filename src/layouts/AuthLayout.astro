@@ -1,0 +1,27 @@
+---
+import '../styles/tokens.css';
+import '../styles/chrome.css';
+import { DEFAULT_UI_THEME_ID } from '../lib/ui/themes';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="en" data-theme={DEFAULT_UI_THEME_ID}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title} — Wayhome</title>
+  </head>
+  <body class="app-shell">
+    <header class="app-header glass glass--strong">
+      <a class="app-header__brand" href="/">Wayhome</a>
+    </header>
+    <main class="app-main glass panel">
+      <slot />
+    </main>
+  </body>
+</html>

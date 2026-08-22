@@ -1,4 +1,5 @@
 ---
+import AppLayout from '../../layouts/AppLayout.astro';
 import {
   ensureNestForUser,
   getPrimaryNestId,
@@ -22,39 +23,24 @@ const { data: nest } = await supabase
 
 const locales = await listLocalesForNest(supabase, nestId);
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>Wayhome — Nest</title>
-  </head>
-  <body>
-    <header>
-      <h1>{nest?.name ?? 'Nest'}</h1>
-      <nav>
-        <a href="/app/settings">Settings</a>
-      </nav>
-    </header>
-    <p>Signed in as {user.email}</p>
-    <form method="post" action="/api/auth/logout">
-      <button type="submit">Sign out</button>
-    </form>
+<AppLayout title={nest?.name ?? 'Nest'} crumbs={[{ label: nest?.name ?? 'Nest' }]}>
+  <p class="muted">Signed in as {user.email}</p>
 
-    <h2>Locales</h2>
-    <p><a href="/app/locales/new">New Locale</a></p>
-    {
-      locales.length === 0 ? (
-        <p>No Locales yet. Create one to start collecting listings.</p>
-      ) : (
-        <ul>
-          {locales.map((locale) => (
-            <li>
-              <a href={`/app/locales/${locale.id}`}>{locale.name}</a>
-              {localeNeedsSetup(locale) ? ' — Needs setup' : ''}
-            </li>
-          ))}
-        </ul>
-      )
-    }
-  </body>
-</html>
+  <h1>{nest?.name ?? 'Nest'}</h1>
+  <h2>Locales</h2>
+  <p><a href="/app/locales/new">New Locale</a></p>
+  {
+    locales.length === 0 ? (
+      <p class="muted">No Locales yet. Create one to start collecting listings.</p>
+    ) : (
+      <ul class="stack">
+        {locales.map((locale) => (
+          <li>
+            <a href={`/app/locales/${locale.id}`}>{locale.name}</a>
+            {localeNeedsSetup(locale) ? ' — Needs setup' : ''}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</AppLayout>

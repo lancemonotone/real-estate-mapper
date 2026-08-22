@@ -1,5 +1,6 @@
 import { requireEnv } from '../env';
 import type { PoiCandidate } from '../proximity/place-types';
+import { formatGoogleApiError } from './format-api-error';
 
 type PlacesTextResponse = {
   places?: Array<{
@@ -45,7 +46,7 @@ export async function searchTextPlaces(input: {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Places Text HTTP ${res.status}: ${text}`);
+    throw new Error(formatGoogleApiError(res.status, text, 'Places Text'));
   }
 
   const data = (await res.json()) as PlacesTextResponse;

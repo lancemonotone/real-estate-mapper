@@ -1,4 +1,7 @@
 ---
+import AppLayout from '../../../../../layouts/AppLayout.astro';
+import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
 
@@ -7,7 +10,11 @@ if (!tour || (localeId && tour.locale_id !== localeId)) {
   return new Response('Not found', { status: 404 });
 }
 
+const locale = await getLocaleForNestMember(supabase, tour.locale_id);
+if (!locale) return new Response('Not found', { status: 404 });
+
 const toursBase = `/app/locales/${tour.locale_id}/tours`;
+const base = `/app/locales/${tour.locale_id}`;
 
 const { data: stops } = await supabase
   .from('tour_stops')
@@ -36,117 +43,118 @@ const mapStops = (stops ?? [])
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
 const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 ---
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>Tour {tour.tour_date}</title>
-  </head>
-  <body>
-    <p><a href={toursBase}>← Tours</a></p>
-    <h1>Tour {tour.tour_date}</h1>
+<AppLayout
+  title={`Tour ${tour.tour_date}`}
+  crumbs={[
+    { href: '/app', label: 'Nest' },
+    { href: base, label: locale.name },
+    { href: toursBase, label: 'Tours' },
+    { label: tour.tour_date },
+  ]}
+>
+  <h1>Tour {tour.tour_date}</h1>
 
-    <section>
-      <h2>Start / end (optional)</h2>
-      <p>Leave blank to use a property. Custom addresses are geocoded when you save.</p>
-      <form method="post" action="/api/tours/endpoints">
-        <input type="hidden" name="tour_day_id" value={tour.id} />
-        <label>
-          Custom start address
-          <input
-            type="text"
-            name="start_address"
-            value={tour.start_address ?? ''}
-            placeholder="e.g. home or hotel"
-          />
-        </label>
-        {hasCustomStart && (
-          <label>
-            <input type="checkbox" name="clear_start" value="1" /> Clear custom start
-          </label>
-        )}
-        <label>
-          Custom end address
-          <input
-            type="text"
-            name="end_address"
-            value={tour.end_address ?? ''}
-            placeholder="optional"
-          />
-        </label>
-        {hasCustomEnd && (
-          <label>
-            <input type="checkbox" name="clear_end" value="1" /> Clear custom end
-          </label>
-        )}
-        <button type="submit">Save start / end</button>
-      </form>
+  <section class="stack">
+    <h2>Start / end (optional)</h2>
+    <p class="muted">Leave blank to use a property. Custom addresses are geocoded when you save.</p>
+    <form method="post" action="/api/tours/endpoints">
+      <input type="hidden" name="tour_day_id" value={tour.id} />
+      <label>
+        Custom start address
+        <input
+          type="text"
+          name="start_address"
+          value={tour.start_address ?? ''}
+          placeholder="e.g. home or hotel"
+        />
+      </label>
       {hasCustomStart && (
-        <p>Custom start: {tour.start_address}</p>
+        <label>
+          <input type="checkbox" name="clear_start" value="1" /> Clear custom start
+        </label>
       )}
+      <label>
+        Custom end address
+        <input
+          type="text"
+          name="end_address"
+          value={tour.end_address ?? ''}
+          placeholder="optional"
+        />
+      </label>
       {hasCustomEnd && (
-        <p>Custom end: {tour.end_address}</p>
+        <label>
+          <input type="checkbox" name="clear_end" value="1" /> Clear custom end
+        </label>
       )}
-    </section>
+      <button type="submit">Save start / end</button>
+    </form>
+    {hasCustomStart && (
+      <p class="muted">Custom start: {tour.start_address}</p>
+    )}
+    {hasCustomEnd && (
+      <p class="muted">Custom end: {tour.end_address}</p>
+    )}
+  </section>
 
-    <ol>
-      {hasCustomStart && <li>CUSTOM START · {tour.start_address}</li>}
-      {(stops ?? []).map((stop) => (
-        <li>
-          {!hasCustomStart && stop.is_start ? 'START · ' : ''}
-          {stop.listings?.name || stop.listings?.address || stop.listing_id}
-          {stop.leg_duration_sec != null && (
-            <span> — next leg ~{Math.round(stop.leg_duration_sec / 60)} min</span>
-          )}
-          {!hasCustomStart && !stop.is_start && (
-            <form method="post" action="/api/tours/set-start" style="display:inline">
-              <input type="hidden" name="tour_day_id" value={tour.id} />
-              <input type="hidden" name="listing_id" value={stop.listing_id} />
-              <button type="submit">Set start listing</button>
-            </form>
-          )}
-        </li>
-      ))}
-      {hasCustomEnd && <li>CUSTOM END · {tour.end_address}</li>}
-    </ol>
-    <button type="button" id="optimize-btn">Optimize route</button>
-    <pre id="optimize-status"></pre>
-    <div
-      id="tour-map"
-      style="height:420px;margin-top:1rem"
-      data-stops={JSON.stringify(mapStops)}
-      data-key={browserKey}
-      data-map-id={mapId}
-      data-polyline={tour.encoded_polyline ?? ''}
-      data-custom-start={hasCustomStart
-        ? JSON.stringify({
-            lat: tour.start_lat,
-            lng: tour.start_lng,
-            address: tour.start_address,
-          })
-        : ''}
-      data-custom-end={hasCustomEnd
-        ? JSON.stringify({
-            lat: tour.end_lat,
-            lng: tour.end_lng,
-            address: tour.end_address,
-          })
-        : ''}
-    ></div>
-    <script src="/scripts/tour-map.js" type="module"></script>
-    <script define:vars={{ tourId: tour.id }}>
-      document.getElementById('optimize-btn')?.addEventListener('click', async () => {
-        const status = document.getElementById('optimize-status');
-        if (status) status.textContent = 'Optimizing…';
-        const res = await fetch('/api/tours/optimize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tourDayId: tourId }),
-        });
-        const data = await res.json();
-        if (status) status.textContent = JSON.stringify(data, null, 2);
-        if (data.ok) location.reload();
+  <ol class="stack">
+    {hasCustomStart && <li>CUSTOM START · {tour.start_address}</li>}
+    {(stops ?? []).map((stop) => (
+      <li>
+        {!hasCustomStart && stop.is_start ? 'START · ' : ''}
+        {stop.listings?.name || stop.listings?.address || stop.listing_id}
+        {stop.leg_duration_sec != null && (
+          <span> — next leg ~{Math.round(stop.leg_duration_sec / 60)} min</span>
+        )}
+        {!hasCustomStart && !stop.is_start && (
+          <form method="post" action="/api/tours/set-start" style="display:inline">
+            <input type="hidden" name="tour_day_id" value={tour.id} />
+            <input type="hidden" name="listing_id" value={stop.listing_id} />
+            <button type="submit">Set start listing</button>
+          </form>
+        )}
+      </li>
+    ))}
+    {hasCustomEnd && <li>CUSTOM END · {tour.end_address}</li>}
+  </ol>
+  <button type="button" id="optimize-btn">Optimize route</button>
+  <pre id="optimize-status"></pre>
+  <div
+    id="tour-map"
+    class="map-well"
+    style="height:420px;margin-top:1rem"
+    data-stops={JSON.stringify(mapStops)}
+    data-key={browserKey}
+    data-map-id={mapId}
+    data-polyline={tour.encoded_polyline ?? ''}
+    data-custom-start={hasCustomStart
+      ? JSON.stringify({
+          lat: tour.start_lat,
+          lng: tour.start_lng,
+          address: tour.start_address,
+        })
+      : ''}
+    data-custom-end={hasCustomEnd
+      ? JSON.stringify({
+          lat: tour.end_lat,
+          lng: tour.end_lng,
+          address: tour.end_address,
+        })
+      : ''}
+  ></div>
+  <script src="/scripts/tour-map.js" type="module"></script>
+  <script define:vars={{ tourId: tour.id }}>
+    document.getElementById('optimize-btn')?.addEventListener('click', async () => {
+      const status = document.getElementById('optimize-status');
+      if (status) status.textContent = 'Optimizing…';
+      const res = await fetch('/api/tours/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tourDayId: tourId }),
       });
-    </script>
-  </body>
-</html>
+      const data = await res.json();
+      if (status) status.textContent = JSON.stringify(data, null, 2);
+      if (data.ok) location.reload();
+    });
+  </script>
+</AppLayout>
