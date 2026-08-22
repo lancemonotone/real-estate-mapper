@@ -42,6 +42,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     pin_name?: string | null;
     travel_mode?: string;
     sort_order?: number;
+    find_or_create?: boolean;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -53,11 +54,12 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   const label = body.label?.trim();
   const kind = body.kind;
   const travelMode = body.travel_mode;
+  const findOrCreate = body.find_or_create === true;
 
   if (!localeId) {
     return new Response(JSON.stringify({ error: 'locale_id required' }), { status: 400 });
   }
-  if (!label) {
+  if (!label && !findOrCreate) {
     return new Response(JSON.stringify({ error: 'label required' }), { status: 400 });
   }
   if (!kind || !isCriterionKind(kind)) {
@@ -99,6 +101,47 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     pin_lng = body.pin_lng;
   }
 
+  if (findOrCreate) {
+    let existingQuery = supabase
+      .from('proximity_criteria')
+      .select('*')
+      .eq('locale_id', localeId)
+      .eq('travel_mode', travelMode)
+      .eq('kind', kind);
+
+    if (kind === 'place_type') {
+      existingQuery = existingQuery.eq('place_type_key', place_type_key!);
+    } else {
+      if (!pin_place_id) {
+        return new Response(
+          JSON.stringify({ error: 'pin_place_id required for find_or_create shared place' }),
+          { status: 400 },
+        );
+      }
+      existingQuery = existingQuery.eq('pin_place_id', pin_place_id);
+    }
+
+    const { data: existing, error: existingError } = await existingQuery.maybeSingle();
+    if (existingError) {
+      return new Response(JSON.stringify({ error: existingError.message }), {
+        status: 500,
+      });
+    }
+    if (existing) {
+      return new Response(JSON.stringify({ criterion: existing, reused: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
+  const resolvedLabel =
+    label ||
+    (kind === 'place_type' && place_type_key
+      ? PLACE_TYPE_CATALOG[place_type_key as PlaceTypeKey].label
+      : pin_name) ||
+    'Compare column';
+
   const sort_order =
     typeof body.sort_order === 'number' && Number.isFinite(body.sort_order)
       ? body.sort_order
@@ -108,7 +151,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     .from('proximity_criteria')
     .insert({
       locale_id: localeId,
-      label,
+      label: resolvedLabel,
       kind,
       place_type_key,
       pin_lat,
@@ -152,7 +195,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
         place_type_key as PlaceTypeKey,
       );
       return new Response(
-        JSON.stringify({ criterion, poi_upsert_count: poiCount }),
+        JSON.stringify({ criterion, poi_upsert_count: poiCount, reused: false }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
     } catch (e) {
@@ -164,7 +207,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     }
   }
 
-  return new Response(JSON.stringify({ criterion }), {
+  return new Response(JSON.stringify({ criterion, reused: false }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
