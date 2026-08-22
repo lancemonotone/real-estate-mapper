@@ -3,6 +3,7 @@ import {
   DEFAULT_LOCALE_PADDING_M,
   expandRadiusToInclude,
 } from './locale-area';
+import { invalidateLocaleProximityCache } from '../proximity/invalidate';
 import type { Database } from '../types/database';
 
 type Client = SupabaseClient<Database>;
@@ -35,5 +36,7 @@ export async function ensureLocaleCoversPoint(
     })
     .eq('id', localeId);
   if (updateError) throw new Error(updateError.message);
+
+  await invalidateLocaleProximityCache(supabase, localeId);
   return nextRadius;
 }

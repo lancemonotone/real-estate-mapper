@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { geocodeAddress } from '../../../lib/google/geocode';
 import { ensureLocaleCoversPoint } from '../../../lib/geo/ensure-locale-covers';
+import { invalidateListingProximityResults } from '../../../lib/proximity/invalidate';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -43,6 +44,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     }
   }
 
+  const coordsChanged = lat !== existing.lat || lng !== existing.lng;
+
   const { error } = await supabase
     .from('listings')
     .update({
@@ -59,6 +62,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     .eq('id', id);
 
   if (error) return new Response(error.message, { status: 400 });
+
+  if (coordsChanged) {
+    await invalidateListingProximityResults(supabase, id);
+  }
 
   if (lat != null && lng != null) {
     await ensureLocaleCoversPoint(supabase, existing.locale_id, { lat, lng });
