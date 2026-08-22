@@ -1,10 +1,12 @@
 import type { APIRoute } from 'astro';
-import { DEFAULT_NEW_LOCALE_RADIUS_M } from '../../../lib/geo/locale-area';
+import {
+  DEFAULT_LOCALE_RADIUS_MILES,
+  isAllowedRadiusMiles,
+  milesToMeters,
+} from '../../../lib/geo/locale-radius';
 import { geocodeAddress } from '../../../lib/google/geocode';
 import { ensureNestForUser, getPrimaryNestId } from '../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
-
-const MILES_TO_METERS = 1609.344;
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
   const supabase =
@@ -19,9 +21,6 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   const body = (await request.json()) as {
     name?: string;
     place?: string;
-    center_lat?: number;
-    center_lng?: number;
-    radius_m?: number;
     radius_miles?: number;
     center_label?: string | null;
   };
@@ -31,48 +30,38 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   }
 
   const place = body.place?.trim() ?? '';
-  let center_lat = body.center_lat;
-  let center_lng = body.center_lng;
-  let center_label = body.center_label?.trim() || null;
-
-  if (place) {
-    try {
-      const geo = await geocodeAddress(place);
-      if (!geo) {
-        return new Response(JSON.stringify({ error: 'Place not found' }), {
-          status: 422,
-        });
-      }
-      center_lat = geo.lat;
-      center_lng = geo.lng;
-      center_label = center_label || geo.formattedAddress;
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Geocode failed';
-      return new Response(JSON.stringify({ error: message }), { status: 500 });
-    }
+  if (!place) {
+    return new Response(JSON.stringify({ error: 'Place name required' }), { status: 400 });
   }
 
-  if (
-    typeof center_lat !== 'number' ||
-    typeof center_lng !== 'number' ||
-    Number.isNaN(center_lat) ||
-    Number.isNaN(center_lng)
-  ) {
+  const radiusMiles =
+    typeof body.radius_miles === 'number' ? body.radius_miles : DEFAULT_LOCALE_RADIUS_MILES;
+  if (!isAllowedRadiusMiles(radiusMiles)) {
     return new Response(
-      JSON.stringify({ error: 'Place name required (or valid center coordinates)' }),
+      JSON.stringify({ error: 'Radius must be one of 5, 10, 25, 50, or 100 miles' }),
       { status: 400 },
     );
   }
 
+  let center_lat: number;
+  let center_lng: number;
+  let center_label: string | null = body.center_label?.trim() || null;
+
+  try {
+    const geo = await geocodeAddress(place);
+    if (!geo) {
+      return new Response(JSON.stringify({ error: 'Place not found' }), { status: 422 });
+    }
+    center_lat = geo.lat;
+    center_lng = geo.lng;
+    center_label = center_label || geo.formattedAddress;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Geocode failed';
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
+  }
+
   let nestId = await getPrimaryNestId(supabase, user.id);
   if (!nestId) nestId = await ensureNestForUser(supabase, user.id);
-
-  let radius_m = DEFAULT_NEW_LOCALE_RADIUS_M;
-  if (typeof body.radius_miles === 'number' && body.radius_miles > 0) {
-    radius_m = body.radius_miles * MILES_TO_METERS;
-  } else if (typeof body.radius_m === 'number' && body.radius_m > 0) {
-    radius_m = body.radius_m;
-  }
 
   const { data, error } = await supabase
     .from('locales')
@@ -81,7 +70,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       name: body.name.trim(),
       center_lat,
       center_lng,
-      radius_m,
+      radius_m: milesToMeters(radiusMiles),
       center_label,
     })
     .select('id')

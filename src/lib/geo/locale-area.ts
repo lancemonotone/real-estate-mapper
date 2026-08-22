@@ -3,7 +3,7 @@ import { haversineMeters, type LatLng } from './haversine';
 export type { LatLng };
 
 export const DEFAULT_LOCALE_PADDING_M = 1000;
-export const DEFAULT_NEW_LOCALE_RADIUS_M = 25_000;
+export const DEFAULT_NEW_LOCALE_RADIUS_M = 10 * 1609.344;
 
 export function centerFromPoints(points: LatLng[]): LatLng {
   if (points.length === 0) throw new Error('centerFromPoints: empty points');

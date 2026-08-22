@@ -1,4 +1,9 @@
 ---
+import '../../../../styles/locale-map.css';
+import {
+  nearestAllowedRadiusMiles,
+  milesToMeters,
+} from '../../../../lib/geo/locale-radius';
 import { getLocaleForNestMember, localeNeedsSetup } from '../../../../lib/supabase/nest';
 
 const { localeId } = Astro.params;
@@ -6,8 +11,11 @@ const supabase = Astro.locals.supabase!;
 const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
 if (!locale) return new Response('Not found', { status: 404 });
 
-const radiusMiles = Math.round((locale.radius_m / 1609.344) * 10) / 10;
+const radiusMiles = nearestAllowedRadiusMiles(locale.radius_m);
 const base = `/app/locales/${locale.id}`;
+const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
+const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+const hasCenter = !localeNeedsSetup(locale);
 ---
 <html lang="en">
   <head>
@@ -22,15 +30,15 @@ const base = `/app/locales/${locale.id}`;
       {
         locale.center_label && (
           <p>
-            Center: {locale.center_label} · ~{radiusMiles} mi radius
+            Center: {locale.center_label} · {radiusMiles} mi radius
           </p>
         )
       }
       {
-        !locale.center_label && !localeNeedsSetup(locale) && (
+        !locale.center_label && hasCenter && (
           <p>
-            Center: {locale.center_lat.toFixed(4)}, {locale.center_lng.toFixed(4)} · ~{radiusMiles}{' '}
-            mi radius
+            Center: {locale.center_lat.toFixed(4)}, {locale.center_lng.toFixed(4)} · {radiusMiles} mi
+            radius
           </p>
         )
       }
@@ -43,11 +51,28 @@ const base = `/app/locales/${locale.id}`;
         )
       }
       <p><a href={`${base}/edit`}>Edit Locale</a></p>
+      {
+        hasCenter ? (
+          <div
+            id="locale-map"
+            class="locale-map"
+            data-key={browserKey}
+            data-map-id={mapId}
+            data-lat={String(locale.center_lat)}
+            data-lng={String(locale.center_lng)}
+            data-radius-m={String(milesToMeters(radiusMiles))}
+            data-title={locale.name}
+          ></div>
+        ) : (
+          <p class="locale-map-missing">No map until a center place is set.</p>
+        )
+      }
       <nav>
         <a href={`${base}/listings`}>Listings</a>
         <a href={`${base}/unscheduled`}>Unscheduled</a>
         <a href={`${base}/tours`}>Tours</a>
       </nav>
     </header>
+    {hasCenter && <script src="/scripts/locale-map.js" type="module"></script>}
   </body>
 </html>

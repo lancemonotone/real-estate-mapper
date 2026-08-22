@@ -1,0 +1,21 @@
+.locale-map {
+  --locale-map-block-size: 16rem;
+
+  block-size: var(--locale-map-block-size);
+  inline-size: 100%;
+  margin-block: 1rem;
+  border: 1px solid #ccc;
+
+  @media (min-width: 768px) {
+    --locale-map-block-size: 22rem;
+  }
+
+  @media (min-width: 1024px) {
+    --locale-map-block-size: 28rem;
+  }
+}
+
+.locale-map-missing {
+  margin-block: 1rem;
+  color: #666;
+}

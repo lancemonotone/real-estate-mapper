@@ -1,9 +1,11 @@
 import type { APIRoute } from 'astro';
+import {
+  isAllowedRadiusMiles,
+  milesToMeters,
+} from '../../../lib/geo/locale-radius';
 import { geocodeAddress } from '../../../lib/google/geocode';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
-
-const MILES_TO_METERS = 1609.344;
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
   const supabase =
@@ -20,7 +22,6 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     name?: string;
     place?: string;
     radius_miles?: number;
-    radius_m?: number;
     center_label?: string | null;
   };
 
@@ -36,15 +37,23 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     return new Response(JSON.stringify({ error: 'Locale not found' }), { status: 404 });
   }
 
+  if (typeof body.radius_miles !== 'number' || !isAllowedRadiusMiles(body.radius_miles)) {
+    return new Response(
+      JSON.stringify({ error: 'Radius must be one of 5, 10, 25, 50, or 100 miles' }),
+      { status: 400 },
+    );
+  }
+
   const patch: {
     name: string;
     center_lat?: number;
     center_lng?: number;
     center_label?: string | null;
-    radius_m?: number;
+    radius_m: number;
     updated_at: string;
   } = {
     name: body.name.trim(),
+    radius_m: milesToMeters(body.radius_miles),
     updated_at: new Date().toISOString(),
   };
 
@@ -68,12 +77,6 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       const message = e instanceof Error ? e.message : 'Geocode failed';
       return new Response(JSON.stringify({ error: message }), { status: 500 });
     }
-  }
-
-  if (typeof body.radius_miles === 'number' && body.radius_miles > 0) {
-    patch.radius_m = body.radius_miles * MILES_TO_METERS;
-  } else if (typeof body.radius_m === 'number' && body.radius_m > 0) {
-    patch.radius_m = body.radius_m;
   }
 
   const { error } = await supabase.from('locales').update(patch).eq('id', body.id);
