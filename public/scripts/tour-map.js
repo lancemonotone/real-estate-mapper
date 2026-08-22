@@ -29,8 +29,11 @@ async function initTourMap() {
     document.head.appendChild(script);
   });
 
-  const { Map } = await google.maps.importLibrary('maps');
-  const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
+  const [{ Map, InfoWindow }, { AdvancedMarkerElement, PinElement }] =
+    await Promise.all([
+      google.maps.importLibrary('maps'),
+      google.maps.importLibrary('marker'),
+    ]);
 
   const map = new Map(el, {
     center: { lat: stops[0].lat, lng: stops[0].lng },
@@ -38,26 +41,83 @@ async function initTourMap() {
     mapId,
   });
 
-  const bounds = new google.maps.LatLngBounds();
-  for (const stop of stops) {
-    const position = { lat: stop.lat, lng: stop.lng };
-    bounds.extend(position);
+  const infoWindow = new InfoWindow({ maxWidth: 280 });
 
-    const content = document.createElement('div');
-    content.style.cssText =
-      'background:#fff;border:1px solid #333;padding:4px;max-width:120px;font:12px sans-serif';
-    const label = document.createElement('div');
-    label.textContent = `${stop.isStart ? 'S' : stop.sortOrder ?? ''} ${stop.name}`;
-    content.appendChild(label);
+  function buildInfoContent(stop) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tour-pin-info';
+    wrap.style.cssText =
+      'font: 14px/1.4 system-ui, sans-serif; color: #202124; max-width: 260px;';
+
     if (stop.photoUrl) {
       const img = document.createElement('img');
       img.src = stop.photoUrl;
       img.alt = '';
-      img.style.cssText = 'width:100%;height:auto;display:block';
-      content.appendChild(img);
+      img.style.cssText =
+        'display:block;width:100%;height:auto;max-height:160px;object-fit:cover;border-radius:6px;margin-bottom:8px;';
+      wrap.appendChild(img);
     }
 
-    new AdvancedMarkerElement({ map, position, title: stop.name, content });
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:600;margin-bottom:4px;';
+    title.textContent = stop.name || 'Listing';
+    wrap.appendChild(title);
+
+    if (stop.address) {
+      const addr = document.createElement('div');
+      addr.style.cssText = 'color:#5f6368;font-size:13px;margin-bottom:4px;';
+      addr.textContent = stop.address;
+      wrap.appendChild(addr);
+    }
+
+    if (stop.isStart) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'color:#1a73e8;font-size:12px;font-weight:600;';
+      badge.textContent = 'Start';
+      wrap.appendChild(badge);
+    } else if (stop.legDurationSec != null) {
+      const eta = document.createElement('div');
+      eta.style.cssText = 'color:#5f6368;font-size:12px;';
+      eta.textContent = `Next leg ~${Math.round(stop.legDurationSec / 60)} min`;
+      wrap.appendChild(eta);
+    }
+
+    return wrap;
+  }
+
+  const bounds = new google.maps.LatLngBounds();
+  for (const [index, stop] of stops.entries()) {
+    const position = { lat: stop.lat, lng: stop.lng };
+    bounds.extend(position);
+
+    const glyph = stop.isStart
+      ? 'S'
+      : stop.sortOrder != null
+        ? String(stop.sortOrder + 1)
+        : String(index + 1);
+
+    const pin = new PinElement({
+      glyph,
+      glyphColor: '#ffffff',
+      background: stop.isStart ? '#1a73e8' : '#ea4335',
+      borderColor: stop.isStart ? '#174ea6' : '#b31412',
+      scale: 1.1,
+    });
+
+    const marker = new AdvancedMarkerElement({
+      map,
+      position,
+      title: stop.name,
+      content: pin.element,
+      gmpClickable: true,
+    });
+
+    marker.addEventListener('gmp-click', () => {
+      infoWindow.close();
+      infoWindow.setHeaderContent(stop.isStart ? 'Start' : `Stop ${glyph}`);
+      infoWindow.setContent(buildInfoContent(stop));
+      infoWindow.open({ anchor: marker, map });
+    });
   }
 
   if (encodedPolyline) {

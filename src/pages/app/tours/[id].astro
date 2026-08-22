@@ -16,10 +16,10 @@ const mapStops = (stops ?? [])
   .map((s) => ({
     id: s.listing_id,
     name: s.listings!.name || s.listings!.address || 'Stop',
+    address: s.listings!.address || '',
     lat: s.listings!.lat!,
     lng: s.listings!.lng!,
     photoUrl: s.listings!.photo_url,
-    photoPath: s.listings!.photo_path,
     sortOrder: s.sort_order,
     legDurationSec: s.leg_duration_sec,
     isStart: s.is_start,
