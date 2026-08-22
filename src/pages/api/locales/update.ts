@@ -4,6 +4,7 @@ import {
   milesToMeters,
 } from '../../../lib/geo/locale-radius';
 import { geocodeAddress } from '../../../lib/google/geocode';
+import { invalidateLocaleProximityCache } from '../../../lib/proximity/invalidate';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
@@ -79,9 +80,23 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     }
   }
 
+  const geometryChanged =
+    patch.center_lat != null ||
+    patch.center_lng != null ||
+    patch.radius_m !== locale.radius_m;
+
   const { error } = await supabase.from('locales').update(patch).eq('id', body.id);
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+
+  if (geometryChanged) {
+    try {
+      await invalidateLocaleProximityCache(supabase, body.id);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Proximity cache invalidate failed';
+      return new Response(JSON.stringify({ error: message }), { status: 500 });
+    }
   }
 
   return new Response(JSON.stringify({ ok: true, id: body.id }), {
