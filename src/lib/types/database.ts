@@ -120,7 +120,7 @@ export type Database = {
       };
     };
     Functions: {
-      create_household_nest: {
+      create_nest: {
         Args: { p_invite_token_hash: string };
         Returns: string;
       };

@@ -22,10 +22,9 @@ export async function ensureNestForUser(supabase: Client, userId: string) {
   if (existing?.nest_id) return existing.nest_id;
 
   const { hash } = generateInviteToken();
-  const { data: nestId, error: rpcError } = await supabase.rpc(
-    'create_household_nest',
-    { p_invite_token_hash: hash },
-  );
+  const { data: nestId, error: rpcError } = await supabase.rpc('create_nest', {
+    p_invite_token_hash: hash,
+  });
 
   if (rpcError) throw new Error(rpcError.message);
   if (!nestId) throw new Error('Nest bootstrap returned no id');

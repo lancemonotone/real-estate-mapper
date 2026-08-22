@@ -1,6 +1,6 @@
-# Real Estate Mapper
+# Wayhome
 
-Household organizational tool for collecting real estate listings, mapping them with photos, and planning efficient driving tours by day.
+Organize Nest listings by Locale and plan efficient driving tours.
 
 ## Stack
 
