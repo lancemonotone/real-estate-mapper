@@ -1,8 +1,9 @@
 # Wayhome — Proximity UX tighten
 
 **Date:** 2026-08-22  
-**Status:** Draft (pending user review)  
+**Status:** Approved  
 **Repo:** https://github.com/lancemonotone/real-estate-mapper  
+**Plan:** `docs/superpowers/plans/2026-08-22-wayhome-proximity-ux-tighten.md`  
 **Supersedes (UX / persistence only):** parts of `docs/superpowers/specs/2026-08-22-wayhome-nest-locale-proximity-design.md` (§ UI surfaces, one-off persistence, fixed-pin entry). Engine rules (POI cache, Routes winner, Fail Fast) stay unless noted.  
 **Depends on:** Nest/Locale proximity engine already shipped.
 
