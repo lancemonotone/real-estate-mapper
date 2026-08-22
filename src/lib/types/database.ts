@@ -1,4 +1,4 @@
-export type WorkspaceRole = 'owner' | 'member';
+export type NestRole = 'owner' | 'member';
 
 export type Profile = {
   id: string;
@@ -6,23 +6,35 @@ export type Profile = {
   created_at: string;
 };
 
-export type Workspace = {
+export type Nest = {
   id: string;
   name: string;
   invite_token_hash: string;
   created_at: string;
 };
 
-export type WorkspaceMember = {
-  workspace_id: string;
+export type NestMember = {
+  nest_id: string;
   user_id: string;
-  role: WorkspaceRole;
+  role: NestRole;
   created_at: string;
+};
+
+export type Locale = {
+  id: string;
+  nest_id: string;
+  name: string;
+  center_lat: number;
+  center_lng: number;
+  radius_m: number;
+  center_label: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Listing = {
   id: string;
-  workspace_id: string;
+  locale_id: string;
   name: string | null;
   address: string | null;
   lat: number | null;
@@ -39,7 +51,7 @@ export type Listing = {
 
 export type TourDay = {
   id: string;
-  workspace_id: string;
+  locale_id: string;
   tour_date: string;
   label: string | null;
   encoded_polyline: string | null;
@@ -65,31 +77,56 @@ export type TourStop = {
 export type Database = {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile> & { id: string }; Update: Partial<Profile> };
-      workspaces: {
-        Row: Workspace;
-        Insert: Partial<Workspace> & { invite_token_hash: string };
-        Update: Partial<Workspace>;
+      profiles: {
+        Row: Profile;
+        Insert: Partial<Profile> & { id: string };
+        Update: Partial<Profile>;
       };
-      workspace_members: {
-        Row: WorkspaceMember;
-        Insert: Omit<WorkspaceMember, 'created_at'> & { created_at?: string };
-        Update: Partial<WorkspaceMember>;
+      nests: {
+        Row: Nest;
+        Insert: Partial<Nest> & { invite_token_hash: string };
+        Update: Partial<Nest>;
+      };
+      nest_members: {
+        Row: NestMember;
+        Insert: Omit<NestMember, 'created_at'> & { created_at?: string };
+        Update: Partial<NestMember>;
+      };
+      locales: {
+        Row: Locale;
+        Insert: Partial<Locale> & {
+          nest_id: string;
+          name: string;
+          center_lat: number;
+          center_lng: number;
+          radius_m: number;
+        };
+        Update: Partial<Locale>;
       };
       listings: {
         Row: Listing;
-        Insert: Partial<Listing> & { workspace_id: string };
+        Insert: Partial<Listing> & { locale_id: string };
         Update: Partial<Listing>;
       };
       tour_days: {
         Row: TourDay;
-        Insert: Partial<TourDay> & { workspace_id: string; tour_date: string };
+        Insert: Partial<TourDay> & { locale_id: string; tour_date: string };
         Update: Partial<TourDay>;
       };
       tour_stops: {
         Row: TourStop;
         Insert: Partial<TourStop> & { tour_day_id: string; listing_id: string };
         Update: Partial<TourStop>;
+      };
+    };
+    Functions: {
+      create_household_nest: {
+        Args: { p_invite_token_hash: string };
+        Returns: string;
+      };
+      nest_id_for_invite: {
+        Args: { token_hash: string };
+        Returns: string;
       };
     };
   };
