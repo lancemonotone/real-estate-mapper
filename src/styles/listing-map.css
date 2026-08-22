@@ -1,0 +1,38 @@
+.listing-map {
+  --listing-map-block-size: 16rem;
+
+  block-size: var(--listing-map-block-size);
+  inline-size: 100%;
+  margin-block: 1rem;
+  border: 1px solid #ccc;
+
+  @media (min-width: 768px) {
+    --listing-map-block-size: 22rem;
+  }
+
+  @media (min-width: 1024px) {
+    --listing-map-block-size: 28rem;
+  }
+}
+
+.listing-map-marker {
+  --marker-max-inline: 7.5rem;
+  --marker-font-size: 0.75rem;
+
+  max-inline-size: var(--marker-max-inline);
+  padding: 0.25rem;
+  background: #fff;
+  border: 1px solid #333;
+  font-size: var(--marker-font-size);
+
+  & img {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+  }
+}
+
+.listing-map-missing {
+  margin-block: 1rem;
+  color: #666;
+}

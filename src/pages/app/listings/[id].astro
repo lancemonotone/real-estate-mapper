@@ -1,5 +1,6 @@
 ---
 import ListingForm from '../../../components/ListingForm.astro';
+import '../../../styles/listing-map.css';
 
 const { id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -7,6 +8,11 @@ const { data: listing } = await supabase.from('listings').select('*').eq('id', i
 if (!listing) {
   return new Response('Not found', { status: 404 });
 }
+
+const hasLocation = listing.lat != null && listing.lng != null;
+const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
+const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+const photoUrl = listing.photo_url ?? '';
 ---
 <html lang="en">
   <head>
@@ -17,11 +23,30 @@ if (!listing) {
   <body>
     <p><a href="/app/listings">← Listings</a></p>
     <h1>{listing.name || 'Listing'}</h1>
+
+    {hasLocation ? (
+      <div
+        id="listing-map"
+        class="listing-map"
+        data-key={browserKey}
+        data-map-id={mapId}
+        data-lat={String(listing.lat)}
+        data-lng={String(listing.lng)}
+        data-title={listing.name || listing.address || 'Listing'}
+        data-photo-url={photoUrl}
+      ></div>
+    ) : (
+      <p class="listing-map-missing">
+        No map yet — add an address and geocode (or use Retry geocode below).
+      </p>
+    )}
+
     <ListingForm listing={listing} action="/api/listings/update" submitLabel="Update listing" />
     <form id="geocode-form">
       <button type="submit">Retry geocode</button>
     </form>
     <p id="geocode-status"></p>
+    {hasLocation && <script src="/scripts/listing-map.js" type="module"></script>}
     <script define:vars={{ listingId: listing.id }}>
       document.getElementById('geocode-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
