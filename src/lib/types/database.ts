@@ -74,6 +74,54 @@ export type TourStop = {
   leg_distance_m: number | null;
 };
 
+export type ProximityCriterionKind = 'place_type' | 'fixed_pin';
+
+export type TravelMode = 'DRIVE' | 'WALK' | 'BICYCLE' | 'TRANSIT';
+
+export type ProximityResultStatus = 'ok' | 'needs_geocode' | 'no_place' | 'error';
+
+export type ProximityCriterion = {
+  id: string;
+  locale_id: string;
+  label: string;
+  kind: ProximityCriterionKind;
+  place_type_key: string | null;
+  pin_lat: number | null;
+  pin_lng: number | null;
+  pin_place_id: string | null;
+  pin_name: string | null;
+  travel_mode: TravelMode;
+  sort_order: number;
+  created_at: string;
+};
+
+export type LocalePoi = {
+  id: string;
+  locale_id: string;
+  place_type_key: string;
+  place_id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  fetched_at: string;
+};
+
+export type ProximityResult = {
+  id: string;
+  listing_id: string;
+  criterion_id: string;
+  status: ProximityResultStatus;
+  place_id: string | null;
+  place_name: string | null;
+  place_lat: number | null;
+  place_lng: number | null;
+  duration_sec: number | null;
+  distance_m: number | null;
+  maps_url: string | null;
+  error_message: string | null;
+  computed_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -117,6 +165,37 @@ export type Database = {
         Row: TourStop;
         Insert: Partial<TourStop> & { tour_day_id: string; listing_id: string };
         Update: Partial<TourStop>;
+      };
+      proximity_criteria: {
+        Row: ProximityCriterion;
+        Insert: Partial<ProximityCriterion> & {
+          locale_id: string;
+          label: string;
+          kind: ProximityCriterionKind;
+          travel_mode: TravelMode;
+        };
+        Update: Partial<ProximityCriterion>;
+      };
+      locale_pois: {
+        Row: LocalePoi;
+        Insert: Partial<LocalePoi> & {
+          locale_id: string;
+          place_type_key: string;
+          place_id: string;
+          name: string;
+          lat: number;
+          lng: number;
+        };
+        Update: Partial<LocalePoi>;
+      };
+      proximity_results: {
+        Row: ProximityResult;
+        Insert: Partial<ProximityResult> & {
+          listing_id: string;
+          criterion_id: string;
+          status: ProximityResultStatus;
+        };
+        Update: Partial<ProximityResult>;
       };
     };
     Functions: {
