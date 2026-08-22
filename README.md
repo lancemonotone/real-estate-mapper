@@ -18,7 +18,6 @@ Household organizational tool for collecting real estate listings, mapping them 
 npm install
 npm run db:login          # browser login (once per machine)
 npm run db:link           # may ask for the database password from Project Settings → Database
-npm run db:repair-baseline  # only if schema was applied earlier via SQL editor (marks existing migrations applied)
 npm run db:push           # apply any pending migrations
 ```
 

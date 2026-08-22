@@ -15,8 +15,7 @@
     "db:login": "supabase login",
     "db:link": "supabase link --project-ref bkudqalrrpybzwhgdyzr",
     "db:push": "supabase db push",
-    "db:status": "supabase migration list",
-    "db:repair-baseline": "supabase migration repair 20260821000000 20260821170000 20260822130000 20260822140000 --status applied"
+    "db:status": "supabase migration list"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.4",
