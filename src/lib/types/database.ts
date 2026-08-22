@@ -3,6 +3,7 @@ export type NestRole = 'owner' | 'member';
 export type Profile = {
   id: string;
   display_name: string | null;
+  ui_theme_id: string | null;
   created_at: string;
 };
 
@@ -119,7 +120,24 @@ export type ProximityResult = {
   distance_m: number | null;
   maps_url: string | null;
   error_message: string | null;
+  locked: boolean;
   computed_at: string;
+};
+
+export type ListingPlace = {
+  id: string;
+  listing_id: string;
+  place_id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  travel_mode: TravelMode;
+  label: string | null;
+  duration_sec: number | null;
+  distance_m: number | null;
+  maps_url: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Database = {
@@ -196,6 +214,18 @@ export type Database = {
           status: ProximityResultStatus;
         };
         Update: Partial<ProximityResult>;
+      };
+      listing_places: {
+        Row: ListingPlace;
+        Insert: Partial<ListingPlace> & {
+          listing_id: string;
+          place_id: string;
+          name: string;
+          lat: number;
+          lng: number;
+          travel_mode: TravelMode;
+        };
+        Update: Partial<ListingPlace>;
       };
     };
     Functions: {
