@@ -1,9 +1,13 @@
 # Wayhome — Nest, Locale & Proximity Design
 
 **Date:** 2026-08-22  
-**Status:** Draft (pending user review)  
+**Status:** Approved  
 **Repo:** https://github.com/lancemonotone/real-estate-mapper  
-**Depends on:** `docs/superpowers/specs/2026-08-21-real-estate-mapper-design.md` (v1 tours/listings)
+**Depends on:** `docs/superpowers/specs/2026-08-21-real-estate-mapper-design.md` (v1 tours/listings)  
+**Plans:**  
+- `docs/superpowers/plans/2026-08-22-wayhome-nest-locale-foundation.md`  
+- `docs/superpowers/plans/2026-08-22-wayhome-proximity-engine.md`  
+- `docs/superpowers/plans/2026-08-22-wayhome-proximity-ui.md`
 
 ## Problem
 
