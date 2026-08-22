@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
-import { ensureWorkspaceForUser, getPrimaryWorkspaceId } from '../../../lib/supabase/workspace';
+import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { geocodeAddress } from '../../../lib/google/geocode';
+import { ensureLocaleCoversPoint } from '../../../lib/geo/ensure-locale-covers';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -10,10 +11,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   } = await supabase.auth.getUser();
   if (!user) return redirect('/login');
 
-  let workspaceId = await getPrimaryWorkspaceId(supabase, user.id);
-  if (!workspaceId) workspaceId = await ensureWorkspaceForUser(supabase, user.id);
-
   const form = await request.formData();
+  const localeId = String(form.get('locale_id') ?? '');
+  if (!localeId) return new Response('Missing locale_id', { status: 400 });
+
+  const locale = await getLocaleForNestMember(supabase, localeId);
+  if (!locale) return new Response('Locale not found', { status: 404 });
+
   const name = String(form.get('name') ?? '').trim() || null;
   const address = String(form.get('address') ?? '').trim() || null;
   const source_url = String(form.get('source_url') ?? '').trim() || null;
@@ -39,7 +43,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const { data: listing, error } = await supabase
     .from('listings')
     .insert({
-      workspace_id: workspaceId,
+      locale_id: localeId,
       name,
       address,
       source_url,
@@ -57,9 +61,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return new Response(error.message, { status: 400 });
   }
 
+  if (lat != null && lng != null) {
+    await ensureLocaleCoversPoint(supabase, localeId, { lat, lng });
+  }
+
   const photo = form.get('photo');
   if (photo instanceof File && photo.size > 0) {
-    const path = `${workspaceId}/${listing.id}/${photo.name}`;
+    const path = `${locale.nest_id}/${listing.id}/${photo.name}`;
     const { error: uploadError } = await supabase.storage
       .from('listing-photos')
       .upload(path, photo, { upsert: true });
@@ -68,5 +76,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     }
   }
 
-  return redirect(`/app/listings/${listing.id}`);
+  return redirect(`/app/locales/${localeId}/listings/${listing.id}`);
 };

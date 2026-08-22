@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { geocodeAddress } from '../../../lib/google/geocode';
+import { ensureLocaleCoversPoint } from '../../../lib/geo/ensure-locale-covers';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -23,7 +24,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const { data: existing } = await supabase
     .from('listings')
-    .select('id, address, lat, lng, workspace_id')
+    .select('id, address, lat, lng, locale_id, locales(nest_id)')
     .eq('id', id)
     .single();
 
@@ -59,9 +60,19 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   if (error) return new Response(error.message, { status: 400 });
 
+  if (lat != null && lng != null) {
+    await ensureLocaleCoversPoint(supabase, existing.locale_id, { lat, lng });
+  }
+
   const photo = form.get('photo');
   if (photo instanceof File && photo.size > 0) {
-    const path = `${existing.workspace_id}/${id}/${photo.name}`;
+    const nestId =
+      existing.locales &&
+      typeof existing.locales === 'object' &&
+      'nest_id' in existing.locales
+        ? String((existing.locales as { nest_id: string }).nest_id)
+        : existing.locale_id;
+    const path = `${nestId}/${id}/${photo.name}`;
     const { error: uploadError } = await supabase.storage
       .from('listing-photos')
       .upload(path, photo, { upsert: true });
@@ -70,5 +81,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     }
   }
 
-  return redirect(`/app/listings/${id}`);
+  return redirect(`/app/locales/${existing.locale_id}/listings/${id}`);
 };

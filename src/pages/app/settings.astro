@@ -1,24 +1,23 @@
 ---
-import { createSupabaseServerClient } from '../../lib/supabase/server';
 import { generateInviteToken } from '../../lib/crypto/invite-token';
-import { getPrimaryWorkspaceId } from '../../lib/supabase/workspace';
+import { getPrimaryNestId } from '../../lib/supabase/nest';
 
 const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
-const workspaceId = await getPrimaryWorkspaceId(supabase, user.id);
+const nestId = await getPrimaryNestId(supabase, user.id);
 
 let inviteUrl: string | null = null;
 let errorMessage = '';
 let notice = '';
 
-if (!workspaceId) {
-  errorMessage = 'No workspace found.';
+if (!nestId) {
+  errorMessage = 'No Nest found.';
 } else if (Astro.request.method === 'POST') {
   const { raw, hash } = generateInviteToken();
   const { error } = await supabase
-    .from('workspaces')
+    .from('nests')
     .update({ invite_token_hash: hash })
-    .eq('id', workspaceId);
+    .eq('id', nestId);
   if (error) {
     errorMessage = error.message;
   } else {
@@ -32,10 +31,10 @@ if (!workspaceId) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>Settings — Real Estate Mapper</title>
+    <title>Settings — Wayhome</title>
   </head>
   <body>
-    <p><a href="/app">← Workspace</a></p>
+    <p><a href="/app">← Nest</a></p>
     <h1>Settings</h1>
     {errorMessage && <p role="alert">{errorMessage}</p>}
     {notice && <p>{notice}</p>}

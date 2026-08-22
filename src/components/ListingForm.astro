@@ -6,9 +6,10 @@ interface Props {
   listing?: Partial<Listing>;
   action: string;
   submitLabel: string;
+  localeId?: string;
 }
 
-const { listing = {}, action, submitLabel } = Astro.props;
+const { listing = {}, action, submitLabel, localeId } = Astro.props;
 const badges = listing.id
   ? listingBadges(listing as Listing)
   : [];
@@ -22,6 +23,7 @@ const badges = listing.id
 )}
 <form method="post" action={action} enctype="multipart/form-data">
   {listing.id && <input type="hidden" name="id" value={listing.id} />}
+  {localeId && <input type="hidden" name="locale_id" value={localeId} />}
   <label>Name <input name="name" value={listing.name ?? ''} /></label>
   <label>Address <input name="address" value={listing.address ?? ''} /></label>
   <label>Source URL <input name="source_url" type="url" value={listing.source_url ?? ''} /></label>

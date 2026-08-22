@@ -1,9 +1,13 @@
 ---
-const { id } = Astro.params;
+const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
 
 const { data: tour } = await supabase.from('tour_days').select('*').eq('id', id!).single();
-if (!tour) return new Response('Not found', { status: 404 });
+if (!tour || (localeId && tour.locale_id !== localeId)) {
+  return new Response('Not found', { status: 404 });
+}
+
+const toursBase = `/app/locales/${tour.locale_id}/tours`;
 
 const { data: stops } = await supabase
   .from('tour_stops')
@@ -39,7 +43,7 @@ const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
     <title>Tour {tour.tour_date}</title>
   </head>
   <body>
-    <p><a href="/app/tours">← Tours</a></p>
+    <p><a href={toursBase}>← Tours</a></p>
     <h1>Tour {tour.tour_date}</h1>
 
     <section>

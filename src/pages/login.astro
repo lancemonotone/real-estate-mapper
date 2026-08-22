@@ -1,6 +1,6 @@
 ---
 import { createSupabaseServerClient } from '../lib/supabase/server';
-import { ensureWorkspaceForUser } from '../lib/supabase/workspace';
+import { ensureNestForUser } from '../lib/supabase/nest';
 
 const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
 const {
@@ -22,10 +22,10 @@ if (Astro.request.method === 'POST') {
     errorMessage = error.message;
   } else if (data.user) {
     try {
-      await ensureWorkspaceForUser(supabase, data.user.id);
+      await ensureNestForUser(supabase, data.user.id);
       return Astro.redirect(redirectTo);
     } catch (e) {
-      errorMessage = e instanceof Error ? e.message : 'Could not create workspace';
+      errorMessage = e instanceof Error ? e.message : 'Could not create Nest';
     }
   }
 }
@@ -34,7 +34,7 @@ if (Astro.request.method === 'POST') {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>Sign in — Real Estate Mapper</title>
+    <title>Sign in — Wayhome</title>
   </head>
   <body>
     <h1>Sign in</h1>

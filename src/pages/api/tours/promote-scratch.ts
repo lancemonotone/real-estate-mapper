@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
-import { ensureWorkspaceForUser, getPrimaryWorkspaceId } from '../../../lib/supabase/workspace';
+import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -9,10 +9,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   } = await supabase.auth.getUser();
   if (!user) return new Response('Unauthorized', { status: 401 });
 
-  let workspaceId = await getPrimaryWorkspaceId(supabase, user.id);
-  if (!workspaceId) workspaceId = await ensureWorkspaceForUser(supabase, user.id);
-
   const body = (await request.json()) as {
+    localeId?: string;
     tourDate?: string;
     listingIdsInOrder?: string[];
     startListingId?: string | null;
@@ -23,9 +21,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     customEnd?: { lat: number; lng: number; address?: string | null } | null;
   };
 
-  if (!body.tourDate || !body.listingIdsInOrder?.length) {
-    return Response.json({ error: 'tourDate and listingIdsInOrder required' }, { status: 400 });
+  if (!body.localeId || !body.tourDate || !body.listingIdsInOrder?.length) {
+    return Response.json(
+      { error: 'localeId, tourDate and listingIdsInOrder required' },
+      { status: 400 },
+    );
   }
+
+  const locale = await getLocaleForNestMember(supabase, body.localeId);
+  if (!locale) return Response.json({ error: 'Locale not found' }, { status: 404 });
 
   const hasCustomStart = Boolean(body.customStart?.lat != null && body.customStart?.lng != null);
   if (!hasCustomStart && !body.startListingId) {
@@ -39,7 +43,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .from('tour_days')
     .upsert(
       {
-        workspace_id: workspaceId,
+        locale_id: body.localeId,
         tour_date: body.tourDate,
         encoded_polyline: body.encodedPolyline ?? null,
         start_address: hasCustomStart ? body.customStart?.address ?? null : null,
@@ -49,7 +53,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         end_lat: body.customEnd?.lat ?? null,
         end_lng: body.customEnd?.lng ?? null,
       },
-      { onConflict: 'workspace_id,tour_date' },
+      { onConflict: 'locale_id,tour_date' },
     )
     .select('id')
     .single();

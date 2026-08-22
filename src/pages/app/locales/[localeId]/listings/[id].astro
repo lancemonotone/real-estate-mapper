@@ -1,11 +1,15 @@
 ---
-import ListingForm from '../../../components/ListingForm.astro';
-import '../../../styles/listing-map.css';
+import ListingForm from '../../../../../components/ListingForm.astro';
+import '../../../../../styles/listing-map.css';
+import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
 
-const { id } = Astro.params;
+const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
+const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
+if (!locale) return new Response('Not found', { status: 404 });
+
 const { data: listing } = await supabase.from('listings').select('*').eq('id', id!).single();
-if (!listing) {
+if (!listing || listing.locale_id !== locale.id) {
   return new Response('Not found', { status: 404 });
 }
 
@@ -13,6 +17,7 @@ const hasLocation = listing.lat != null && listing.lng != null;
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
 const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 const photoUrl = listing.photo_url ?? '';
+const base = `/app/locales/${locale.id}`;
 ---
 <html lang="en">
   <head>
@@ -21,7 +26,7 @@ const photoUrl = listing.photo_url ?? '';
     <title>{listing.name || 'Listing'}</title>
   </head>
   <body>
-    <p><a href="/app/listings">← Listings</a></p>
+    <p><a href={`${base}/listings`}>← Listings</a></p>
     <h1>{listing.name || 'Listing'}</h1>
 
     {hasLocation ? (
@@ -41,7 +46,12 @@ const photoUrl = listing.photo_url ?? '';
       </p>
     )}
 
-    <ListingForm listing={listing} action="/api/listings/update" submitLabel="Update listing" />
+    <ListingForm
+      listing={listing}
+      action="/api/listings/update"
+      submitLabel="Update listing"
+      localeId={locale.id}
+    />
     <form id="geocode-form">
       <button type="submit">Retry geocode</button>
     </form>

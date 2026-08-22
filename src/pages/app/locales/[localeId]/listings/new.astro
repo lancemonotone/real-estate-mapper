@@ -1,14 +1,22 @@
 ---
-import ListingForm from '../../../components/ListingForm.astro';
+import ListingForm from '../../../../../components/ListingForm.astro';
+import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+
+const { localeId } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
+if (!locale) return new Response('Not found', { status: 404 });
+
+const base = `/app/locales/${locale.id}`;
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>New listing</title>
+    <title>New listing — {locale.name}</title>
   </head>
   <body>
-    <p><a href="/app/listings">← Listings</a></p>
+    <p><a href={`${base}/listings`}>← Listings</a></p>
     <h1>New listing</h1>
     <section>
       <h2>Import from URL</h2>
@@ -18,7 +26,11 @@ import ListingForm from '../../../components/ListingForm.astro';
       </form>
       <p id="import-status"></p>
     </section>
-    <ListingForm action="/api/listings/create" submitLabel="Save listing" />
+    <ListingForm
+      action="/api/listings/create"
+      submitLabel="Save listing"
+      localeId={locale.id}
+    />
     <script>
       const form = document.getElementById('import-form');
       const status = document.getElementById('import-status');

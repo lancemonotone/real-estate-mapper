@@ -1,0 +1,37 @@
+---
+import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+
+const { localeId } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
+if (!locale) return new Response('Not found', { status: 404 });
+
+const { data: tours } = await supabase
+  .from('tour_days')
+  .select('*')
+  .eq('locale_id', locale.id)
+  .order('tour_date', { ascending: true });
+
+const base = `/app/locales/${locale.id}`;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Tours — {locale.name}</title>
+  </head>
+  <body>
+    <p><a href={base}>← Locale</a></p>
+    <h1>Tour days</h1>
+    <ul>
+      {(tours ?? []).map((tour) => (
+        <li>
+          <a href={`${base}/tours/${tour.id}`}>
+            {tour.tour_date}
+            {tour.label ? ` — ${tour.label}` : ''}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+---
+import { getLocaleForNestMember, localeNeedsSetup } from '../../../../lib/supabase/nest';
+
+const { localeId } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
+if (!locale) return new Response('Not found', { status: 404 });
+
+const base = `/app/locales/${locale.id}`;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{locale.name} — Wayhome</title>
+  </head>
+  <body>
+    <header>
+      <p><a href="/app">← Nest</a></p>
+      <h1>{locale.name}</h1>
+      {
+        localeNeedsSetup(locale) && (
+          <p role="alert">
+            This Locale needs a real center (currently 0,0). Create a new Locale or update center
+            before relying on proximity features.
+          </p>
+        )
+      }
+      <nav>
+        <a href={`${base}/listings`}>Listings</a>
+        <a href={`${base}/unscheduled`}>Unscheduled</a>
+        <a href={`${base}/tours`}>Tours</a>
+      </nav>
+    </header>
+  </body>
+</html>

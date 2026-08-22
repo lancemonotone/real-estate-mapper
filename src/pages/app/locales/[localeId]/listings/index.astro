@@ -1,0 +1,44 @@
+---
+import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+import { listingBadges } from '../../../../../lib/listings/badges';
+
+const { localeId } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
+if (!locale) return new Response('Not found', { status: 404 });
+
+const { data: listings } = await supabase
+  .from('listings')
+  .select('*')
+  .eq('locale_id', locale.id)
+  .order('created_at', { ascending: false });
+
+const base = `/app/locales/${locale.id}`;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Listings — {locale.name}</title>
+  </head>
+  <body>
+    <p>
+      <a href={base}>← Locale</a> · <a href={`${base}/listings/new`}>Add listing</a>
+    </p>
+    <h1>Listings</h1>
+    <ul>
+      {(listings ?? []).map((listing) => (
+        <li>
+          <a href={`${base}/listings/${listing.id}`}>
+            {listing.name || listing.address || 'Untitled'}
+          </a>
+          <ul>
+            {listingBadges(listing).map((b) => (
+              <li>{b}</li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  </body>
+</html>

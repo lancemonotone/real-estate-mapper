@@ -1,33 +1,37 @@
 ---
-import { ensureWorkspaceForUser, getPrimaryWorkspaceId } from '../../lib/supabase/workspace';
+import {
+  ensureNestForUser,
+  getPrimaryNestId,
+  listLocalesForNest,
+  localeNeedsSetup,
+} from '../../lib/supabase/nest';
 
 const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
 
-let workspaceId = await getPrimaryWorkspaceId(supabase, user.id);
-if (!workspaceId) {
-  workspaceId = await ensureWorkspaceForUser(supabase, user.id);
+let nestId = await getPrimaryNestId(supabase, user.id);
+if (!nestId) {
+  nestId = await ensureNestForUser(supabase, user.id);
 }
 
-const { data: workspace } = await supabase
-  .from('workspaces')
+const { data: nest } = await supabase
+  .from('nests')
   .select('id, name')
-  .eq('id', workspaceId)
+  .eq('id', nestId)
   .single();
+
+const locales = await listLocalesForNest(supabase, nestId);
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
-    <title>Workspace — Real Estate Mapper</title>
+    <title>Wayhome — Nest</title>
   </head>
   <body>
     <header>
-      <h1>{workspace?.name ?? 'Household'}</h1>
+      <h1>{nest?.name ?? 'Nest'}</h1>
       <nav>
-        <a href="/app/listings">Listings</a>
-        <a href="/app/unscheduled">Unscheduled</a>
-        <a href="/app/tours">Tours</a>
         <a href="/app/settings">Settings</a>
       </nav>
     </header>
@@ -35,5 +39,22 @@ const { data: workspace } = await supabase
     <form method="post" action="/api/auth/logout">
       <button type="submit">Sign out</button>
     </form>
+
+    <h2>Locales</h2>
+    <p><a href="/app/locales/new">New Locale</a></p>
+    {
+      locales.length === 0 ? (
+        <p>No Locales yet. Create one to start collecting listings.</p>
+      ) : (
+        <ul>
+          {locales.map((locale) => (
+            <li>
+              <a href={`/app/locales/${locale.id}`}>{locale.name}</a>
+              {localeNeedsSetup(locale) ? ' — Needs setup' : ''}
+            </li>
+          ))}
+        </ul>
+      )
+    }
   </body>
 </html>
