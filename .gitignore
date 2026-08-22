@@ -29,3 +29,4 @@ Thumbs.db
 
 # Supabase CLI local link / temp (supabase/.gitignore covers .temp; keep root-safe too)
 supabase/.temp/
+.worktrees/
