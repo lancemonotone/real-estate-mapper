@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PROXIMITY_SHORTLIST_N } from '../src/lib/proximity/place-types';
 import { shortlistPois } from '../src/lib/proximity/shortlist';
 
 describe('shortlistPois', () => {
@@ -15,5 +16,16 @@ describe('shortlistPois', () => {
 
   it('returns empty when no pois', () => {
     expect(shortlistPois({ lat: 0, lng: 0 }, [], 5)).toEqual([]);
+  });
+
+  it('never returns more than PROXIMITY_SHORTLIST_N', () => {
+    const origin = { lat: 0, lng: 0 };
+    const pois = Array.from({ length: 8 }, (_, i) => ({
+      placeId: `p${i}`,
+      name: `P${i}`,
+      lat: i * 0.01,
+      lng: 0,
+    }));
+    expect(shortlistPois(origin, pois, 99)).toHaveLength(PROXIMITY_SHORTLIST_N);
   });
 });

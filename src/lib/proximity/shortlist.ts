@@ -1,5 +1,5 @@
 import { haversineMeters } from '../geo/haversine';
-import type { PoiCandidate } from './place-types';
+import { PROXIMITY_SHORTLIST_N, type PoiCandidate } from './place-types';
 
 export function shortlistPois(
   origin: { lat: number; lng: number },
@@ -10,10 +10,12 @@ export function shortlistPois(
     return [];
   }
 
+  const limit = Math.min(Math.max(n, 0), PROXIMITY_SHORTLIST_N);
+
   return [...pois]
     .sort(
       (a, b) =>
         haversineMeters(origin, a) - haversineMeters(origin, b),
     )
-    .slice(0, n);
+    .slice(0, limit);
 }
