@@ -1,0 +1,88 @@
+---
+import { getLocaleForNestMember, localeNeedsSetup } from '../../../../lib/supabase/nest';
+
+const { localeId } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
+if (!locale) return new Response('Not found', { status: 404 });
+
+const radiusMiles = locale.radius_m / 1609.344;
+const base = `/app/locales/${locale.id}`;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Edit {locale.name} — Wayhome</title>
+  </head>
+  <body>
+    <p><a href={base}>← Locale</a></p>
+    <h1>Edit Locale</h1>
+    {
+      localeNeedsSetup(locale) && (
+        <p role="alert">Set a center place below — coords are currently unset (0,0).</p>
+      )
+    }
+    <form id="locale-form">
+      <label>
+        Name
+        <input name="name" required value={locale.name} />
+      </label>
+      <label>
+        Center place
+        <input
+          name="place"
+          placeholder="Leave blank to keep current center"
+          value={locale.center_label ?? ''}
+        />
+      </label>
+      <p>
+        Current center: {locale.center_lat.toFixed(5)}, {locale.center_lng.toFixed(5)}
+        {locale.center_label ? ` · ${locale.center_label}` : ''}
+      </p>
+      <label>
+        Radius (miles)
+        <input
+          name="radius_miles"
+          type="number"
+          step="any"
+          min="0.1"
+          required
+          value={String(Math.round(radiusMiles * 10) / 10)}
+        />
+      </label>
+      <button type="submit">Save</button>
+    </form>
+    <p id="error" hidden></p>
+    <script define:vars={{ localeId: locale.id, base }}>
+      const form = document.getElementById('locale-form');
+      const errorEl = document.getElementById('error');
+      form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!(form instanceof HTMLFormElement)) return;
+        const fd = new FormData(form);
+        const place = String(fd.get('place') ?? '').trim();
+        const body = {
+          id: localeId,
+          name: String(fd.get('name') ?? ''),
+          radius_miles: Number(fd.get('radius_miles')),
+          ...(place ? { place } : {}),
+        };
+        const res = await fetch('/api/locales/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (errorEl) {
+            errorEl.hidden = false;
+            errorEl.textContent = data.error ?? 'Save failed';
+          }
+          return;
+        }
+        window.location.href = base;
+      });
+    </script>
+  </body>
+</html>

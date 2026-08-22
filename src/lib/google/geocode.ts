@@ -1,6 +1,10 @@
 import { requireEnv } from '../env';
 
-export type GeocodeResult = { lat: number; lng: number };
+export type GeocodeResult = {
+  lat: number;
+  lng: number;
+  formattedAddress: string;
+};
 
 export async function geocodeAddress(
   address: string,
@@ -20,7 +24,10 @@ export async function geocodeAddress(
 
   const data = (await res.json()) as {
     status: string;
-    results?: Array<{ geometry: { location: { lat: number; lng: number } } }>;
+    results?: Array<{
+      formatted_address?: string;
+      geometry: { location: { lat: number; lng: number } };
+    }>;
   };
 
   if (data.status === 'ZERO_RESULTS' || !data.results?.length) {
@@ -30,6 +37,11 @@ export async function geocodeAddress(
     throw new Error(`Geocoding failed: ${data.status}`);
   }
 
-  const loc = data.results[0]!.geometry.location;
-  return { lat: loc.lat, lng: loc.lng };
+  const result = data.results[0]!;
+  const loc = result.geometry.location;
+  return {
+    lat: loc.lat,
+    lng: loc.lng,
+    formattedAddress: result.formatted_address ?? trimmed,
+  };
 }
