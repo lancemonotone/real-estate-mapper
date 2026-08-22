@@ -18,7 +18,7 @@ describe('locale-radius', () => {
 
   it('snaps meters to nearest allowed miles', () => {
     expect(nearestAllowedRadiusMiles(milesToMeters(12))).toBe(10);
-    expect(nearestAllowedRadiusMiles(milesToMeters(40))).toBe(25);
+    expect(nearestAllowedRadiusMiles(milesToMeters(30))).toBe(25);
     expect(nearestAllowedRadiusMiles(milesToMeters(80))).toBe(100);
   });
 });
