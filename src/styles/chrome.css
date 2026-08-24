@@ -611,6 +611,31 @@ body.compare-column-overlay-open {
   color: var(--bg-0);
 }
 
+button.tour-stop-set-start {
+  --control-descender: 0.12em;
+
+  margin: 0;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
+  padding-block-start: var(--control-descender);
+  padding-block-end: 0;
+  padding-inline: 0;
+
+  &:hover {
+    filter: brightness(1.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
 .tours-stops__item--endpoint {
   border-style: dashed;
 }

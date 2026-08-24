@@ -153,8 +153,10 @@ async function initTourMap() {
 
   for (const stop of stops) {
     const glyph = stop.glyph || '•';
-    const role = stop.role === 'start' ? 'start' : 'stop';
-    const header = role === 'start' ? 'Start' : `Stop ${glyph}`;
+    const role =
+      stop.role === 'start' ? 'start' : stop.role === 'end' ? 'end' : 'stop';
+    const header =
+      role === 'start' ? 'Start' : role === 'end' ? 'End' : `Stop ${glyph}`;
     addMarker(stop, glyph, role, header);
   }
 

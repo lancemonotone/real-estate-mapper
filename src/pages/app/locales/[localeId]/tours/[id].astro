@@ -32,6 +32,7 @@ const { data: stops } = await supabase
 
 const hasCustomStart = tour.start_lat != null && tour.start_lng != null;
 const hasCustomEnd = tour.end_lat != null && tour.end_lng != null;
+const listingCount = (stops ?? []).length;
 
 const mapStops = (stops ?? [])
   .map((s, index) => ({ s, index }))
@@ -41,9 +42,9 @@ const mapStops = (stops ?? [])
   .map(({ s, index }) => {
     const { glyph, role } = tourListingStopGlyph({
       hasCustomStart,
-      isStart: s.is_start,
-      sortOrder: s.sort_order,
+      hasCustomEnd,
       index,
+      listingCount,
     });
     return {
       id: s.listing_id,
@@ -139,14 +140,14 @@ const stopCount = (stops ?? []).length;
           const href = listing ? `${base}/listings/${stop.listing_id}` : null;
           const { glyph, role } = tourListingStopGlyph({
             hasCustomStart,
-            isStart: stop.is_start,
-            sortOrder: stop.sort_order,
+            hasCustomEnd,
             index,
+            listingCount,
           });
           const badgeClass =
-            role === 'start'
-              ? 'tour-stop-badge tour-stop-badge--endpoint'
-              : 'tour-stop-badge tour-stop-badge--stop';
+            role === 'stop'
+              ? 'tour-stop-badge tour-stop-badge--stop'
+              : 'tour-stop-badge tour-stop-badge--endpoint';
           return (
             <li class="tours-stops__item" data-listing-id={stop.listing_id}>
               <span class={badgeClass} aria-hidden="true">
@@ -194,14 +195,11 @@ const stopCount = (stops ?? []).length;
                     <input type="hidden" name="listing_id" value={stop.listing_id} />
                     <button
                       type="submit"
-                      class="secondary icon-btn"
-                      title="Set as start listing"
-                      aria-label="Set as start listing"
+                      class="tour-stop-badge tour-stop-badge--endpoint tour-stop-set-start"
+                      title="Set as start"
+                      aria-label="Set as start"
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M5 12h14"></path>
-                        <path d="M13 6l6 6-6 6"></path>
-                      </svg>
+                      {tourStartGlyph()}
                     </button>
                   </form>
                 )}

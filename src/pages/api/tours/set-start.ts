@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
+import { optimizeTourDay } from '../../../lib/tours/optimize-tour-day';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -33,6 +34,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       start_place_id: null,
     })
     .eq('id', tourDayId);
+
+  const optimized = await optimizeTourDay(supabase, tourDayId, {
+    startListingId: listingId,
+  });
+  if (!optimized.ok) {
+    return new Response(optimized.error, { status: optimized.status });
+  }
 
   const { data: tour } = await supabase
     .from('tour_days')

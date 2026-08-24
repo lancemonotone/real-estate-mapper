@@ -6,48 +6,83 @@ import {
 } from '../src/lib/tours/stop-glyph';
 
 describe('tourListingStopGlyph', () => {
-  it('uses S for property start when no custom start', () => {
+  it('uses S for sole listing with no custom endpoints', () => {
     expect(
       tourListingStopGlyph({
         hasCustomStart: false,
-        isStart: true,
-        sortOrder: 0,
+        hasCustomEnd: false,
         index: 0,
+        listingCount: 1,
       }),
     ).toEqual({ glyph: 'S', role: 'start' });
   });
 
-  it('does not use S when custom start is set', () => {
+  it('uses S then E for two listings with no custom endpoints', () => {
     expect(
       tourListingStopGlyph({
-        hasCustomStart: true,
-        isStart: true,
-        sortOrder: 0,
+        hasCustomStart: false,
+        hasCustomEnd: false,
         index: 0,
+        listingCount: 2,
+      }),
+    ).toEqual({ glyph: 'S', role: 'start' });
+    expect(
+      tourListingStopGlyph({
+        hasCustomStart: false,
+        hasCustomEnd: false,
+        index: 1,
+        listingCount: 2,
+      }),
+    ).toEqual({ glyph: 'E', role: 'end' });
+  });
+
+  it('numbers middles when first/last are S/E', () => {
+    expect(
+      tourListingStopGlyph({
+        hasCustomStart: false,
+        hasCustomEnd: false,
+        index: 1,
+        listingCount: 3,
       }),
     ).toEqual({ glyph: '1', role: 'stop' });
   });
 
-  it('uses sortOrder + 1 when present', () => {
-    expect(
-      tourListingStopGlyph({
-        hasCustomStart: false,
-        isStart: false,
-        sortOrder: 3,
-        index: 0,
-      }),
-    ).toEqual({ glyph: '4', role: 'stop' });
-  });
-
-  it('falls back to 1-based index', () => {
+  it('uses E on last listing when custom start only', () => {
     expect(
       tourListingStopGlyph({
         hasCustomStart: true,
-        isStart: false,
-        sortOrder: null,
-        index: 2,
+        hasCustomEnd: false,
+        index: 0,
+        listingCount: 2,
       }),
-    ).toEqual({ glyph: '3', role: 'stop' });
+    ).toEqual({ glyph: '1', role: 'stop' });
+    expect(
+      tourListingStopGlyph({
+        hasCustomStart: true,
+        hasCustomEnd: false,
+        index: 1,
+        listingCount: 2,
+      }),
+    ).toEqual({ glyph: 'E', role: 'end' });
+  });
+
+  it('numbers all listings when both custom endpoints exist', () => {
+    expect(
+      tourListingStopGlyph({
+        hasCustomStart: true,
+        hasCustomEnd: true,
+        index: 0,
+        listingCount: 2,
+      }),
+    ).toEqual({ glyph: '1', role: 'stop' });
+    expect(
+      tourListingStopGlyph({
+        hasCustomStart: true,
+        hasCustomEnd: true,
+        index: 1,
+        listingCount: 2,
+      }),
+    ).toEqual({ glyph: '2', role: 'stop' });
   });
 
   it('exports S and E for endpoints', () => {

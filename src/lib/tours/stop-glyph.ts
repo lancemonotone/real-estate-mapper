@@ -11,20 +11,36 @@ export function tourEndGlyph(): string {
 }
 
 /**
- * Listing-stop glyph matching tour-map markers.
- * Property start (no custom start) → S; otherwise sort_order+1 or 1-based index.
+ * Listing-stop glyph for the ordered route.
+ * Route ends (custom start/end or first/last listing) use S/E;
+ * middle listings are 1…n.
+ * A sole listing with no custom endpoints is S.
  */
 export function tourListingStopGlyph(opts: {
   hasCustomStart: boolean;
-  isStart: boolean;
-  sortOrder: number | null;
+  hasCustomEnd: boolean;
   index: number;
+  listingCount: number;
 }): { glyph: string; role: TourStopGlyphRole } {
-  const isPropertyStart = !opts.hasCustomStart && opts.isStart;
-  if (isPropertyStart) {
+  const { hasCustomStart, hasCustomEnd, index, listingCount } = opts;
+  if (listingCount <= 0 || index < 0 || index >= listingCount) {
+    return { glyph: '•', role: 'stop' };
+  }
+
+  const isRouteStart = !hasCustomStart && index === 0;
+  const isRouteEnd = !hasCustomEnd && index === listingCount - 1;
+
+  if (isRouteStart && isRouteEnd) {
     return { glyph: tourStartGlyph(), role: 'start' };
   }
-  const glyph =
-    opts.sortOrder != null ? String(opts.sortOrder + 1) : String(opts.index + 1);
-  return { glyph, role: 'stop' };
+  if (isRouteStart) {
+    return { glyph: tourStartGlyph(), role: 'start' };
+  }
+  if (isRouteEnd) {
+    return { glyph: tourEndGlyph(), role: 'end' };
+  }
+
+  const firstMiddleIndex = hasCustomStart ? 0 : 1;
+  const number = index - firstMiddleIndex + 1;
+  return { glyph: String(number), role: 'stop' };
 }
