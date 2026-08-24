@@ -38,6 +38,7 @@ export type Listing = {
   locale_id: string;
   name: string | null;
   address: string | null;
+  phone: string | null;
   lat: number | null;
   lng: number | null;
   source_url: string | null;
@@ -54,6 +55,7 @@ export type Listing = {
   pet_rent_monthly: number | null;
   pet_deposit: number | null;
   amenities: string[] | null;
+  is_favorite: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -68,9 +70,13 @@ export type TourDay = {
   start_address: string | null;
   start_lat: number | null;
   start_lng: number | null;
+  start_name: string | null;
+  start_place_id: string | null;
   end_address: string | null;
   end_lat: number | null;
   end_lng: number | null;
+  end_name: string | null;
+  end_place_id: string | null;
   created_at: string;
 };
 

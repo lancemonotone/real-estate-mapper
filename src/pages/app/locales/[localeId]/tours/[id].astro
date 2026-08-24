@@ -1,7 +1,13 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
+import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
 import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import {
+  tourEndGlyph,
+  tourListingStopGlyph,
+  tourStartGlyph,
+} from '../../../../../lib/tours/stop-glyph';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -28,19 +34,32 @@ const hasCustomStart = tour.start_lat != null && tour.start_lng != null;
 const hasCustomEnd = tour.end_lat != null && tour.end_lng != null;
 
 const mapStops = (stops ?? [])
-  .filter((s) => s.listings && s.listings.lat != null && s.listings.lng != null)
-  .map((s) => ({
-    id: s.listing_id,
-    name: s.listings!.name || s.listings!.address || 'Stop',
-    address: s.listings!.address || '',
-    lat: s.listings!.lat!,
-    lng: s.listings!.lng!,
-    photoUrl: s.listings!.photo_url,
-    sortOrder: s.sort_order,
-    legDurationSec: s.leg_duration_sec,
-    isStart: s.is_start,
-    kind: 'listing',
-  }));
+  .map((s, index) => ({ s, index }))
+  .filter(
+    ({ s }) => s.listings && s.listings.lat != null && s.listings.lng != null,
+  )
+  .map(({ s, index }) => {
+    const { glyph, role } = tourListingStopGlyph({
+      hasCustomStart,
+      isStart: s.is_start,
+      sortOrder: s.sort_order,
+      index,
+    });
+    return {
+      id: s.listing_id,
+      name: s.listings!.name || s.listings!.address || 'Stop',
+      address: s.listings!.address || '',
+      lat: s.listings!.lat!,
+      lng: s.listings!.lng!,
+      photoUrl: s.listings!.photo_url,
+      sortOrder: s.sort_order,
+      legDurationSec: s.leg_duration_sec,
+      isStart: s.is_start,
+      glyph,
+      role,
+      kind: 'listing',
+    };
+  });
 
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
 const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
@@ -59,9 +78,12 @@ const stopCount = (stops ?? []).length;
 >
   <div class="locale-hero__heading">
     <h1 class="locale-hero__name">{tourTitle}</h1>
-    <p class="muted locale-hero__count">
-      {stopCount === 1 ? '1 stop' : `${stopCount} stops`}
-    </p>
+    <span
+      class="locale-hero__stop-count"
+      aria-label={stopCount === 1 ? '1 stop' : `${stopCount} stops`}
+    >
+      {stopCount}
+    </span>
     <div class="locale-hero__actions">
       <button type="button" class="button" data-tour-plan-route-open>
         Plan Route
@@ -77,20 +99,59 @@ const stopCount = (stops ?? []).length;
         {
           hasCustomStart && (
             <li class="tours-stops__item tours-stops__item--endpoint" data-listing-id="custom-start">
-              <div class="tours-stops__main">
-                <strong class="listing-row__name">Custom start</strong>
-                <span class="muted listing-row__address">{tour.start_address}</span>
+              <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
+                {tourStartGlyph()}
+              </span>
+              <div class="matrix-listing tours-stops__link">
+                <span class="matrix-listing__media">
+                  {tour.start_place_id ? (
+                    <img
+                      class="matrix-listing__thumb"
+                      src={`/api/places/photo?place_id=${encodeURIComponent(tour.start_place_id)}&max=160`}
+                      alt=""
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span
+                      class="matrix-listing__thumb matrix-listing__thumb--empty"
+                      aria-hidden="true"
+                    >
+                      No photo
+                    </span>
+                  )}
+                </span>
+                <span class="matrix-listing__text">
+                  <span class="matrix-listing__name">
+                    {tour.start_name || tour.start_address || 'Start'}
+                  </span>
+                  {tour.start_name && tour.start_address ? (
+                    <span class="muted matrix-listing__address">{tour.start_address}</span>
+                  ) : null}
+                </span>
               </div>
             </li>
           )
         }
-        {(stops ?? []).map((stop) => {
+        {(stops ?? []).map((stop, index) => {
           const listing = stop.listings;
           const title = listing?.name || listing?.address || stop.listing_id;
           const photo = listing?.photo_url;
           const href = listing ? `${base}/listings/${stop.listing_id}` : null;
+          const { glyph, role } = tourListingStopGlyph({
+            hasCustomStart,
+            isStart: stop.is_start,
+            sortOrder: stop.sort_order,
+            index,
+          });
+          const badgeClass =
+            role === 'start'
+              ? 'tour-stop-badge tour-stop-badge--endpoint'
+              : 'tour-stop-badge tour-stop-badge--stop';
           return (
             <li class="tours-stops__item" data-listing-id={stop.listing_id}>
+              <span class={badgeClass} aria-hidden="true">
+                {glyph}
+              </span>
               {href ? (
                 <a class="matrix-listing tours-stops__link" href={href}>
                   <span class="matrix-listing__media">
@@ -106,10 +167,7 @@ const stopCount = (stops ?? []).length;
                     )}
                   </span>
                   <span class="matrix-listing__text">
-                    <span class="matrix-listing__name">
-                      {!hasCustomStart && stop.is_start ? 'START · ' : ''}
-                      {title}
-                    </span>
+                    <span class="matrix-listing__name">{title}</span>
                     {listing?.address && listing?.name ? (
                       <span class="muted matrix-listing__address">{listing.address}</span>
                     ) : null}
@@ -126,6 +184,10 @@ const stopCount = (stops ?? []).length;
                 </div>
               )}
               <div class="tours-stops__actions">
+                <FavoriteHeart
+                  listingId={stop.listing_id}
+                  favorited={Boolean(listing?.is_favorite)}
+                />
                 {!hasCustomStart && !stop.is_start && (
                   <form method="post" action="/api/tours/set-start">
                     <input type="hidden" name="tour_day_id" value={tour.id} />
@@ -166,9 +228,35 @@ const stopCount = (stops ?? []).length;
         {
           hasCustomEnd && (
             <li class="tours-stops__item tours-stops__item--endpoint" data-listing-id="custom-end">
-              <div class="tours-stops__main">
-                <strong class="listing-row__name">Custom end</strong>
-                <span class="muted listing-row__address">{tour.end_address}</span>
+              <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
+                {tourEndGlyph()}
+              </span>
+              <div class="matrix-listing tours-stops__link">
+                <span class="matrix-listing__media">
+                  {tour.end_place_id ? (
+                    <img
+                      class="matrix-listing__thumb"
+                      src={`/api/places/photo?place_id=${encodeURIComponent(tour.end_place_id)}&max=160`}
+                      alt=""
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span
+                      class="matrix-listing__thumb matrix-listing__thumb--empty"
+                      aria-hidden="true"
+                    >
+                      No photo
+                    </span>
+                  )}
+                </span>
+                <span class="matrix-listing__text">
+                  <span class="matrix-listing__name">
+                    {tour.end_name || tour.end_address || 'End'}
+                  </span>
+                  {tour.end_name && tour.end_address ? (
+                    <span class="muted matrix-listing__address">{tour.end_address}</span>
+                  ) : null}
+                </span>
               </div>
             </li>
           )
@@ -194,6 +282,7 @@ const stopCount = (stops ?? []).length;
               lat: tour.start_lat,
               lng: tour.start_lng,
               address: tour.start_address,
+              name: tour.start_name,
             })
           : ''}
         data-custom-end={hasCustomEnd
@@ -201,6 +290,7 @@ const stopCount = (stops ?? []).length;
               lat: tour.end_lat,
               lng: tour.end_lng,
               address: tour.end_address,
+              name: tour.end_name,
             })
           : ''}
       ></div>
@@ -245,69 +335,87 @@ const stopCount = (stops ?? []).length;
         <input type="hidden" name="tour_day_id" value={tour.id} />
         <label>
           Custom start address
-          <span class="field-clearable">
-            <input
-              type="text"
-              name="start_address"
-              value={tour.start_address ?? ''}
-              placeholder="e.g. home or hotel"
-              autocomplete="street-address"
-              data-clearable-input
-              data-clear-flag-name="clear_start"
-              data-had-saved={hasCustomStart ? '1' : '0'}
-            />
-            <button
-              type="button"
-              class="field-clearable__clear"
-              data-clearable-clear
-              title="Clear"
-              aria-label="Clear custom start"
-              hidden
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M6 6l12 12"></path>
-                <path d="M18 6L6 18"></path>
-              </svg>
-            </button>
-            <input type="hidden" name="clear_start" value="" data-clearable-flag />
-          </span>
+          <div class="place-search" id="plan-route-start-search">
+            <span class="field-clearable">
+              <input
+                type="search"
+                name="start_address"
+                value={tour.start_address ?? ''}
+                placeholder="Search nearby…"
+                autocomplete="off"
+                data-place-search-input
+                data-clearable-input
+                data-clear-flag-name="clear_start"
+                data-had-saved={hasCustomStart ? '1' : '0'}
+              />
+              <button
+                type="button"
+                class="field-clearable__clear"
+                data-clearable-clear
+                title="Clear"
+                aria-label="Clear custom start"
+                hidden
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M6 6l12 12"></path>
+                  <path d="M18 6L6 18"></path>
+                </svg>
+              </button>
+              <input type="hidden" name="clear_start" value="" data-clearable-flag />
+            </span>
+            <input type="hidden" name="start_lat" value={hasCustomStart ? String(tour.start_lat) : ''} data-endpoint-lat />
+            <input type="hidden" name="start_lng" value={hasCustomStart ? String(tour.start_lng) : ''} data-endpoint-lng />
+            <input type="hidden" name="start_name" value={tour.start_name ?? ''} data-endpoint-name />
+            <input type="hidden" name="start_place_id" value={tour.start_place_id ?? ''} data-endpoint-place-id />
+            <ul class="place-search__results stack" data-place-search-results hidden></ul>
+            <p class="alert" data-place-search-error hidden></p>
+          </div>
         </label>
         <label>
           Custom end address
-          <span class="field-clearable">
-            <input
-              type="text"
-              name="end_address"
-              value={tour.end_address ?? ''}
-              placeholder="optional"
-              autocomplete="street-address"
-              data-clearable-input
-              data-clear-flag-name="clear_end"
-              data-had-saved={hasCustomEnd ? '1' : '0'}
-            />
-            <button
-              type="button"
-              class="field-clearable__clear"
-              data-clearable-clear
-              title="Clear"
-              aria-label="Clear custom end"
-              hidden
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M6 6l12 12"></path>
-                <path d="M18 6L6 18"></path>
-              </svg>
-            </button>
-            <input type="hidden" name="clear_end" value="" data-clearable-flag />
-          </span>
+          <div class="place-search" id="plan-route-end-search">
+            <span class="field-clearable">
+              <input
+                type="search"
+                name="end_address"
+                value={tour.end_address ?? ''}
+                placeholder="Search nearby…"
+                autocomplete="off"
+                data-place-search-input
+                data-clearable-input
+                data-clear-flag-name="clear_end"
+                data-had-saved={hasCustomEnd ? '1' : '0'}
+              />
+              <button
+                type="button"
+                class="field-clearable__clear"
+                data-clearable-clear
+                title="Clear"
+                aria-label="Clear custom end"
+                hidden
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M6 6l12 12"></path>
+                  <path d="M18 6L6 18"></path>
+                </svg>
+              </button>
+              <input type="hidden" name="clear_end" value="" data-clearable-flag />
+            </span>
+            <input type="hidden" name="end_lat" value={hasCustomEnd ? String(tour.end_lat) : ''} data-endpoint-lat />
+            <input type="hidden" name="end_lng" value={hasCustomEnd ? String(tour.end_lng) : ''} data-endpoint-lng />
+            <input type="hidden" name="end_name" value={tour.end_name ?? ''} data-endpoint-name />
+            <input type="hidden" name="end_place_id" value={tour.end_place_id ?? ''} data-endpoint-place-id />
+            <ul class="place-search__results stack" data-place-search-results hidden></ul>
+            <p class="alert" data-place-search-error hidden></p>
+          </div>
         </label>
         <button type="submit">Go</button>
       </form>
     </div>
   </div>
 
-  <script define:vars={{ tourId: tour.id }}>
-    window.__WAYHOME_TOUR_DAY__ = { tourId };
+  <script define:vars={{ tourId: tour.id, localeId: locale.id }}>
+    window.__WAYHOME_TOUR_DAY__ = { tourId, localeId };
   </script>
   <script src="/scripts/tour-map.js" type="module"></script>
   <script src="/scripts/tours-day.js" type="module"></script>

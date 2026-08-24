@@ -1,0 +1,23 @@
+---
+interface Props {
+  listingId: string;
+  favorited?: boolean;
+}
+
+const { listingId, favorited = false } = Astro.props;
+---
+<button
+  type="button"
+  class="listing-favorite"
+  data-favorite-toggle
+  data-listing-id={listingId}
+  aria-pressed={favorited ? 'true' : 'false'}
+  aria-label={favorited ? 'Remove favorite' : 'Favorite'}
+  title={favorited ? 'Favorited' : 'Favorite'}
+>
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M12 21s-6.7-4.35-9.33-8.1C.8 10.4 1.2 6.9 3.9 5.2 6.1 3.85 8.85 4.4 12 7.1c3.15-2.7 5.9-3.25 8.1-1.9 2.7 1.7 3.1 5.2 1.23 7.7C18.7 16.65 12 21 12 21z"
+    ></path>
+  </svg>
+</button>

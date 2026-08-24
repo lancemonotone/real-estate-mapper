@@ -6,11 +6,14 @@ export type PlaceDetails = {
   name: string;
   lat: number;
   lng: number;
+  /** Postal / street address when Google returns it */
+  formattedAddress: string | null;
 };
 
 type PlaceDetailsResponse = {
   id?: string;
   displayName?: { text?: string };
+  formattedAddress?: string;
   location?: { latitude?: number; longitude?: number };
 };
 
@@ -39,7 +42,7 @@ export async function fetchPlaceDetails(input: {
     method: 'GET',
     headers: {
       'X-Goog-Api-Key': key,
-      'X-Goog-FieldMask': 'id,displayName,location',
+      'X-Goog-FieldMask': 'id,displayName,formattedAddress,location',
     },
   });
 
@@ -50,6 +53,7 @@ export async function fetchPlaceDetails(input: {
 
   const data = (await res.json()) as PlaceDetailsResponse;
   const name = data.displayName?.text?.trim();
+  const formattedAddress = data.formattedAddress?.trim() || null;
   const lat = data.location?.latitude;
   const lng = data.location?.longitude;
   const id = data.id ? normalizePlaceId(data.id) : placeId;
@@ -58,5 +62,5 @@ export async function fetchPlaceDetails(input: {
     throw new Error('Place Details missing name or coordinates');
   }
 
-  return { placeId: id, name, lat, lng };
+  return { placeId: id, name, lat, lng, formattedAddress };
 }

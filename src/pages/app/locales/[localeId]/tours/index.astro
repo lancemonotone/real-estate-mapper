@@ -1,5 +1,6 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
+import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
 import { listingBadges } from '../../../../../lib/listings/badges';
 import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
@@ -26,7 +27,7 @@ const assignedIds = new Set((assignedStops ?? []).map((a) => a.listing_id));
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, lat, lng, photo_path, photo_url')
+  .select('id, name, address, lat, lng, photo_path, photo_url, is_favorite')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -143,15 +144,21 @@ const canPlan = unassigned.length > 0;
                 const title = listing.name || listing.address || 'Untitled';
                 const badges = listingBadges(listing);
                 return (
-                  <label class="tours-plan__listing">
-                    <input type="checkbox" name="listing" value={listing.id} />
-                    <span>
-                      {title}
-                      {badges.length > 0 ? (
-                        <span class="muted"> · {badges.join(', ')}</span>
-                      ) : null}
-                    </span>
-                  </label>
+                  <div class="tours-plan__listing-row">
+                    <label class="tours-plan__listing">
+                      <input type="checkbox" name="listing" value={listing.id} />
+                      <span>
+                        {title}
+                        {badges.length > 0 ? (
+                          <span class="muted"> · {badges.join(', ')}</span>
+                        ) : null}
+                      </span>
+                    </label>
+                    <FavoriteHeart
+                      listingId={listing.id}
+                      favorited={Boolean(listing.is_favorite)}
+                    />
+                  </div>
                 );
               })}
             </fieldset>

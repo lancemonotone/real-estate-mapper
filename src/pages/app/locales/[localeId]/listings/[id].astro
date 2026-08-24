@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../../components/DirectionsOverlay.astro';
+import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import ListingForm from '../../../../../components/ListingForm.astro';
 import '../../../../../styles/listing-map.css';
 import { PLACE_TYPE_CATALOG } from '../../../../../lib/proximity/place-types';
@@ -138,7 +139,10 @@ const attributeFacts: { label: string; value: string }[] = [
   localeSection="listings"
 >
   <div class="locale-hero__heading">
-    <h1 class="locale-hero__name">{listingTitle}</h1>
+    <div class="locale-hero__title">
+      <h1 class="locale-hero__name">{listingTitle}</h1>
+      <FavoriteHeart listingId={listing.id} favorited={Boolean(listing.is_favorite)} />
+    </div>
     {
       listing.source_url && (
         <a
@@ -195,6 +199,13 @@ const attributeFacts: { label: string; value: string }[] = [
         ) : (
           <p class="muted">No address yet.</p>
         )
+      }
+      {
+        listing.phone ? (
+          <p class="listing-hero__phone">
+            <a href={`tel:${listing.phone.replace(/[^\d+]/g, '')}`}>{listing.phone}</a>
+          </p>
+        ) : null
       }
 
       {

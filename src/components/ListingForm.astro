@@ -26,6 +26,7 @@ const badges = listing.id
   {localeId && <input type="hidden" name="locale_id" value={localeId} />}
   <label>Name <input name="name" value={listing.name ?? ''} /></label>
   <label>Address <input name="address" value={listing.address ?? ''} /></label>
+  <label>Phone <input name="phone" type="tel" autocomplete="tel" value={listing.phone ?? ''} /></label>
   <label>Source URL <input name="source_url" type="url" value={listing.source_url ?? ''} /></label>
   <label>Photo URL <input name="photo_url" type="url" value={listing.photo_url ?? ''} /></label>
   <label>Upload photo <input name="photo" type="file" accept="image/*" /></label>

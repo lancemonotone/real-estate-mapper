@@ -1,3 +1,5 @@
+import { mountPlaceSearch } from './place-search.js';
+
 function openPlanRouteOverlay() {
   const overlay = document.getElementById('tour-plan-route-overlay');
   if (!(overlay instanceof HTMLElement)) return;
@@ -43,32 +45,85 @@ function syncClearable(wrap) {
   }
 }
 
-function initClearableFields(root, signal) {
-  root.querySelectorAll('.field-clearable').forEach((wrap) => {
-    if (!(wrap instanceof HTMLElement)) return;
-    const input = wrap.querySelector('[data-clearable-input]');
-    const clearBtn = wrap.querySelector('[data-clearable-clear]');
-    if (!(input instanceof HTMLInputElement) || !(clearBtn instanceof HTMLElement)) return;
+function setEndpointPlace(searchRoot, place) {
+  const latEl = searchRoot.querySelector('[data-endpoint-lat]');
+  const lngEl = searchRoot.querySelector('[data-endpoint-lng]');
+  const nameEl = searchRoot.querySelector('[data-endpoint-name]');
+  const placeIdEl = searchRoot.querySelector('[data-endpoint-place-id]');
+  if (latEl instanceof HTMLInputElement) {
+    latEl.value =
+      place?.lat != null && Number.isFinite(place.lat) ? String(place.lat) : '';
+  }
+  if (lngEl instanceof HTMLInputElement) {
+    lngEl.value =
+      place?.lng != null && Number.isFinite(place.lng) ? String(place.lng) : '';
+  }
+  if (nameEl instanceof HTMLInputElement) {
+    nameEl.value = place?.name?.trim() || '';
+  }
+  if (placeIdEl instanceof HTMLInputElement) {
+    placeIdEl.value = place?.placeId?.trim() || '';
+  }
+}
 
-    const refresh = () => syncClearable(wrap);
-    input.addEventListener('input', refresh, { signal });
-    clearBtn.addEventListener(
-      'click',
+function mountEndpointSearch(rootId, localeId, signal) {
+  const root = document.getElementById(rootId);
+  if (!(root instanceof HTMLElement) || !localeId) return null;
+
+  // Avoid stacking autocomplete listeners when page-load rebinds the overlay.
+  if (root.dataset.searchMounted === '1') {
+    const wrap = root.querySelector('.field-clearable');
+    if (wrap instanceof HTMLElement) syncClearable(wrap);
+    return null;
+  }
+  root.dataset.searchMounted = '1';
+
+  const wrap = root.querySelector('.field-clearable');
+  const clearBtn = root.querySelector('[data-clearable-clear]');
+  const input = root.querySelector('[data-place-search-input]');
+
+  const placeSearch = mountPlaceSearch(root, {
+    localeId,
+    onResolved(place) {
+      setEndpointPlace(root, place);
+      if (wrap instanceof HTMLElement) syncClearable(wrap);
+    },
+  });
+
+  if (input instanceof HTMLInputElement) {
+    input.addEventListener(
+      'input',
       () => {
-        input.value = '';
-        refresh();
-        input.focus();
+        setEndpointPlace(root, null);
+        if (wrap instanceof HTMLElement) syncClearable(wrap);
       },
       { signal },
     );
-    refresh();
-  });
+  }
+
+  if (clearBtn instanceof HTMLElement && wrap instanceof HTMLElement) {
+    clearBtn.addEventListener(
+      'click',
+      () => {
+        placeSearch.clear();
+        setEndpointPlace(root, null);
+        syncClearable(wrap);
+        if (input instanceof HTMLInputElement) input.focus();
+      },
+      { signal },
+    );
+    syncClearable(wrap);
+  }
+
+  return placeSearch;
 }
 
 function initTourDay() {
   const overlay = document.getElementById('tour-plan-route-overlay');
   const form = document.querySelector('[data-tour-plan-route-form]');
-  const tourId = window.__WAYHOME_TOUR_DAY__?.tourId;
+  const cfg = window.__WAYHOME_TOUR_DAY__ || {};
+  const tourId = cfg.tourId;
+  const localeId = cfg.localeId;
   if (!(overlay instanceof HTMLElement) || !(form instanceof HTMLFormElement) || !tourId) return;
 
   if (overlay._tourDayAbort instanceof AbortController) {
@@ -92,7 +147,8 @@ function initTourDay() {
     { signal },
   );
 
-  initClearableFields(form, signal);
+  mountEndpointSearch('plan-route-start-search', localeId, signal);
+  mountEndpointSearch('plan-route-end-search', localeId, signal);
 
   form.addEventListener(
     'submit',
@@ -135,5 +191,4 @@ function initTourDay() {
   );
 }
 
-initTourDay();
 document.addEventListener('astro:page-load', initTourDay);

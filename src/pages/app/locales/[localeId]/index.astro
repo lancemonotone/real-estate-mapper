@@ -1,5 +1,6 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
+import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
 import '../../../../styles/locale-map.css';
 import {
   nearestAllowedRadiusMiles,
@@ -142,7 +143,8 @@ const mapListings = rows
                       data-sort-price={price != null ? String(price) : ''}
                     >
                       <th scope="row" class="matrix-table__listing">
-                        <a class="matrix-listing" href={`${base}/listings/${listing.id}`}>
+                        <div class="matrix-listing-wrap">
+                          <a class="matrix-listing" href={`${base}/listings/${listing.id}`}>
                           <span class="matrix-listing__media">
                             {photo ? (
                               <img
@@ -166,7 +168,12 @@ const mapListings = rows
                               <span class="muted matrix-listing__address">{listing.address}</span>
                             ) : null}
                           </span>
-                        </a>
+                          </a>
+                          <FavoriteHeart
+                            listingId={listing.id}
+                            favorited={Boolean(listing.is_favorite)}
+                          />
+                        </div>
                       </th>
                       <td>{distanceLabel}</td>
                       <td>{formatMoney(price)}</td>

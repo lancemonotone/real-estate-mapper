@@ -102,7 +102,12 @@ export function mountPlaceSearch(rootEl, options) {
                 name: detailData.place.name,
                 lat: detailData.place.lat,
                 lng: detailData.place.lng,
+                formattedAddress: detailData.place.formattedAddress || null,
               };
+              input.value =
+                resolved.formattedAddress ||
+                [s.primaryText, s.secondaryText].filter(Boolean).join(', ') ||
+                resolved.name;
               options.onResolved?.(resolved);
             } catch (e) {
               setError(e instanceof Error ? e.message : 'Resolve failed');

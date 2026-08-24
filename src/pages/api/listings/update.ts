@@ -22,6 +22,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const name = String(form.get('name') ?? '').trim() || null;
   const address = String(form.get('address') ?? '').trim() || null;
+  const phone = String(form.get('phone') ?? '').trim() || null;
   const source_url = String(form.get('source_url') ?? '').trim() || null;
   const photo_url = String(form.get('photo_url') ?? '').trim() || null;
   const notes = String(form.get('notes') ?? '').trim() || null;
@@ -65,6 +66,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     .update({
       name,
       address,
+      phone,
       source_url,
       photo_url,
       notes,

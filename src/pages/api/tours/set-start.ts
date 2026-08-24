@@ -25,7 +25,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   // Property start replaces custom start.
   await supabase
     .from('tour_days')
-    .update({ start_address: null, start_lat: null, start_lng: null })
+    .update({
+      start_address: null,
+      start_lat: null,
+      start_lng: null,
+      start_name: null,
+      start_place_id: null,
+    })
     .eq('id', tourDayId);
 
   const { data: tour } = await supabase

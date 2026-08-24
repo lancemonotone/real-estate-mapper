@@ -9,9 +9,50 @@ function parseJsonAttr(raw) {
   }
 }
 
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function themePinPalette() {
+  const primary = cssVar('--primary') || '#0d9488';
+  const primaryContrast = cssVar('--primary-contrast') || '#ffffff';
+  const accent = cssVar('--accent') || '#2563eb';
+  const endpointGlyph = cssVar('--bg-0') || '#0b1220';
+  return {
+    stop: {
+      background: primary,
+      borderColor: primary,
+      glyphColor: primaryContrast,
+    },
+    endpoint: {
+      background: accent,
+      borderColor: accent,
+      glyphColor: endpointGlyph,
+    },
+  };
+}
+
+/** Single-point fitBounds leaves a blank / max-zoom map — use center + zoom instead. */
+function fitMapToMarkers(map, bounds) {
+  if (bounds.isEmpty()) return;
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+  const samePoint = ne.lat() === sw.lat() && ne.lng() === sw.lng();
+  if (samePoint) {
+    map.setCenter(ne);
+    map.setZoom(14);
+    return;
+  }
+  map.fitBounds(bounds, 48);
+}
+
+let tourMapBootId = 0;
+
 async function initTourMap() {
   const el = document.getElementById('tour-map');
   if (!el) return;
+
+  const bootId = ++tourMapBootId;
 
   const key = el.dataset.key;
   const mapId = el.dataset.mapId;
@@ -42,11 +83,18 @@ async function initTourMap() {
     document.head.appendChild(script);
   });
 
+  if (bootId !== tourMapBootId || !document.getElementById('tour-map')) return;
+
   const [{ Map, InfoWindow }, { AdvancedMarkerElement, PinElement }] =
     await Promise.all([
       google.maps.importLibrary('maps'),
       google.maps.importLibrary('marker'),
     ]);
+
+  if (bootId !== tourMapBootId) return;
+
+  // Soft-nav / double boot: clear prior map DOM before attaching a new Map.
+  el.replaceChildren();
 
   const center = stops[0]
     ? { lat: stops[0].lat, lng: stops[0].lng }
@@ -56,22 +104,24 @@ async function initTourMap() {
 
   const map = new Map(el, {
     center,
-    zoom: 11,
+    zoom: 14,
     mapId,
   });
 
   const pinHover = createPinHoverController(map, InfoWindow);
   const bounds = new google.maps.LatLngBounds();
+  const palette = themePinPalette();
 
-  function addMarker(stop, glyph, background, borderColor, header) {
+  function addMarker(stop, glyph, role, header) {
     const position = { lat: stop.lat, lng: stop.lng };
     bounds.extend(position);
+    const colors = role === 'stop' ? palette.stop : palette.endpoint;
 
     const pin = new PinElement({
       glyph,
-      glyphColor: '#ffffff',
-      background,
-      borderColor,
+      glyphColor: colors.glyphColor,
+      background: colors.background,
+      borderColor: colors.borderColor,
       scale: 1.1,
     });
 
@@ -89,49 +139,38 @@ async function initTourMap() {
     addMarker(
       {
         id: 'custom-start',
-        name: 'Custom start',
+        name: customStart.name || customStart.address || 'Start',
         address: customStart.address || '',
         lat: customStart.lat,
         lng: customStart.lng,
         kind: 'custom-start',
       },
       'S',
-      '#1a73e8',
-      '#174ea6',
-      'Custom start',
+      'start',
+      customStart.name || 'Start',
     );
   }
 
-  for (const [index, stop] of stops.entries()) {
-    const isPropertyStart = !customStart && stop.isStart;
-    const glyph = isPropertyStart
-      ? 'S'
-      : stop.sortOrder != null
-        ? String(stop.sortOrder + 1)
-        : String(index + 1);
-    addMarker(
-      stop,
-      glyph,
-      isPropertyStart ? '#1a73e8' : '#ea4335',
-      isPropertyStart ? '#174ea6' : '#b31412',
-      isPropertyStart ? 'Start' : `Stop ${glyph}`,
-    );
+  for (const stop of stops) {
+    const glyph = stop.glyph || '•';
+    const role = stop.role === 'start' ? 'start' : 'stop';
+    const header = role === 'start' ? 'Start' : `Stop ${glyph}`;
+    addMarker(stop, glyph, role, header);
   }
 
   if (customEnd) {
     addMarker(
       {
         id: 'custom-end',
-        name: 'Custom end',
+        name: customEnd.name || customEnd.address || 'End',
         address: customEnd.address || '',
         lat: customEnd.lat,
         lng: customEnd.lng,
         kind: 'custom-end',
       },
       'E',
-      '#188038',
-      '#0d652d',
-      'Custom end',
+      'end',
+      customEnd.name || 'End',
     );
   }
 
@@ -141,7 +180,7 @@ async function initTourMap() {
     new google.maps.Polyline({
       path,
       map,
-      strokeColor: '#1a73e8',
+      strokeColor: palette.stop.background,
       strokeOpacity: 0.9,
       strokeWeight: 5,
     });
@@ -150,10 +189,15 @@ async function initTourMap() {
     }
   }
 
-  map.fitBounds(bounds);
+  if (bootId !== tourMapBootId) return;
+  fitMapToMarkers(map, bounds);
 }
 
-initTourMap().catch((err) => {
-  const el = document.getElementById('tour-map');
-  if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
-});
+function bootTourMap() {
+  initTourMap().catch((err) => {
+    const el = document.getElementById('tour-map');
+    if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
+  });
+}
+
+document.addEventListener('astro:page-load', bootTourMap);
