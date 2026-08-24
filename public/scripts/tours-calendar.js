@@ -42,6 +42,16 @@ function reloadForDay(day) {
   if (!cfg?.toursBase) return;
   const url = new URL(cfg.toursBase, window.location.origin);
   if (day) url.searchParams.set('day', day);
+  else url.searchParams.delete('day');
+
+  const cur = new URL(window.location.href);
+  const samePath = cur.pathname === url.pathname;
+  const sameDay = (cur.searchParams.get('day') || '') === (url.searchParams.get('day') || '');
+  // Same URL does not navigate — force a full reload so map/route re-SSR.
+  if (samePath && sameDay) {
+    window.location.reload();
+    return;
+  }
   window.location.assign(url.pathname + url.search);
 }
 

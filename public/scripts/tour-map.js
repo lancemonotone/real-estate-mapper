@@ -49,8 +49,14 @@ function fitMapToMarkers(map, bounds) {
 let tourMapBootId = 0;
 
 async function initTourMap() {
-  const el = document.getElementById('tour-map');
+  let el = document.getElementById('tour-map');
   if (!el) return;
+
+  // Soft-nav can reuse a host that already had a Map instance; replace the node
+  // so markers + polyline always rebuild from current data-* attrs.
+  const fresh = el.cloneNode(false);
+  el.replaceWith(fresh);
+  el = fresh;
 
   const bootId = ++tourMapBootId;
 

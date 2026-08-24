@@ -440,6 +440,10 @@ const seed = {
             data-key={browserKey}
             data-map-id={mapId}
             data-polyline={selectedTour.encoded_polyline ?? ''}
+            data-rev={[
+              selectedTour.encoded_polyline ?? '',
+              ...mapStops.map((s) => s.id),
+            ].join('|')}
             data-custom-start={
               hasCustomStart
                 ? JSON.stringify({
