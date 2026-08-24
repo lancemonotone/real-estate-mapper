@@ -1,6 +1,8 @@
 /**
  * Locale Tours calendar workspace: select week days, drag assign, conflict overlay, S/E.
  */
+import { mountPlaceSearch } from './place-search.js';
+
 function seed() {
   return window.__WAYHOME_TOURS_CALENDAR__ ?? null;
 }
@@ -19,7 +21,10 @@ function showStatus(message, isError = true) {
 
 function openOverlay(id) {
   const el = document.getElementById(id);
-  if (!el) return;
+  if (!(el instanceof HTMLElement)) return;
+  if (el.parentElement !== document.body) {
+    document.body.appendChild(el);
+  }
   el.hidden = false;
   document.body.classList.add('compare-column-overlay-open');
 }
@@ -344,6 +349,94 @@ function bindDropTargets(root, signal) {
 
 let abort = null;
 
+function syncClearable(wrap) {
+  const input = wrap.querySelector('[data-clearable-input]');
+  const clearBtn = wrap.querySelector('[data-clearable-clear]');
+  const flag = wrap.querySelector('[data-clearable-flag]');
+  if (!(input instanceof HTMLInputElement) || !(clearBtn instanceof HTMLElement)) return;
+
+  const hasValue = input.value.trim().length > 0;
+  clearBtn.hidden = !hasValue;
+
+  if (flag instanceof HTMLInputElement) {
+    const hadSaved = input.dataset.hadSaved === '1';
+    if (!hasValue && hadSaved) flag.value = '1';
+    else if (hasValue) flag.value = '';
+  }
+}
+
+function setEndpointPlace(searchRoot, place) {
+  const latEl = searchRoot.querySelector('[data-endpoint-lat]');
+  const lngEl = searchRoot.querySelector('[data-endpoint-lng]');
+  const nameEl = searchRoot.querySelector('[data-endpoint-name]');
+  const placeIdEl = searchRoot.querySelector('[data-endpoint-place-id]');
+  if (latEl instanceof HTMLInputElement) {
+    latEl.value =
+      place?.lat != null && Number.isFinite(place.lat) ? String(place.lat) : '';
+  }
+  if (lngEl instanceof HTMLInputElement) {
+    lngEl.value =
+      place?.lng != null && Number.isFinite(place.lng) ? String(place.lng) : '';
+  }
+  if (nameEl instanceof HTMLInputElement) {
+    nameEl.value = place?.name?.trim() || '';
+  }
+  if (placeIdEl instanceof HTMLInputElement) {
+    placeIdEl.value = place?.placeId?.trim() || '';
+  }
+}
+
+function mountEndpointSearch(rootId, localeId, signal) {
+  const root = document.getElementById(rootId);
+  if (!(root instanceof HTMLElement) || !localeId) return null;
+
+  if (root.dataset.searchMounted === '1') {
+    const wrap = root.querySelector('.field-clearable');
+    if (wrap instanceof HTMLElement) syncClearable(wrap);
+    return null;
+  }
+  root.dataset.searchMounted = '1';
+
+  const wrap = root.querySelector('.field-clearable');
+  const clearBtn = root.querySelector('[data-clearable-clear]');
+  const input = root.querySelector('[data-place-search-input]');
+
+  const placeSearch = mountPlaceSearch(root, {
+    localeId,
+    onResolved(place) {
+      setEndpointPlace(root, place);
+      if (wrap instanceof HTMLElement) syncClearable(wrap);
+    },
+  });
+
+  if (input instanceof HTMLInputElement) {
+    input.addEventListener(
+      'input',
+      () => {
+        setEndpointPlace(root, null);
+        if (wrap instanceof HTMLElement) syncClearable(wrap);
+      },
+      { signal },
+    );
+  }
+
+  if (clearBtn instanceof HTMLElement && wrap instanceof HTMLElement) {
+    clearBtn.addEventListener(
+      'click',
+      () => {
+        placeSearch.clear();
+        setEndpointPlace(root, null);
+        syncClearable(wrap);
+        if (input instanceof HTMLInputElement) input.focus();
+      },
+      { signal },
+    );
+    syncClearable(wrap);
+  }
+
+  return placeSearch;
+}
+
 async function boot() {
   abort?.abort();
   abort = new AbortController();
@@ -508,6 +601,9 @@ async function boot() {
   document.querySelectorAll('[data-tours-se-close]').forEach((el) => {
     el.addEventListener('click', () => closeOverlay('tours-se-overlay'), { signal });
   });
+
+  mountEndpointSearch('tours-se-start-search', cfg.localeId, signal);
+  mountEndpointSearch('tours-se-end-search', cfg.localeId, signal);
 
   const seForm = document.querySelector('[data-tours-se-form]');
   seForm?.addEventListener(
