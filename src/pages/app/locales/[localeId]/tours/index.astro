@@ -120,10 +120,21 @@ const mapListings = (listings ?? [])
   }));
 
 const routeSignatureCurrent = selectedStops.map((s) => s.listing_id).join(',');
+const routeSignatureStored = selectedTour?.route_signature ?? '';
+const sameStopSet = (a: string, b: string) => {
+  const norm = (s: string) =>
+    s
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .sort()
+      .join(',');
+  return norm(a) === norm(b);
+};
 const routeFresh = Boolean(
   selectedTour?.encoded_polyline &&
-    selectedTour.route_signature &&
-    selectedTour.route_signature === routeSignatureCurrent,
+    routeSignatureStored &&
+    sameStopSet(routeSignatureStored, routeSignatureCurrent),
 );
 const mapPolyline = routeFresh ? (selectedTour?.encoded_polyline ?? '') : '';
 
@@ -141,6 +152,7 @@ const seed = {
   weekStart: weekKeys[0],
   needsAutoroute,
   selectedTourId: selectedTour?.id ?? null,
+  routeStopSignature: routeSignatureCurrent,
 };
 ---
 <AppLayout

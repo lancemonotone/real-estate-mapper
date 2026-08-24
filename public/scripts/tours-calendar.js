@@ -43,8 +43,15 @@ function reloadForDay(day) {
   const url = new URL(cfg.toursBase, window.location.origin);
   if (day) url.searchParams.set('day', day);
   else url.searchParams.delete('day');
-  // Bust soft-nav / bfcache so map polyline always re-SSR after mutations.
-  url.searchParams.set('_r', String(Date.now()));
+  url.searchParams.delete('_r');
+
+  const cur = new URL(window.location.href);
+  const samePath = cur.pathname === url.pathname;
+  const sameDay = (cur.searchParams.get('day') || '') === (url.searchParams.get('day') || '');
+  if (samePath && sameDay) {
+    window.location.reload();
+    return;
+  }
   window.location.assign(url.pathname + url.search);
 }
 
@@ -108,6 +115,9 @@ async function runAssign(listingIds, tourDate, mode) {
       setPendingConflict({ kind: 'assign', listingIds, toDate: tourDate });
       return;
     }
+    if (result.tourDayId) {
+      sessionStorage.removeItem(`wayhome:tours-ar:${result.tourDayId}`);
+    }
     if (result.optimizeError && !/at least 2 geocoded/i.test(result.optimizeError)) {
       showStatus(result.optimizeError, true);
     }
@@ -124,6 +134,9 @@ async function runMoveDay(fromDate, toDate, mode) {
     if (result.needChoice) {
       setPendingConflict({ kind: 'moveDay', fromDate, toDate });
       return;
+    }
+    if (result.tourDayId) {
+      sessionStorage.removeItem(`wayhome:tours-ar:${result.tourDayId}`);
     }
     if (result.optimizeError && !/at least 2 geocoded/i.test(result.optimizeError)) {
       showStatus(result.optimizeError, true);
@@ -450,20 +463,30 @@ async function boot() {
   if (!cfg || !root) return;
 
   if (cfg.needsAutoroute && cfg.selectedTourId) {
-    try {
-      const res = await fetch('/api/tours/optimize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ tourDayId: cfg.selectedTourId }),
-      });
-      if (res.ok) {
-        reloadForDay(cfg.selectedDate);
-        return;
+    const arKey = `wayhome:tours-ar:${cfg.selectedTourId}`;
+    const stopSig = cfg.routeStopSignature ?? '';
+    // One attempt per stop-set — avoids refresh loops when optimize can't mark the route fresh.
+    if (sessionStorage.getItem(arKey) === stopSig) {
+      showStatus('Could not build a route for this day', true);
+    } else {
+      sessionStorage.setItem(arKey, stopSig);
+      try {
+        const res = await fetch('/api/tours/optimize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ tourDayId: cfg.selectedTourId }),
+        });
+        if (res.ok) {
+          window.location.reload();
+          return;
+        }
+        sessionStorage.removeItem(arKey);
+        const data = await res.json().catch(() => ({}));
+        showStatus(data.error || 'Could not auto-route this day', true);
+      } catch (e) {
+        sessionStorage.removeItem(arKey);
+        showStatus(e instanceof Error ? e.message : 'Auto-route failed', true);
       }
-      const data = await res.json().catch(() => ({}));
-      showStatus(data.error || 'Could not auto-route this day', true);
-    } catch (e) {
-      showStatus(e instanceof Error ? e.message : 'Auto-route failed', true);
     }
   }
 
