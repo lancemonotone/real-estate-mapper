@@ -13,7 +13,7 @@ export function tourEndGlyph(): string {
 /**
  * Listing-stop glyph for the ordered route.
  * Route ends (custom start/end or first/last listing) use S/E;
- * middle listings are 1…n.
+ * middle listings are numbered starting at 2 (S counts as the first stop).
  * A sole listing with no custom endpoints is S.
  */
 export function tourListingStopGlyph(opts: {
@@ -40,7 +40,8 @@ export function tourListingStopGlyph(opts: {
     return { glyph: tourEndGlyph(), role: 'end' };
   }
 
+  // S is the first stop; numbered middles start at 2.
   const firstMiddleIndex = hasCustomStart ? 0 : 1;
-  const number = index - firstMiddleIndex + 1;
+  const number = index - firstMiddleIndex + 2;
   return { glyph: String(number), role: 'stop' };
 }

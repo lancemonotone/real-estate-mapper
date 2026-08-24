@@ -36,18 +36,26 @@ describe('tourListingStopGlyph', () => {
     ).toEqual({ glyph: 'E', role: 'end' });
   });
 
-  it('numbers middles when first/last are S/E', () => {
+  it('numbers middles from 2 when first/last are S/E', () => {
     expect(
       tourListingStopGlyph({
         hasCustomStart: false,
         hasCustomEnd: false,
         index: 1,
-        listingCount: 3,
+        listingCount: 4,
       }),
-    ).toEqual({ glyph: '1', role: 'stop' });
+    ).toEqual({ glyph: '2', role: 'stop' });
+    expect(
+      tourListingStopGlyph({
+        hasCustomStart: false,
+        hasCustomEnd: false,
+        index: 2,
+        listingCount: 4,
+      }),
+    ).toEqual({ glyph: '3', role: 'stop' });
   });
 
-  it('uses E on last listing when custom start only', () => {
+  it('uses 2 then E when custom start only', () => {
     expect(
       tourListingStopGlyph({
         hasCustomStart: true,
@@ -55,7 +63,7 @@ describe('tourListingStopGlyph', () => {
         index: 0,
         listingCount: 2,
       }),
-    ).toEqual({ glyph: '1', role: 'stop' });
+    ).toEqual({ glyph: '2', role: 'stop' });
     expect(
       tourListingStopGlyph({
         hasCustomStart: true,
@@ -66,7 +74,7 @@ describe('tourListingStopGlyph', () => {
     ).toEqual({ glyph: 'E', role: 'end' });
   });
 
-  it('numbers all listings when both custom endpoints exist', () => {
+  it('numbers listings from 2 when both custom endpoints exist', () => {
     expect(
       tourListingStopGlyph({
         hasCustomStart: true,
@@ -74,7 +82,7 @@ describe('tourListingStopGlyph', () => {
         index: 0,
         listingCount: 2,
       }),
-    ).toEqual({ glyph: '1', role: 'stop' });
+    ).toEqual({ glyph: '2', role: 'stop' });
     expect(
       tourListingStopGlyph({
         hasCustomStart: true,
@@ -82,7 +90,7 @@ describe('tourListingStopGlyph', () => {
         index: 1,
         listingCount: 2,
       }),
-    ).toEqual({ glyph: '2', role: 'stop' });
+    ).toEqual({ glyph: '3', role: 'stop' });
   });
 
   it('exports S and E for endpoints', () => {
