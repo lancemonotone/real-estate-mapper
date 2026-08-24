@@ -1,9 +1,9 @@
 # Wayhome — Tour Calendar Assign Design
 
 **Date:** 2026-08-22  
-**Status:** Approved for planning (from Nest/Locale backlog)  
+**Status:** Superseded by `docs/superpowers/specs/2026-08-24-wayhome-tours-calendar-workspace-design.md`  
 **Depends on:** Locale tours + unscheduled pool + UI chrome  
-**Plan:** `docs/superpowers/plans/2026-08-22-wayhome-tour-calendar.md`
+**Plan:** `docs/superpowers/plans/2026-08-22-wayhome-tour-calendar.md` (historical; use the 2026-08-24 workspace plan when written)
 
 ## Problem
 
