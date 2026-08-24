@@ -1,0 +1,35 @@
+---
+description: Optical vertical centering for text buttons via descender padding (not icon buttons)
+alwaysApply: true
+---
+
+# Button optical centering (descender padding)
+
+## The bug
+
+Flex `align-items: center` centers the **line box**, which reserves space for **descenders** (`g` `y` `p` `q`). Labels without descenders (“Plan”, “Tours”) look optically high by about that gap.
+
+## Scope
+
+- **Do** apply to every new text control via the shared `button` / `.button` / `a.button` / `a.secondary` base — never invent a parallel button style.
+- Extend the base (override `--control-pad-*` only). Do not redefine display/padding/font/border chrome.
+- **Do not** apply this padding nudge to `.icon-btn` / icon-only controls.
+
+## Required pattern (text only)
+
+Shrink block-end (keeps height closer to original):
+
+```css
+.button {
+  --control-pad-block: 0.45rem;
+  --control-descender: 0.12em;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-block-start: var(--control-pad-block);
+  padding-block-end: calc(var(--control-pad-block) - var(--control-descender));
+}
+```
+
+Tune via `--control-descender` (`0.08em`–`0.16em`). No `text-box-trim` in this workspace.

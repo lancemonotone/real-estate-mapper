@@ -29,6 +29,22 @@ export function shouldRefreshLockedRoute(row: {
   );
 }
 
+/** True when a stored result already has a usable destination (skip Google). */
+export function isCachedOkProximityResult(row: {
+  status: string;
+  place_lat: number | null;
+  place_lng: number | null;
+  place_id: string | null;
+}): boolean {
+  return (
+    row.status === 'ok' &&
+    row.place_lat != null &&
+    row.place_lng != null &&
+    typeof row.place_id === 'string' &&
+    row.place_id.length > 0
+  );
+}
+
 async function upsertResult(
   supabase: Client,
   listingId: string,
@@ -200,15 +216,9 @@ export async function computeProximityResult(
     .eq('criterion_id', criterionId)
     .maybeSingle();
 
-  if (existing && shouldRefreshLockedRoute(existing)) {
-    const row = await refreshLockedRoute(
-      supabase,
-      listingId,
-      criterionId,
-      existing,
-      criterion.travel_mode,
-    );
-    return row;
+  // Prefer DB cache — do not re-hit Google on every compute when we already have a place.
+  if (existing && isCachedOkProximityResult(existing)) {
+    return existing;
   }
 
   const outcome = await evaluateCriterionProximity(supabase, listingId, criterion);

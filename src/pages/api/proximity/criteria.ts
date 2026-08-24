@@ -140,7 +140,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     (kind === 'place_type' && place_type_key
       ? PLACE_TYPE_CATALOG[place_type_key as PlaceTypeKey].label
       : pin_name) ||
-    'Compare column';
+    'Travel column';
 
   const sort_order =
     typeof body.sort_order === 'number' && Number.isFinite(body.sort_order)

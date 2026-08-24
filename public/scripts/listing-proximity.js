@@ -1,5 +1,11 @@
 import { mountPlaceSearch } from './place-search.js';
-import { iconBtn, iconBtnSpacer, iconMapPin, iconRoute, iconX } from './ui-icons.js';
+import {
+  iconBtn,
+  iconMapPin,
+  iconPencil,
+  iconRoute,
+  iconX,
+} from './ui-icons.js';
 
 function formatDuration(sec) {
   if (sec == null || !Number.isFinite(sec)) return '';
@@ -53,12 +59,70 @@ function directionsHref(origin, dest, travelMode) {
 }
 
 function listingOrigin() {
-  const el = document.getElementById('listing-map');
-  if (!el) return null;
-  const lat = Number(el.dataset.lat);
-  const lng = Number(el.dataset.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat, lng };
+  const sources = [
+    document.getElementById('prox-picker-map'),
+    document.getElementById('listing-map'),
+  ];
+  for (const el of sources) {
+    if (!el) continue;
+    const lat = Number(el.dataset.lat);
+    const lng = Number(el.dataset.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  }
+  return null;
+}
+
+/** Listing location, else Locale center — keeps the picker map from opening blank. */
+function pickerMapCenter() {
+  const listing = listingOrigin();
+  if (listing) return listing;
+  const mapEl = document.getElementById('prox-picker-map');
+  const cfg = mapsConfig();
+  const lat = Number(mapEl?.dataset.localeLat ?? cfg.localeLat);
+  const lng = Number(mapEl?.dataset.localeLng ?? cfg.localeLng);
+  if (Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)) {
+    return { lat, lng };
+  }
+  return null;
+}
+
+function resetPickerMapState() {
+  pickerMap = null;
+  pickerDirectionsRenderer = null;
+  pickerDirectionsService = null;
+}
+
+async function ensurePickerBaseMap() {
+  const mapEl = document.getElementById('prox-picker-map');
+  const cfg = mapsConfig();
+  const center = pickerMapCenter();
+  if (!mapEl || !center || !cfg.mapKey || !cfg.mapId) return;
+
+  try {
+    await loadPickerMaps(cfg.mapKey);
+    const { Map } = await google.maps.importLibrary('maps');
+
+    if (pickerMap && typeof pickerMap.getDiv === 'function' && pickerMap.getDiv() !== mapEl) {
+      resetPickerMapState();
+    }
+
+    if (!pickerMap) {
+      pickerMap = new Map(mapEl, {
+        center,
+        zoom: 12,
+        mapId: cfg.mapId,
+        gestureHandling: 'greedy',
+      });
+    } else {
+      pickerMap.setCenter(center);
+    }
+
+    requestAnimationFrame(() => {
+      google.maps.event.trigger(pickerMap, 'resize');
+    });
+  } catch {
+    /* leave box empty if Maps fails — Find route still surfaces errors */
+  }
 }
 
 function mapsConfig() {
@@ -130,89 +194,170 @@ function renderProxResult(result) {
   }
 }
 
-function setActionButtons(visible) {
-  const useBtn = document.getElementById('prox-use-listing');
-  const addBtn = document.getElementById('prox-add-compare');
-  if (useBtn) useBtn.hidden = !visible;
-  if (addBtn) addBtn.hidden = !visible;
+function setSaveVisible(visible) {
+  const saveBtn = document.getElementById('prox-save');
+  if (saveBtn) saveBtn.hidden = !visible;
 }
+
+const JS_TRAVEL = {
+  DRIVE: 'DRIVING',
+  WALK: 'WALKING',
+  BICYCLE: 'BICYCLING',
+  TRANSIT: 'TRANSIT',
+};
 
 let lastResult = null;
 let lastTravelMode = 'DRIVE';
-let lastExplore = null;
 let placeSearch = null;
-let poiMarker = null;
-let mapRef = null;
+let pickerMap = null;
+let pickerDirectionsRenderer = null;
+let pickerDirectionsService = null;
+let pickerMapsReady = null;
 
-async function ensureMapOverlay(result) {
-  const el = document.getElementById('listing-map');
-  if (!el || result?.status !== 'ok' || result.place_lat == null || result.place_lng == null) {
-    return;
-  }
-  const key = el.dataset.key;
-  if (!key) return;
+/** @type {{ mode: 'add-listing' | 'edit-criterion' | 'edit-listing', criterionId?: string, placeRowId?: string, label?: string, travelMode?: string }} */
+let pickerContext = { mode: 'add-listing' };
 
-  if (!window.google?.maps?.importLibrary) {
-    await new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-      script.async = true;
-      script.onload = () => resolve(undefined);
-      script.onerror = () => reject(new Error('Failed to load Maps JS'));
-      document.head.appendChild(script);
-    });
-  }
-
-  const [{ Map }, { AdvancedMarkerElement, PinElement }] = await Promise.all([
-    google.maps.importLibrary('maps'),
-    google.maps.importLibrary('marker'),
-  ]);
-
-  const listingPos = {
-    lat: Number(el.dataset.lat),
-    lng: Number(el.dataset.lng),
-  };
-  if (!mapRef) {
-    mapRef = new Map(el, {
-      center: listingPos,
-      zoom: 13,
-      mapId: el.dataset.mapId || undefined,
-    });
-  }
-
-  if (poiMarker) poiMarker.map = null;
-  const pin = new PinElement({ background: '#c45c26', borderColor: '#7a3414', glyph: 'P' });
-  poiMarker = new AdvancedMarkerElement({
-    map: mapRef,
-    position: { lat: result.place_lat, lng: result.place_lng },
-    title: result.place_name || 'Place',
-    content: pin.element,
+async function loadPickerMaps(key) {
+  if (window.google?.maps?.importLibrary) return;
+  if (pickerMapsReady) return pickerMapsReady;
+  pickerMapsReady = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
+    script.async = true;
+    script.onload = () => resolve(undefined);
+    script.onerror = () => reject(new Error('Failed to load Maps JS'));
+    document.head.appendChild(script);
   });
+  return pickerMapsReady;
 }
 
-function openLastRoute() {
+function clearPickerMapUi() {
+  const meta = document.getElementById('prox-picker-map-meta');
+  const link = document.getElementById('prox-picker-maps-link');
+  if (meta) {
+    meta.hidden = true;
+    meta.textContent = '';
+  }
+  if (link instanceof HTMLAnchorElement) {
+    link.hidden = true;
+    link.removeAttribute('href');
+  }
+  if (pickerDirectionsRenderer) {
+    pickerDirectionsRenderer.setMap(null);
+  }
+}
+
+async function showPickerRoute(result) {
+  const mapEl = document.getElementById('prox-picker-map');
   const origin = listingOrigin();
-  if (!lastResult || lastResult.status !== 'ok' || !origin) return;
-  const href = directionsHref(origin, {
-    lat: lastResult.place_lat,
-    lng: lastResult.place_lng,
-    place_id: lastResult.place_id,
-    place_name: lastResult.place_name,
-    maps_url: lastResult.maps_url,
-  }, lastTravelMode);
-  openRouteOverlay({
+  const cfg = mapsConfig();
+  const meta = document.getElementById('prox-picker-map-meta');
+  const link = document.getElementById('prox-picker-maps-link');
+
+  if (
+    !mapEl ||
+    !origin ||
+    result?.status !== 'ok' ||
+    result.place_lat == null ||
+    result.place_lng == null ||
+    !cfg.mapKey ||
+    !cfg.mapId
+  ) {
+    return;
+  }
+
+  const durationLabel = formatMeta(result.duration_sec, result.distance_m);
+  const href = directionsHref(
     origin,
-    destination: {
-      lat: lastResult.place_lat,
-      lng: lastResult.place_lng,
-      placeId: lastResult.place_id,
-      name: lastResult.place_name,
+    {
+      lat: result.place_lat,
+      lng: result.place_lng,
+      place_id: result.place_id,
+      place_name: result.place_name,
+      maps_url: result.maps_url,
     },
-    travelMode: lastTravelMode,
-    title: lastResult.place_name ? `Listing → ${lastResult.place_name}` : 'Route',
-    durationLabel: formatMeta(lastResult.duration_sec, lastResult.distance_m),
-    externalUrl: href,
-  });
+    lastTravelMode,
+  );
+
+  if (meta) {
+    meta.textContent = [result.place_name, durationLabel].filter(Boolean).join(' · ');
+    meta.hidden = !meta.textContent;
+  }
+  if (link instanceof HTMLAnchorElement) {
+    if (href) {
+      link.href = href;
+      link.hidden = false;
+    } else {
+      link.hidden = true;
+    }
+  }
+
+  try {
+    await loadPickerMaps(cfg.mapKey);
+    const { Map } = await google.maps.importLibrary('maps');
+
+    let DirectionsServiceCtor = google.maps.DirectionsService;
+    let DirectionsRendererCtor = google.maps.DirectionsRenderer;
+    try {
+      const routesLib = await google.maps.importLibrary('routes');
+      if (routesLib?.DirectionsService) DirectionsServiceCtor = routesLib.DirectionsService;
+      if (routesLib?.DirectionsRenderer) DirectionsRendererCtor = routesLib.DirectionsRenderer;
+    } catch {
+      /* fall back */
+    }
+
+    if (!pickerMap) {
+      pickerMap = new Map(mapEl, {
+        center: origin,
+        zoom: 12,
+        mapId: cfg.mapId,
+        gestureHandling: 'greedy',
+      });
+    } else if (typeof pickerMap.getDiv === 'function' && pickerMap.getDiv() !== mapEl) {
+      resetPickerMapState();
+      pickerMap = new Map(mapEl, {
+        center: origin,
+        zoom: 12,
+        mapId: cfg.mapId,
+        gestureHandling: 'greedy',
+      });
+    }
+
+    if (!pickerDirectionsRenderer) {
+      pickerDirectionsRenderer = new DirectionsRendererCtor({
+        map: pickerMap,
+        suppressMarkers: false,
+      });
+    } else {
+      pickerDirectionsRenderer.setMap(pickerMap);
+    }
+
+    if (!pickerDirectionsService) {
+      pickerDirectionsService = new DirectionsServiceCtor();
+    }
+
+    const modeKey = JS_TRAVEL[lastTravelMode] || 'DRIVING';
+    const request = {
+      origin: { lat: origin.lat, lng: origin.lng },
+      destination: { lat: result.place_lat, lng: result.place_lng },
+      travelMode: google.maps.TravelMode[modeKey],
+    };
+
+    const directions = await new Promise((resolve, reject) => {
+      pickerDirectionsService.route(request, (res, status) => {
+        if (status === 'OK' && res) resolve(res);
+        else reject(new Error(`Directions failed: ${status}`));
+      });
+    });
+    pickerDirectionsRenderer.setDirections(directions);
+    google.maps.event.trigger(pickerMap, 'resize');
+  } catch (e) {
+    if (meta) {
+      meta.hidden = false;
+      meta.textContent =
+        e instanceof Error ? e.message : 'Could not load directions on map';
+    }
+  }
 }
 
 function applyChosenCandidate(candidate, origin) {
@@ -246,14 +391,15 @@ function renderChoices(result, origin) {
   if (result?.status !== 'ok' || list.length <= 1) {
     box.hidden = true;
     if (result?.status === 'ok') {
-      setActionButtons(true);
-      openLastRoute();
+      setSaveVisible(true);
+      void showPickerRoute(result);
     }
     return;
   }
 
   box.hidden = false;
-  setActionButtons(false);
+  setSaveVisible(false);
+  clearPickerMapUi();
   const intro = document.createElement('p');
   intro.className = 'muted';
   intro.textContent = 'Google returned several matches — pick the right one:';
@@ -263,22 +409,55 @@ function renderChoices(result, origin) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'prox-choice secondary';
+
+    const media = document.createElement('span');
+    media.className = 'prox-choice__media';
+    if (candidate.place_id) {
+      const img = document.createElement('img');
+      img.className = 'prox-choice__thumb';
+      img.alt = '';
+      img.loading = 'lazy';
+      img.width = 72;
+      img.height = 72;
+      img.src = `/api/places/photo?place_id=${encodeURIComponent(candidate.place_id)}&max=120`;
+      img.addEventListener('error', () => {
+        const empty = document.createElement('span');
+        empty.className = 'prox-choice__thumb prox-choice__thumb--empty';
+        empty.setAttribute('aria-hidden', 'true');
+        empty.textContent = 'No photo';
+        img.replaceWith(empty);
+      });
+      media.appendChild(img);
+    } else {
+      const empty = document.createElement('span');
+      empty.className = 'prox-choice__thumb prox-choice__thumb--empty';
+      empty.setAttribute('aria-hidden', 'true');
+      empty.textContent = 'No photo';
+      media.appendChild(empty);
+    }
+
+    const text = document.createElement('span');
+    text.className = 'prox-choice__text';
     const title = document.createElement('strong');
     title.className = 'prox-choice__name';
     title.textContent = candidate.place_name || 'Place';
     const meta = document.createElement('span');
     meta.className = 'prox-choice__meta muted';
     meta.textContent = formatMeta(candidate.duration_sec, candidate.distance_m);
-    btn.appendChild(title);
-    btn.appendChild(meta);
+    text.appendChild(title);
+    text.appendChild(meta);
+
+    btn.appendChild(media);
+    btn.appendChild(text);
     btn.addEventListener('click', async () => {
+      box.querySelectorAll('.prox-choice').forEach((el) => {
+        el.classList.remove('is-selected');
+      });
+      btn.classList.add('is-selected');
       applyChosenCandidate(candidate, origin);
-      box.hidden = true;
-      box.replaceChildren();
       renderProxResult(lastResult);
-      setActionButtons(true);
-      await ensureMapOverlay(lastResult);
-      openLastRoute();
+      setSaveVisible(true);
+      await showPickerRoute(lastResult);
     });
     box.appendChild(btn);
   }
@@ -288,32 +467,24 @@ async function presentProximityResult(result, origin) {
   const list = Array.isArray(result?.candidates) ? result.candidates : [];
   const needsChoice = result?.status === 'ok' && list.length > 1;
   if (!needsChoice && result?.status === 'ok') {
-    await ensureMapOverlay(result);
-    setActionButtons(true);
+    setSaveVisible(true);
   } else {
-    setActionButtons(false);
+    setSaveVisible(false);
   }
   renderChoices(result, origin);
-}
-
-function syncModeFields() {
-  const kind = document.getElementById('prox-mode-kind');
-  const nearest = document.getElementById('prox-nearest-fields');
-  const search = document.getElementById('prox-search-fields');
-  const val = kind instanceof HTMLSelectElement ? kind.value : 'nearest';
-  if (nearest) nearest.hidden = val !== 'nearest';
-  if (search) search.hidden = val !== 'search';
 }
 
 function ensurePlaceThumb(li, placeId) {
   if (!placeId) return;
   const media = li.querySelector('[data-prox-thumb]');
   if (!media) return;
-  let img = media.querySelector('img.prox-saved-item__thumb');
+  let img = media.querySelector(
+    'img.prox-saved-item__thumb, img.listing-row__thumb, img.matrix-listing__thumb',
+  );
   const src = `/api/places/photo?place_id=${encodeURIComponent(placeId)}&max=120`;
   if (!img) {
     img = document.createElement('img');
-    img.className = 'prox-saved-item__thumb';
+    img.className = 'matrix-listing__thumb prox-saved-item__thumb';
     img.alt = '';
     img.loading = 'lazy';
     img.width = 72;
@@ -329,36 +500,86 @@ function ensurePlaceThumb(li, placeId) {
   }
 }
 
+function syncModeFields() {
+  const kind = document.getElementById('prox-mode-kind');
+  const nearest = document.getElementById('prox-nearest-fields');
+  const search = document.getElementById('prox-search-fields');
+  const val = kind instanceof HTMLSelectElement ? kind.value : 'nearest';
+  if (nearest) nearest.hidden = val !== 'nearest';
+  if (search) search.hidden = val !== 'search';
+}
+
+function openPlacePicker(detail) {
+  pickerContext = {
+    mode: detail?.mode || 'add-listing',
+    criterionId: detail?.criterionId,
+    placeRowId: detail?.placeRowId,
+    label: detail?.label,
+    travelMode: detail?.travelMode || 'DRIVE',
+  };
+
+  const title = document.getElementById('listing-overlay-place-title');
+  const lede = document.getElementById('prox-lede');
+  const modeEl = document.getElementById('prox-mode');
+  if (title instanceof HTMLElement) {
+    title.textContent =
+      pickerContext.mode === 'add-listing' ? 'Add place' : 'Change location';
+  }
+  if (lede instanceof HTMLElement) {
+    if (pickerContext.mode === 'edit-criterion' && pickerContext.label) {
+      lede.textContent = `Pick a new location for ${pickerContext.label}.`;
+    } else if (pickerContext.mode === 'edit-listing') {
+      lede.textContent = 'Pick a new location for this place.';
+    } else {
+      lede.textContent = 'Find a nearby type or search a place, then save.';
+    }
+  }
+  if (modeEl instanceof HTMLSelectElement) {
+    modeEl.value = pickerContext.travelMode || 'DRIVE';
+  }
+
+  lastResult = null;
+  setProxResultStatus('');
+  setSaveVisible(false);
+  clearPickerMapUi();
+  const choices = document.getElementById('prox-choices');
+  if (choices) {
+    choices.hidden = true;
+    choices.replaceChildren();
+  }
+  placeSearch?.clear?.();
+  syncModeFields();
+
+  window.__WAYHOME_LISTING_OVERLAY__?.open('place');
+  void ensurePickerBaseMap();
+}
+
 function fillCompareCellActions(li, result) {
   const actions = li.querySelector('[data-cell-actions]');
   const meta = li.querySelector('.prox-cell-meta');
-  const title = li.querySelector('strong');
+  const title = li.querySelector('strong, .matrix-listing__name');
   if (!actions) return;
   actions.replaceChildren();
 
-  const columnLabel = li.dataset.columnLabel || 'Compare column';
+  const columnLabel = li.dataset.columnLabel || 'Travel column';
   if (title) {
     title.textContent = columnLabel;
   }
 
   if (!result) {
     if (meta) meta.textContent = 'Computing…';
-    return;
-  }
-
-  if (result.status !== 'ok') {
+  } else if (result.status !== 'ok') {
     if (meta) {
       meta.textContent = [result.status, result.error_message].filter(Boolean).join(' — ');
     }
-    return;
-  }
+  } else {
+    ensurePlaceThumb(li, result.place_id);
 
-  ensurePlaceThumb(li, result.place_id);
-
-  if (meta) {
-    meta.textContent = [result.place_name, formatMeta(result.duration_sec, result.distance_m)]
-      .filter(Boolean)
-      .join(' · ');
+    if (meta) {
+      meta.textContent = [result.place_name, formatMeta(result.duration_sec, result.distance_m)]
+        .filter(Boolean)
+        .join(' · ');
+    }
   }
 
   const origin = {
@@ -366,24 +587,39 @@ function fillCompareCellActions(li, result) {
     lng: Number(li.dataset.listingLng),
   };
   const canOverlay =
+    result?.status === 'ok' &&
     Number.isFinite(origin.lat) &&
     Number.isFinite(origin.lng) &&
     result.place_lat != null &&
     result.place_lng != null;
-  const href = directionsHref(
-    canOverlay ? origin : null,
-    {
-      lat: result.place_lat,
-      lng: result.place_lng,
-      place_id: result.place_id,
-      place_name: result.place_name,
-      maps_url: result.maps_url,
-    },
-    li.dataset.travelMode || 'DRIVE',
-  );
+  const href =
+    result?.status === 'ok'
+      ? directionsHref(
+          canOverlay ? origin : null,
+          {
+            lat: result.place_lat,
+            lng: result.place_lng,
+            place_id: result.place_id,
+            place_name: result.place_name,
+            maps_url: result.maps_url,
+          },
+          li.dataset.travelMode || 'DRIVE',
+        )
+      : null;
 
-  // Leading spacer so route/maps align with listing-only rows (remove + route + maps).
-  actions.appendChild(iconBtnSpacer());
+  actions.appendChild(
+    iconBtn({
+      label: `Change location for ${columnLabel}`,
+      icon: iconPencil,
+      onClick: () =>
+        openPlacePicker({
+          mode: 'edit-criterion',
+          criterionId: li.dataset.criterionId,
+          label: columnLabel,
+          travelMode: li.dataset.travelMode || 'DRIVE',
+        }),
+    }),
+  );
 
   if (canOverlay) {
     actions.appendChild(
@@ -465,7 +701,8 @@ async function hydrateCompareCells() {
 
 function initListingPlaceActions() {
   const origin = listingOrigin();
-  document.querySelectorAll('#listing-places-list > li').forEach((li) => {
+  document.querySelectorAll('#listing-places-list > tr').forEach((li) => {
+    if (li.hasAttribute('data-listing-prox-cell')) return;
     const actions = li.querySelector('[data-listing-place-actions]');
     if (!actions) return;
     actions.replaceChildren();
@@ -477,8 +714,7 @@ function initListingPlaceActions() {
     const travelMode = li.dataset.travelMode || 'DRIVE';
     const mapsUrl = li.dataset.mapsUrl || null;
     const placeName = li.dataset.placeName || 'Place';
-    const canOverlay =
-      origin && Number.isFinite(lat) && Number.isFinite(lng);
+    const canOverlay = origin && Number.isFinite(lat) && Number.isFinite(lng);
     const href =
       mapsUrl ||
       (canOverlay
@@ -496,21 +732,15 @@ function initListingPlaceActions() {
 
     actions.appendChild(
       iconBtn({
-        label: 'Remove this place from the listing-only list',
-        icon: iconX,
-        onClick: async () => {
-          const id = li.getAttribute('data-place-row-id');
-          if (!id) return;
-          const res = await fetch(`/api/proximity/listing-places?id=${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            alert(data.error || 'Remove failed');
-            return;
-          }
-          location.reload();
-        },
+        label: `Change location for ${placeName}`,
+        icon: iconPencil,
+        onClick: () =>
+          openPlacePicker({
+            mode: 'edit-listing',
+            placeRowId: li.getAttribute('data-place-row-id') || undefined,
+            label: placeName,
+            travelMode,
+          }),
       }),
     );
 
@@ -546,20 +776,150 @@ function initListingPlaceActions() {
         }),
       );
     }
+
+    actions.appendChild(
+      iconBtn({
+        label: 'Remove this place from the listing',
+        icon: iconX,
+        onClick: async () => {
+          const id = li.getAttribute('data-place-row-id');
+          if (!id) return;
+          const res = await fetch(`/api/proximity/listing-places?id=${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            alert(data.error || 'Remove failed');
+            return;
+          }
+          location.reload();
+        },
+      }),
+    );
   });
+}
+
+async function savePickerResult(cfg) {
+  if (!lastResult || lastResult.status !== 'ok') return;
+
+  const origin = listingOrigin();
+  const href = directionsHref(
+    origin,
+    {
+      lat: lastResult.place_lat,
+      lng: lastResult.place_lng,
+      place_id: lastResult.place_id,
+      place_name: lastResult.place_name,
+      maps_url: lastResult.maps_url,
+    },
+    lastTravelMode,
+  );
+
+  if (pickerContext.mode === 'edit-criterion') {
+    const criterionId = pickerContext.criterionId;
+    if (!criterionId) {
+      alert('Missing Travel Times column');
+      return;
+    }
+    const lockRes = await fetch('/api/proximity/lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        listing_id: cfg.listingId,
+        criterion_id: criterionId,
+        locked: true,
+        place_id: lastResult.place_id,
+        place_name: lastResult.place_name,
+        place_lat: lastResult.place_lat,
+        place_lng: lastResult.place_lng,
+        duration_sec: lastResult.duration_sec,
+        distance_m: lastResult.distance_m,
+        maps_url: href || lastResult.maps_url,
+      }),
+    });
+    const lockData = await lockRes.json();
+    if (!lockRes.ok) {
+      alert(lockData.error || 'Could not update location');
+      return;
+    }
+    location.reload();
+    return;
+  }
+
+  if (pickerContext.mode === 'edit-listing') {
+    const id = pickerContext.placeRowId;
+    if (!id) {
+      alert('Missing place id');
+      return;
+    }
+    const res = await fetch('/api/proximity/listing-places', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id,
+        place_id: lastResult.place_id,
+        name: lastResult.place_name,
+        lat: lastResult.place_lat,
+        lng: lastResult.place_lng,
+        travel_mode: lastTravelMode,
+        duration_sec: lastResult.duration_sec,
+        distance_m: lastResult.distance_m,
+        maps_url: href || lastResult.maps_url,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Could not update location');
+      return;
+    }
+    location.reload();
+    return;
+  }
+
+  const res = await fetch('/api/proximity/listing-places', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      listing_id: cfg.listingId,
+      place_id: lastResult.place_id,
+      name: lastResult.place_name,
+      lat: lastResult.place_lat,
+      lng: lastResult.place_lng,
+      travel_mode: lastTravelMode,
+      duration_sec: lastResult.duration_sec,
+      distance_m: lastResult.distance_m,
+      maps_url: href || lastResult.maps_url,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error || 'Save failed');
+    return;
+  }
+  location.reload();
 }
 
 function initProximityPanel() {
   const cfg = window.__WAYHOME_LISTING_PROX__;
   if (!cfg) return;
 
+  const panel = document.getElementById('listing-overlay-place') || document.body;
+  if (panel._proxAbort instanceof AbortController) {
+    panel._proxAbort.abort();
+  }
+  const ac = new AbortController();
+  panel._proxAbort = ac;
+  const { signal } = ac;
+
+  resetPickerMapState();
+  placeSearch = null;
+
   const runBtn = document.getElementById('prox-run');
-  const useBtn = document.getElementById('prox-use-listing');
-  const addBtn = document.getElementById('prox-add-compare');
+  const saveBtn = document.getElementById('prox-save');
   const modeKind = document.getElementById('prox-mode-kind');
   const searchRoot = document.getElementById('prox-place-search');
 
-  modeKind?.addEventListener('change', syncModeFields);
+  modeKind?.addEventListener('change', syncModeFields, { signal });
   syncModeFields();
 
   if (searchRoot) {
@@ -568,16 +928,26 @@ function initProximityPanel() {
     });
   }
 
+  window.addEventListener(
+    'listing-place-picker',
+    (event) => {
+      openPlacePicker(event.detail || { mode: 'add-listing' });
+    },
+    { signal },
+  );
+
   initListingPlaceActions();
   hydrateCompareCells();
 
-  runBtn?.addEventListener('click', async () => {
+  runBtn?.addEventListener(
+    'click',
+    async () => {
     if (!cfg.hasLocation) {
       setProxResultStatus('needs_geocode', { error: true });
       return;
     }
     setProxResultStatus('Finding route…');
-    setActionButtons(false);
+    setSaveVisible(false);
     const choices = document.getElementById('prox-choices');
     if (choices) {
       choices.hidden = true;
@@ -585,8 +955,7 @@ function initProximityPanel() {
     }
 
     const modeEl = document.getElementById('prox-mode');
-    const travel_mode =
-      modeEl instanceof HTMLSelectElement ? modeEl.value : 'DRIVE';
+    const travel_mode = modeEl instanceof HTMLSelectElement ? modeEl.value : 'DRIVE';
     const kindVal =
       modeKind instanceof HTMLSelectElement ? modeKind.value : 'nearest';
     const origin = listingOrigin();
@@ -619,7 +988,6 @@ function initProximityPanel() {
         }
         lastResult = data.result;
         lastTravelMode = travel_mode;
-        lastExplore = { kind: 'search', place };
         renderProxResult(data.result);
         await presentProximityResult(data.result, origin);
       } else {
@@ -644,134 +1012,28 @@ function initProximityPanel() {
         }
         lastResult = data.result;
         lastTravelMode = travel_mode;
-        lastExplore = { kind: 'nearest', place_type_key };
         renderProxResult(data.result);
         await presentProximityResult(data.result, origin);
       }
     } catch (e) {
-      setProxResultStatus(
-        e instanceof Error ? e.message : 'Compute failed',
-        { error: true },
-      );
+      setProxResultStatus(e instanceof Error ? e.message : 'Compute failed', { error: true });
     }
-  });
+    },
+    { signal },
+  );
 
-  useBtn?.addEventListener('click', async () => {
-    if (!lastResult || lastResult.status !== 'ok') return;
-    const res = await fetch('/api/proximity/listing-places', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        listing_id: cfg.listingId,
-        place_id: lastResult.place_id,
-        name: lastResult.place_name,
-        lat: lastResult.place_lat,
-        lng: lastResult.place_lng,
-        travel_mode: lastTravelMode,
-        duration_sec: lastResult.duration_sec,
-        distance_m: lastResult.distance_m,
-        maps_url: lastResult.maps_url,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error || 'Save failed');
-      return;
+  saveBtn?.addEventListener(
+    'click',
+    async () => {
+    try {
+      await savePickerResult(cfg);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Save failed');
     }
-    location.reload();
-  });
-
-  addBtn?.addEventListener('click', async () => {
-    if (!lastResult || lastResult.status !== 'ok' || !lastExplore) return;
-    const origin = listingOrigin();
-    const href = directionsHref(
-      origin,
-      {
-        lat: lastResult.place_lat,
-        lng: lastResult.place_lng,
-        place_id: lastResult.place_id,
-        place_name: lastResult.place_name,
-        maps_url: lastResult.maps_url,
-      },
-      lastTravelMode,
-    );
-
-    let criterionBody;
-    if (lastExplore.kind === 'nearest') {
-      criterionBody = {
-        locale_id: cfg.localeId,
-        kind: 'place_type',
-        place_type_key: lastExplore.place_type_key,
-        travel_mode: lastTravelMode,
-        find_or_create: true,
-      };
-    } else {
-      const place = lastExplore.place;
-      criterionBody = {
-        locale_id: cfg.localeId,
-        kind: 'fixed_pin',
-        pin_lat: place.lat,
-        pin_lng: place.lng,
-        pin_place_id: place.placeId,
-        pin_name: place.name,
-        travel_mode: lastTravelMode,
-        label: place.name,
-        find_or_create: true,
-      };
-    }
-
-    const colRes = await fetch('/api/proximity/criteria', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(criterionBody),
-    });
-    const colData = await colRes.json();
-    if (!colRes.ok) {
-      alert(colData.error || 'Could not add Compare column');
-      return;
-    }
-
-    const criterionId = colData.criterion?.id;
-    if (!criterionId) {
-      alert('Compare column missing id');
-      return;
-    }
-
-    if (lastExplore.kind === 'nearest') {
-      const lockRes = await fetch('/api/proximity/lock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listing_id: cfg.listingId,
-          criterion_id: criterionId,
-          locked: true,
-          place_id: lastResult.place_id,
-          place_name: lastResult.place_name,
-          place_lat: lastResult.place_lat,
-          place_lng: lastResult.place_lng,
-          duration_sec: lastResult.duration_sec,
-          distance_m: lastResult.distance_m,
-          maps_url: href || lastResult.maps_url,
-        }),
-      });
-      const lockData = await lockRes.json();
-      if (!lockRes.ok) {
-        alert(lockData.error || 'Lock failed');
-        return;
-      }
-    } else {
-      await fetch('/api/proximity/compute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listing_id: cfg.listingId,
-          criterion_id: criterionId,
-        }),
-      });
-    }
-
-    location.reload();
-  });
+    },
+    { signal },
+  );
 }
 
 initProximityPanel();
+document.addEventListener('astro:page-load', initProximityPanel);

@@ -1,3 +1,5 @@
+import { createPinHoverController } from './map-pin-hover.js';
+
 function parseJsonAttr(raw) {
   if (!raw) return null;
   try {
@@ -58,59 +60,8 @@ async function initTourMap() {
     mapId,
   });
 
-  const infoWindow = new InfoWindow({ maxWidth: 280 });
-
-  function buildInfoContent(stop) {
-    const wrap = document.createElement('div');
-    wrap.className = 'tour-pin-info';
-    wrap.style.cssText =
-      'font: 14px/1.4 system-ui, sans-serif; color: #202124; max-width: 260px;';
-
-    if (stop.photoUrl) {
-      const img = document.createElement('img');
-      img.src = stop.photoUrl;
-      img.alt = '';
-      img.style.cssText =
-        'display:block;width:100%;height:auto;max-height:160px;object-fit:cover;border-radius:6px;margin-bottom:8px;';
-      wrap.appendChild(img);
-    }
-
-    const title = document.createElement('div');
-    title.style.cssText = 'font-weight:600;margin-bottom:4px;';
-    title.textContent = stop.name || 'Listing';
-    wrap.appendChild(title);
-
-    if (stop.address) {
-      const addr = document.createElement('div');
-      addr.style.cssText = 'color:#5f6368;font-size:13px;margin-bottom:4px;';
-      addr.textContent = stop.address;
-      wrap.appendChild(addr);
-    }
-
-    if (stop.kind === 'custom-start') {
-      const badge = document.createElement('div');
-      badge.style.cssText = 'color:#1a73e8;font-size:12px;font-weight:600;';
-      badge.textContent = 'Custom start';
-      wrap.appendChild(badge);
-    } else if (stop.kind === 'custom-end') {
-      const badge = document.createElement('div');
-      badge.style.cssText = 'color:#188038;font-size:12px;font-weight:600;';
-      badge.textContent = 'Custom end';
-      wrap.appendChild(badge);
-    } else if (stop.isStart) {
-      const badge = document.createElement('div');
-      badge.style.cssText = 'color:#1a73e8;font-size:12px;font-weight:600;';
-      badge.textContent = 'Start';
-      wrap.appendChild(badge);
-    } else if (stop.legDurationSec != null) {
-      const eta = document.createElement('div');
-      eta.style.cssText = 'color:#5f6368;font-size:12px;';
-      eta.textContent = `Next leg ~${Math.round(stop.legDurationSec / 60)} min`;
-      wrap.appendChild(eta);
-    }
-
-    return wrap;
-  }
+  const pinHover = createPinHoverController(map, InfoWindow);
+  const bounds = new google.maps.LatLngBounds();
 
   function addMarker(stop, glyph, background, borderColor, header) {
     const position = { lat: stop.lat, lng: stop.lng };
@@ -129,22 +80,15 @@ async function initTourMap() {
       position,
       title: stop.name,
       content: pin.element,
-      gmpClickable: true,
     });
 
-    marker.addEventListener('gmp-click', () => {
-      infoWindow.close();
-      infoWindow.setHeaderContent(header);
-      infoWindow.setContent(buildInfoContent(stop));
-      infoWindow.open({ anchor: marker, map });
-    });
+    pinHover.bind(marker, pin.element, stop, header);
   }
-
-  const bounds = new google.maps.LatLngBounds();
 
   if (customStart) {
     addMarker(
       {
+        id: 'custom-start',
         name: 'Custom start',
         address: customStart.address || '',
         lat: customStart.lat,
@@ -177,6 +121,7 @@ async function initTourMap() {
   if (customEnd) {
     addMarker(
       {
+        id: 'custom-end',
         name: 'Custom end',
         address: customEnd.address || '',
         lat: customEnd.lat,

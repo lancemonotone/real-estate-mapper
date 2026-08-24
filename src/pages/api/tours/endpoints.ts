@@ -49,7 +49,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     if (error) return new Response(error.message, { status: 400 });
   }
 
-  // Custom start replaces property start — clear is_start flags on stops.
   if (patch.start_lat != null || clearStart) {
     await supabase.from('tour_stops').update({ is_start: false }).eq('tour_day_id', tourDayId);
   }
@@ -59,6 +58,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     .select('locale_id')
     .eq('id', tourDayId)
     .single();
+
+  const wantsJson = request.headers.get('Accept')?.includes('application/json');
+  if (wantsJson) {
+    return Response.json({ ok: true, tourDayId });
+  }
 
   return redirect(`/app/locales/${tour?.locale_id}/tours/${tourDayId}`);
 };

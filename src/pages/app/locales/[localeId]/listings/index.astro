@@ -1,87 +1,10 @@
 ---
-import AppLayout from '../../../../../layouts/AppLayout.astro';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
-import { listingBadges } from '../../../../../lib/listings/badges';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
 const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
 if (!locale) return new Response('Not found', { status: 404 });
 
-const { data: listings } = await supabase
-  .from('listings')
-  .select('*')
-  .eq('locale_id', locale.id)
-  .order('created_at', { ascending: false });
-
-const base = `/app/locales/${locale.id}`;
-const rows = listings ?? [];
+return Astro.redirect(`/app/locales/${locale.id}`);
 ---
-<AppLayout
-  title={`Listings — ${locale.name}`}
-  crumbs={[
-    { href: '/app', label: 'Nest' },
-    { href: base, label: locale.name },
-    { label: 'Listings' },
-  ]}
->
-  <header class="listings-header">
-    <div class="listings-header__titles">
-      <h1 class="listings-header__title">Listings</h1>
-      <p class="muted listings-header__sub">{locale.name}</p>
-    </div>
-    <a class="button listings-header__add" href={`${base}/listings/new`}>Add listing</a>
-  </header>
-
-  {
-    rows.length === 0 ? (
-      <div class="listings-empty glass panel stack">
-        <p class="muted">No listings in this Locale yet.</p>
-        <a class="button" href={`${base}/listings/new`}>
-          Add your first listing
-        </a>
-      </div>
-    ) : (
-      <ul class="listings-list">
-        {rows.map((listing) => {
-          const title = listing.name || listing.address || 'Untitled';
-          const badges = listingBadges(listing);
-          const photo = listing.photo_url;
-          return (
-            <li>
-              <a class="listing-row" href={`${base}/listings/${listing.id}`}>
-                <div class="listing-row__media">
-                  {photo ? (
-                    <img class="listing-row__thumb" src={photo} alt="" loading="lazy" />
-                  ) : (
-                    <span class="listing-row__thumb listing-row__thumb--empty" aria-hidden="true">
-                      No photo
-                    </span>
-                  )}
-                </div>
-                <div class="listing-row__body">
-                  <strong class="listing-row__name">{title}</strong>
-                  {listing.address && listing.name && (
-                    <span class="muted listing-row__address">{listing.address}</span>
-                  )}
-                  {badges.length > 0 && (
-                    <ul class="listing-row__badges">
-                      {badges.map((b) => (
-                        <li class="listing-row__badge">{b}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <span class="listing-row__chevron" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" focusable="false">
-                    <path d="M9 6l6 6-6 6"></path>
-                  </svg>
-                </span>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
-    )
-  }
-</AppLayout>

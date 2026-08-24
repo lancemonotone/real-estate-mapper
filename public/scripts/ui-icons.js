@@ -33,6 +33,13 @@ export function iconX() {
   return svgIcon(['M6 6l12 12', 'M18 6L6 18']);
 }
 
+export function iconPencil() {
+  return svgIcon([
+    'M12 20h9',
+    'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
+  ]);
+}
+
 /** Invisible slot so trailing icons stay aligned when a leading action is missing. */
 export function iconBtnSpacer() {
   const el = document.createElement('span');

@@ -49,17 +49,21 @@ const listingRows = listings ?? [];
 const criterionRows = criteria ?? [];
 ---
 <AppLayout
-  title={`Compare — ${locale.name}`}
+  title={`Travel Times — ${locale.name}`}
   crumbs={[
-    { href: '/app', label: 'Nest' },
+    { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
-    { label: 'Compare' },
+    { label: 'Travel Times' },
   ]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="travel"
 >
   <header class="compare-header">
     <div class="compare-header__titles">
-      <h1 class="compare-header__title">Compare</h1>
-      <p class="muted compare-header__sub">Travel time from each listing to Compare columns.</p>
+      <h1 class="compare-header__title">Travel Times</h1>
+      <p class="muted compare-header__sub">
+        Drive, walk, bike, or transit times from each listing to shared destinations.
+      </p>
     </div>
     <button type="button" class="button compare-header__add" data-compare-column-open>
       Add column
@@ -73,30 +77,43 @@ const criterionRows = criteria ?? [];
       <>
         {criterionRows.length === 0 ? (
           <p class="muted compare-empty-hint">
-            No Compare columns yet.{' '}
+            No travel columns yet.{' '}
             <button type="button" class="linkish" data-compare-column-open>
               Add a column
             </button>{' '}
-            to start comparing.
+            to start comparing times.
           </p>
         ) : null}
-        <div class="compare-scroll">
-          <table class="compare" id="compare-table">
+        <div class="matrix-scroll">
+          <table class="data matrix-table" id="compare-table">
             <thead>
               <tr>
-                <th>Listing</th>
+                <th class="matrix-table__listing">Listing</th>
                 {criterionRows.map((c) => (
-                  <th data-criterion-id={c.id}>
-                    {c.label}
-                    <br />
+                  <th
+                    data-criterion-id={c.id}
+                    data-place-type-key={c.kind === 'place_type' ? c.place_type_key ?? '' : ''}
+                    data-travel-mode={c.travel_mode}
+                  >
+                    <div class="matrix-criterion-head">
+                      <span class="matrix-criterion-head__label">{c.label}</span>
+                      <button
+                        type="button"
+                        class="secondary icon-btn delete-criterion"
+                        data-criterion-id={c.id}
+                        aria-label={`Delete ${c.label}`}
+                        title={`Delete ${c.label}`}
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M6 6l12 12"></path>
+                          <path d="M18 6L6 18"></path>
+                        </svg>
+                      </button>
+                    </div>
                     <small class="muted">
                       {c.kind === 'place_type' ? `Nearest · ${c.place_type_key}` : 'Shared place'} ·{' '}
                       {c.travel_mode}
                     </small>
-                    <br />
-                    <button type="button" class="delete-criterion secondary" data-criterion-id={c.id}>
-                      Delete
-                    </button>
                   </th>
                 ))}
               </tr>
@@ -107,21 +124,21 @@ const criterionRows = criteria ?? [];
                 const photo = listing.photo_url;
                 return (
                   <tr>
-                    <th scope="row" class="compare-listing">
-                      <a class="compare-listing__link" href={`${base}/listings/${listing.id}`}>
-                        <span class="compare-listing__media">
+                    <th scope="row" class="matrix-table__listing">
+                      <a class="matrix-listing" href={`${base}/listings/${listing.id}`}>
+                        <span class="matrix-listing__media">
                           {photo ? (
-                            <img class="compare-listing__thumb" src={photo} alt="" loading="lazy" />
+                            <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
                           ) : (
-                            <span class="compare-listing__thumb compare-listing__thumb--empty" aria-hidden="true">
+                            <span class="matrix-listing__thumb matrix-listing__thumb--empty" aria-hidden="true">
                               No photo
                             </span>
                           )}
                         </span>
-                        <span class="compare-listing__text">
-                          <span class="compare-listing__name">{title}</span>
+                        <span class="matrix-listing__text">
+                          <span class="matrix-listing__name">{title}</span>
                           {listing.address && listing.name ? (
-                            <span class="muted compare-listing__address">{listing.address}</span>
+                            <span class="muted matrix-listing__address">{listing.address}</span>
                           ) : null}
                         </span>
                       </a>
@@ -166,9 +183,18 @@ const criterionRows = criteria ?? [];
     <div class="compare-column-overlay__backdrop" data-compare-column-close></div>
     <div class="compare-column-overlay__panel glass glass--strong">
       <header class="compare-column-overlay__header">
-        <h2 id="compare-column-title">Add Compare column</h2>
-        <button type="button" class="secondary" data-compare-column-close aria-label="Close">
-          Close
+        <h2 id="compare-column-title">Add travel column</h2>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-compare-column-close
+          aria-label="Close"
+          title="Close"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
         </button>
       </header>
       <form id="criterion-form" class="criterion-form stack">
@@ -217,6 +243,122 @@ const criterionRows = criteria ?? [];
     </div>
   </div>
 
+  <!-- Change cell location (same flow as listing Travel Times edit) -->
+  <div
+    id="compare-place-overlay"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="compare-place-overlay-title"
+  >
+    <div class="compare-column-overlay__backdrop" data-compare-place-close></div>
+    <div
+      class="compare-column-overlay__panel glass glass--strong listing-overlay__panel listing-overlay__panel--place"
+    >
+      <header class="compare-column-overlay__header">
+        <h2 id="compare-place-overlay-title">Change location</h2>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-compare-place-close
+          aria-label="Close"
+          title="Close"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
+        </button>
+      </header>
+      <div class="place-picker">
+        <div class="place-picker__form proximity-panel stack">
+          <p class="muted prox-lede" id="compare-prox-lede">
+            Find a nearby type or search a place, then save.
+          </p>
+          <div class="prox-fields stack">
+            <label>
+              Mode
+              <select id="compare-prox-mode-kind">
+                <option value="nearest">Nearest type</option>
+                <option value="search">Search place</option>
+              </select>
+            </label>
+            <div id="compare-prox-nearest-fields" class="stack">
+              <label>
+                Place type
+                <select id="compare-prox-place-type">
+                  {placeTypes.map((t) => (
+                    <option value={t.key}>{t.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div id="compare-prox-search-fields" class="stack" hidden>
+              <div class="place-search" id="compare-prox-place-search">
+                <label>
+                  Place or address
+                  <input
+                    type="search"
+                    data-place-search-input
+                    placeholder="Start typing…"
+                    autocomplete="off"
+                  />
+                </label>
+                <ul class="place-search__results stack" data-place-search-results hidden></ul>
+                <p class="alert" data-place-search-error hidden></p>
+              </div>
+            </div>
+            <label>
+              Travel mode
+              <select id="compare-prox-mode">
+                <option value="DRIVE">Drive</option>
+                <option value="WALK">Walk</option>
+                <option value="BICYCLE">Bicycle</option>
+                <option value="TRANSIT">Transit</option>
+              </select>
+            </label>
+          </div>
+          <div class="prox-actions">
+            <button type="button" id="compare-prox-run" title="Find nearby places and drive times">
+              Find route
+            </button>
+            <button
+              type="button"
+              id="compare-prox-save"
+              class="secondary"
+              hidden
+              title="Save this location"
+            >
+              Save
+            </button>
+          </div>
+          <div id="compare-prox-choices" class="prox-choices stack" hidden></div>
+          <div id="compare-prox-result" class="prox-result" hidden></div>
+        </div>
+        <div class="place-picker__map-col">
+          <div id="compare-prox-picker-map" class="place-picker__map map-well"></div>
+          <p id="compare-prox-picker-map-meta" class="place-picker__map-meta muted" hidden></p>
+          <a
+            id="compare-prox-picker-maps-link"
+            class="secondary icon-btn place-picker__maps-link"
+            href="#"
+            target="_blank"
+            rel="noopener"
+            hidden
+            aria-label="Open in Google Maps"
+            title="Open in Google Maps"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
+              <path d="M12 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script
     define:vars={{
       localeId: locale.id,
@@ -226,6 +368,7 @@ const criterionRows = criteria ?? [];
   >
     window.__WAYHOME_LOCALE_ID__ = localeId;
     window.__WAYHOME_MAPS__ = { mapKey, mapId };
+    window.__WAYHOME_COMPARE__ = { localeId, mapKey, mapId };
   </script>
   <DirectionsOverlay />
   <script src="/scripts/directions-overlay.js" type="module"></script>

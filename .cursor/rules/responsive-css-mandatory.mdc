@@ -10,4 +10,6 @@ When creating or changing **any** `.css` file, **read and apply** the global **`
 
 Standards: mobile-first, nested `@media`, breakpoints `768px` and `1024px`, custom properties for breakpoint overrides, `clamp` / container queries where appropriate, logical properties, native nesting (no BEM `&__` / `&--`). No SASS.
 
+Also: text buttons use shared descender padding (`--control-descender`); similar visuals **extend** base classes — no one-off chrome clones. See `button-optical-center` and `extend-base-styles` rules.
+
 This is required project CSS policy—not optional guidance.

@@ -1,5 +1,5 @@
 import { mountPlaceSearch } from './place-search.js';
-import { iconBtn, iconMapPin, iconRoute } from './ui-icons.js';
+import { iconBtn, iconMapPin, iconPencil, iconRoute } from './ui-icons.js';
 
 function formatDuration(sec) {
   if (sec == null || !Number.isFinite(sec)) return '';
@@ -15,6 +15,10 @@ function formatMiles(meters) {
   return `${(meters / 1609.34).toFixed(1)} mi`;
 }
 
+function formatMeta(durationSec, distanceM) {
+  return [formatDuration(durationSec), formatMiles(distanceM)].filter(Boolean).join(' · ');
+}
+
 function normalizePlaceId(placeId) {
   if (!placeId) return null;
   return String(placeId).startsWith('places/')
@@ -27,6 +31,13 @@ const TRAVELMODE = {
   WALK: 'walking',
   BICYCLE: 'bicycling',
   TRANSIT: 'transit',
+};
+
+const JS_TRAVEL = {
+  DRIVE: 'DRIVING',
+  WALK: 'WALKING',
+  BICYCLE: 'BICYCLING',
+  TRANSIT: 'TRANSIT',
 };
 
 function directionsUrl(td, result) {
@@ -65,13 +76,10 @@ function openCellRoute(td, result, href) {
   const originLng = Number(td.dataset.listingLng);
   const maps = window.__WAYHOME_MAPS__ || {};
   const listingName =
-    td.closest('tr')?.querySelector('th')?.textContent?.trim() || 'Listing';
-  const durationLabel = [
-    formatDuration(result.duration_sec),
-    formatMiles(result.distance_m),
-  ]
-    .filter(Boolean)
-    .join(' · ');
+    td.closest('tr')?.querySelector('.matrix-listing__name')?.textContent?.trim() ||
+    td.closest('tr')?.querySelector('th')?.textContent?.trim() ||
+    'Listing';
+  const durationLabel = formatMeta(result.duration_sec, result.distance_m);
   window.openDirectionsOverlay?.({
     origin: { lat: originLat, lng: originLng },
     destination: {
@@ -89,6 +97,15 @@ function openCellRoute(td, result, href) {
   });
 }
 
+function columnLabelForTd(td) {
+  const criterionId = td.dataset.criterionId;
+  if (!criterionId) return 'Travel column';
+  const th = document.querySelector(
+    `#compare-table thead th[data-criterion-id="${criterionId}"] .matrix-criterion-head__label`,
+  );
+  return th?.textContent?.trim() || 'Travel column';
+}
+
 function renderCell(td, result) {
   td.replaceChildren();
   if (!result) {
@@ -103,9 +120,7 @@ function renderCell(td, result) {
     const wrap = document.createElement('div');
     wrap.className = 'cell-ok';
     const line = document.createElement('div');
-    line.textContent = [formatDuration(result.duration_sec), formatMiles(result.distance_m)]
-      .filter(Boolean)
-      .join(' · ');
+    line.textContent = formatMeta(result.duration_sec, result.distance_m);
     wrap.appendChild(line);
     if (result.place_name) {
       const name = document.createElement('div');
@@ -124,6 +139,14 @@ function renderCell(td, result) {
 
     const actions = document.createElement('div');
     actions.className = 'cell-actions';
+
+    actions.appendChild(
+      iconBtn({
+        label: `Change location for ${columnLabelForTd(td)}`,
+        icon: iconPencil,
+        onClick: () => openCellPlacePicker(td, result),
+      }),
+    );
 
     if (canOverlay) {
       actions.appendChild(
@@ -161,6 +184,17 @@ function renderCell(td, result) {
     err.textContent = result.error_message;
     td.appendChild(err);
   }
+
+  const actions = document.createElement('div');
+  actions.className = 'cell-actions';
+  actions.appendChild(
+    iconBtn({
+      label: `Change location for ${columnLabelForTd(td)}`,
+      icon: iconPencil,
+      onClick: () => openCellPlacePicker(td, result),
+    }),
+  );
+  td.appendChild(actions);
   td.dataset.status = result.status;
 }
 
@@ -193,7 +227,7 @@ async function computeCell(td) {
   }
 }
 
-function initKindToggle() {
+function initKindToggle(signal) {
   const kind = document.getElementById('criterion-kind');
   const typeFields = document.getElementById('type-fields');
   const pinFields = document.getElementById('pin-fields');
@@ -204,15 +238,18 @@ function initKindToggle() {
     pinFields.hidden = !isPin;
     typeFields.hidden = isPin;
   };
-  kind.addEventListener('change', sync);
+  kind.addEventListener('change', sync, { signal });
   sync();
 }
 
-function initCompareColumnOverlay() {
+function initCompareColumnOverlay(signal) {
   const overlay = document.getElementById('compare-column-overlay');
   if (!(overlay instanceof HTMLElement)) return;
 
   const open = () => {
+    if (overlay.parentElement !== document.body) {
+      document.body.appendChild(overlay);
+    }
     overlay.hidden = false;
     document.body.classList.add('compare-column-overlay-open');
     const first = overlay.querySelector('input[name="label"]');
@@ -225,17 +262,23 @@ function initCompareColumnOverlay() {
   };
 
   document.querySelectorAll('[data-compare-column-open]').forEach((el) => {
-    el.addEventListener('click', open);
+    el.addEventListener('click', open, { signal });
   });
   overlay.querySelectorAll('[data-compare-column-close]').forEach((el) => {
-    el.addEventListener('click', close);
+    el.addEventListener('click', close, { signal });
   });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.hidden) close();
-  });
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key !== 'Escape' || overlay.hidden) return;
+      if (!document.getElementById('compare-place-overlay')?.hidden) return;
+      close();
+    },
+    { signal },
+  );
 }
 
-function initCriterionForm() {
+function initCriterionForm(signal) {
   const form = document.getElementById('criterion-form');
   const status = document.getElementById('criterion-status');
   const searchRoot = document.getElementById('compare-place-search');
@@ -248,63 +291,585 @@ function initCriterionForm() {
     });
   }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(form);
-    const kind = String(fd.get('kind') || '');
-    const body = {
-      locale_id: String(fd.get('locale_id') || ''),
-      label: String(fd.get('label') || '').trim(),
-      kind,
-      travel_mode: String(fd.get('travel_mode') || 'DRIVE'),
-    };
-    if (kind === 'place_type') {
-      body.place_type_key = String(fd.get('place_type_key') || '');
-    } else {
-      const place = placeSearch?.getResolved?.();
-      if (!place) {
-        if (status) status.textContent = 'Choose a shared place from search first';
-        return;
+  form.addEventListener(
+    'submit',
+    async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const kind = String(fd.get('kind') || '');
+      const body = {
+        locale_id: String(fd.get('locale_id') || ''),
+        label: String(fd.get('label') || '').trim(),
+        kind,
+        travel_mode: String(fd.get('travel_mode') || 'DRIVE'),
+      };
+      if (kind === 'place_type') {
+        body.place_type_key = String(fd.get('place_type_key') || '');
+      } else {
+        const place = placeSearch?.getResolved?.();
+        if (!place) {
+          if (status) status.textContent = 'Choose a shared place from search first';
+          return;
+        }
+        body.pin_lat = place.lat;
+        body.pin_lng = place.lng;
+        body.pin_place_id = place.placeId;
+        body.pin_name = place.name;
+        if (!body.label) body.label = place.name;
       }
-      body.pin_lat = place.lat;
-      body.pin_lng = place.lng;
-      body.pin_place_id = place.placeId;
-      body.pin_name = place.name;
-      if (!body.label) body.label = place.name;
-    }
 
-    if (status) status.textContent = 'Saving…';
-    const res = await fetch('/api/proximity/criteria', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      if (status) status.textContent = data.error || 'Failed to add column';
-      return;
-    }
-    location.reload();
-  });
-}
-
-function initDeleteButtons() {
-  document.querySelectorAll('.delete-criterion').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-criterion-id');
-      if (!id) return;
-      if (!confirm('Delete this Compare column?')) return;
-      const res = await fetch(`/api/proximity/criteria?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
+      if (status) status.textContent = 'Saving…';
+      const res = await fetch('/api/proximity/criteria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Delete failed');
+        if (status) status.textContent = data.error || 'Failed to add column';
         return;
       }
       location.reload();
-    });
+    },
+    { signal },
+  );
+}
+
+function initDeleteButtons(signal) {
+  document.querySelectorAll('.delete-criterion').forEach((btn) => {
+    btn.addEventListener(
+      'click',
+      async () => {
+        const id = btn.getAttribute('data-criterion-id');
+        if (!id) return;
+        if (!confirm('Delete this travel column?')) return;
+        const res = await fetch(`/api/proximity/criteria?id=${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || 'Delete failed');
+          return;
+        }
+        location.reload();
+      },
+      { signal },
+    );
   });
+}
+
+/* ——— Cell place picker (change nearest / search) ——— */
+
+let cellPickerTd = null;
+let cellPickerLastResult = null;
+let cellPickerTravelMode = 'DRIVE';
+let cellPickerPlaceSearch = null;
+let cellPickerMap = null;
+let cellPickerDirectionsRenderer = null;
+let cellPickerDirectionsService = null;
+let cellPickerMapsReady = null;
+
+function cellPickerCfg() {
+  return window.__WAYHOME_COMPARE__ || window.__WAYHOME_MAPS__ || {};
+}
+
+function cellPickerOrigin() {
+  if (!cellPickerTd) return null;
+  const lat = Number(cellPickerTd.dataset.listingLat);
+  const lng = Number(cellPickerTd.dataset.listingLng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+function setCompareProxStatus(message, { error = false } = {}) {
+  const el = document.getElementById('compare-prox-result');
+  if (!el) return;
+  el.replaceChildren();
+  if (!message) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  const status = document.createElement('p');
+  status.className = error ? 'prox-result__status is-error' : 'prox-result__status';
+  status.textContent = message;
+  el.appendChild(status);
+}
+
+function renderCompareProxResult(result) {
+  const el = document.getElementById('compare-prox-result');
+  if (!el) return;
+  el.replaceChildren();
+  if (!result) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  if (result.status !== 'ok') {
+    const status = document.createElement('p');
+    status.className = 'prox-result__status is-error';
+    status.textContent = [result.status, result.error_message].filter(Boolean).join(' — ');
+    el.appendChild(status);
+    return;
+  }
+  const candidates = Array.isArray(result.candidates) ? result.candidates : [];
+  if (candidates.length > 1) {
+    el.hidden = true;
+    return;
+  }
+  if (result.place_name) {
+    const name = document.createElement('p');
+    name.className = 'prox-result__name';
+    name.textContent = result.place_name;
+    el.appendChild(name);
+  }
+  const metaText = formatMeta(result.duration_sec, result.distance_m);
+  if (metaText) {
+    const meta = document.createElement('p');
+    meta.className = 'prox-result__meta';
+    meta.textContent = metaText;
+    el.appendChild(meta);
+  }
+}
+
+function setCompareSaveVisible(visible) {
+  const saveBtn = document.getElementById('compare-prox-save');
+  if (saveBtn) saveBtn.hidden = !visible;
+}
+
+function syncCompareModeFields() {
+  const kind = document.getElementById('compare-prox-mode-kind');
+  const nearest = document.getElementById('compare-prox-nearest-fields');
+  const search = document.getElementById('compare-prox-search-fields');
+  const val = kind instanceof HTMLSelectElement ? kind.value : 'nearest';
+  if (nearest) nearest.hidden = val !== 'nearest';
+  if (search) search.hidden = val !== 'search';
+}
+
+function clearComparePickerMapUi() {
+  const meta = document.getElementById('compare-prox-picker-map-meta');
+  const link = document.getElementById('compare-prox-picker-maps-link');
+  if (meta) {
+    meta.hidden = true;
+    meta.textContent = '';
+  }
+  if (link instanceof HTMLAnchorElement) {
+    link.hidden = true;
+    link.removeAttribute('href');
+  }
+  if (cellPickerDirectionsRenderer) {
+    cellPickerDirectionsRenderer.setMap(null);
+  }
+}
+
+async function loadComparePickerMaps(key) {
+  if (window.google?.maps?.importLibrary) return;
+  if (cellPickerMapsReady) return cellPickerMapsReady;
+  cellPickerMapsReady = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
+    script.async = true;
+    script.onload = () => resolve(undefined);
+    script.onerror = () => reject(new Error('Failed to load Maps JS'));
+    document.head.appendChild(script);
+  });
+  return cellPickerMapsReady;
+}
+
+async function showComparePickerRoute(result) {
+  const mapEl = document.getElementById('compare-prox-picker-map');
+  const origin = cellPickerOrigin();
+  const cfg = cellPickerCfg();
+  const meta = document.getElementById('compare-prox-picker-map-meta');
+  const link = document.getElementById('compare-prox-picker-maps-link');
+
+  if (
+    !mapEl ||
+    !origin ||
+    result?.status !== 'ok' ||
+    result.place_lat == null ||
+    result.place_lng == null ||
+    !cfg.mapKey ||
+    !cfg.mapId
+  ) {
+    return;
+  }
+
+  const durationLabel = formatMeta(result.duration_sec, result.distance_m);
+  const href = directionsUrl(cellPickerTd, result);
+
+  if (meta) {
+    meta.textContent = [result.place_name, durationLabel].filter(Boolean).join(' · ');
+    meta.hidden = !meta.textContent;
+  }
+  if (link instanceof HTMLAnchorElement) {
+    if (href) {
+      link.href = href;
+      link.hidden = false;
+    } else {
+      link.hidden = true;
+    }
+  }
+
+  try {
+    await loadComparePickerMaps(cfg.mapKey);
+    const { Map } = await google.maps.importLibrary('maps');
+
+    let DirectionsServiceCtor = google.maps.DirectionsService;
+    let DirectionsRendererCtor = google.maps.DirectionsRenderer;
+    try {
+      const routesLib = await google.maps.importLibrary('routes');
+      if (routesLib?.DirectionsService) DirectionsServiceCtor = routesLib.DirectionsService;
+      if (routesLib?.DirectionsRenderer) DirectionsRendererCtor = routesLib.DirectionsRenderer;
+    } catch {
+      /* fall back */
+    }
+
+    if (!cellPickerMap) {
+      cellPickerMap = new Map(mapEl, {
+        center: origin,
+        zoom: 12,
+        mapId: cfg.mapId,
+        gestureHandling: 'greedy',
+      });
+    }
+
+    if (!cellPickerDirectionsRenderer) {
+      cellPickerDirectionsRenderer = new DirectionsRendererCtor({
+        map: cellPickerMap,
+        suppressMarkers: false,
+      });
+    } else {
+      cellPickerDirectionsRenderer.setMap(cellPickerMap);
+    }
+
+    if (!cellPickerDirectionsService) {
+      cellPickerDirectionsService = new DirectionsServiceCtor();
+    }
+
+    const modeKey = JS_TRAVEL[cellPickerTravelMode] || 'DRIVING';
+    const directions = await new Promise((resolve, reject) => {
+      cellPickerDirectionsService.route(
+        {
+          origin: { lat: origin.lat, lng: origin.lng },
+          destination: { lat: result.place_lat, lng: result.place_lng },
+          travelMode: google.maps.TravelMode[modeKey],
+        },
+        (res, status) => {
+          if (status === 'OK' && res) resolve(res);
+          else reject(new Error(`Directions failed: ${status}`));
+        },
+      );
+    });
+    cellPickerDirectionsRenderer.setDirections(directions);
+    google.maps.event.trigger(cellPickerMap, 'resize');
+  } catch (e) {
+    if (meta) {
+      meta.hidden = false;
+      meta.textContent =
+        e instanceof Error ? e.message : 'Could not load directions on map';
+    }
+  }
+}
+
+function applyCompareChosenCandidate(candidate, origin) {
+  cellPickerLastResult = {
+    status: 'ok',
+    place_id: candidate.place_id,
+    place_name: candidate.place_name,
+    place_lat: candidate.place_lat,
+    place_lng: candidate.place_lng,
+    duration_sec: candidate.duration_sec,
+    distance_m: candidate.distance_m,
+    maps_url: directionsUrl(cellPickerTd, {
+      place_id: candidate.place_id,
+      place_name: candidate.place_name,
+      place_lat: candidate.place_lat,
+      place_lng: candidate.place_lng,
+    }),
+    error_message: null,
+  };
+  void origin;
+}
+
+function renderCompareChoices(result, origin) {
+  const box = document.getElementById('compare-prox-choices');
+  if (!box) return;
+  box.replaceChildren();
+  const list = Array.isArray(result?.candidates) ? result.candidates : [];
+  if (result?.status !== 'ok' || list.length <= 1) {
+    box.hidden = true;
+    if (result?.status === 'ok') {
+      setCompareSaveVisible(true);
+      void showComparePickerRoute(result);
+    }
+    return;
+  }
+
+  box.hidden = false;
+  setCompareSaveVisible(false);
+  clearComparePickerMapUi();
+  const intro = document.createElement('p');
+  intro.className = 'muted';
+  intro.textContent = 'Google returned several matches — pick the right one:';
+  box.appendChild(intro);
+
+  for (const candidate of list) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'prox-choice secondary';
+
+    const media = document.createElement('span');
+    media.className = 'prox-choice__media';
+    if (candidate.place_id) {
+      const img = document.createElement('img');
+      img.className = 'prox-choice__thumb';
+      img.alt = '';
+      img.loading = 'lazy';
+      img.width = 72;
+      img.height = 72;
+      img.src = `/api/places/photo?place_id=${encodeURIComponent(candidate.place_id)}&max=120`;
+      img.addEventListener('error', () => {
+        const empty = document.createElement('span');
+        empty.className = 'prox-choice__thumb prox-choice__thumb--empty';
+        empty.setAttribute('aria-hidden', 'true');
+        empty.textContent = 'No photo';
+        img.replaceWith(empty);
+      });
+      media.appendChild(img);
+    }
+
+    const text = document.createElement('span');
+    text.className = 'prox-choice__text';
+    const title = document.createElement('strong');
+    title.className = 'prox-choice__name';
+    title.textContent = candidate.place_name || 'Place';
+    const meta = document.createElement('span');
+    meta.className = 'prox-choice__meta muted';
+    meta.textContent = formatMeta(candidate.duration_sec, candidate.distance_m);
+    text.appendChild(title);
+    text.appendChild(meta);
+
+    btn.appendChild(media);
+    btn.appendChild(text);
+    btn.addEventListener('click', async () => {
+      box.querySelectorAll('.prox-choice').forEach((el) => el.classList.remove('is-selected'));
+      btn.classList.add('is-selected');
+      applyCompareChosenCandidate(candidate, origin);
+      renderCompareProxResult(cellPickerLastResult);
+      setCompareSaveVisible(true);
+      await showComparePickerRoute(cellPickerLastResult);
+    });
+    box.appendChild(btn);
+  }
+}
+
+function closeCellPlacePicker() {
+  const overlay = document.getElementById('compare-place-overlay');
+  if (!(overlay instanceof HTMLElement)) return;
+  overlay.hidden = true;
+  document.body.classList.remove('compare-column-overlay-open');
+  cellPickerTd = null;
+  cellPickerLastResult = null;
+  clearComparePickerMapUi();
+}
+
+function openCellPlacePicker(td, currentResult) {
+  const overlay = document.getElementById('compare-place-overlay');
+  if (!(overlay instanceof HTMLElement)) return;
+
+  cellPickerTd = td;
+  cellPickerLastResult = null;
+  cellPickerTravelMode = td.dataset.travelMode || 'DRIVE';
+
+  const label = columnLabelForTd(td);
+  const listingName =
+    td.closest('tr')?.querySelector('.matrix-listing__name')?.textContent?.trim() || 'Listing';
+  const title = document.getElementById('compare-place-overlay-title');
+  const lede = document.getElementById('compare-prox-lede');
+  const modeEl = document.getElementById('compare-prox-mode');
+  const typeEl = document.getElementById('compare-prox-place-type');
+  const modeKind = document.getElementById('compare-prox-mode-kind');
+
+  const th = document.querySelector(
+    `#compare-table thead th[data-criterion-id="${td.dataset.criterionId}"]`,
+  );
+  const placeTypeKey = th instanceof HTMLElement ? th.dataset.placeTypeKey || '' : '';
+
+  if (title) title.textContent = 'Change location';
+  if (lede) lede.textContent = `Pick a new location for ${label} · ${listingName}.`;
+  if (modeEl instanceof HTMLSelectElement) modeEl.value = cellPickerTravelMode;
+  if (placeTypeKey && typeEl instanceof HTMLSelectElement) {
+    typeEl.value = placeTypeKey;
+  }
+  if (modeKind instanceof HTMLSelectElement) {
+    modeKind.value = 'nearest';
+  }
+
+  setCompareProxStatus('');
+  setCompareSaveVisible(false);
+  const choices = document.getElementById('compare-prox-choices');
+  if (choices) {
+    choices.hidden = true;
+    choices.replaceChildren();
+  }
+  cellPickerPlaceSearch?.clear?.();
+  clearComparePickerMapUi();
+  syncCompareModeFields();
+
+  if (overlay.parentElement !== document.body) {
+    document.body.appendChild(overlay);
+  }
+  overlay.hidden = false;
+  document.body.classList.add('compare-column-overlay-open');
+
+  if (currentResult?.status === 'ok') {
+    void showComparePickerRoute(currentResult);
+  }
+}
+
+function initCellPlacePicker(signal) {
+  const cfg = cellPickerCfg();
+  const modeKind = document.getElementById('compare-prox-mode-kind');
+  const runBtn = document.getElementById('compare-prox-run');
+  const saveBtn = document.getElementById('compare-prox-save');
+  const searchRoot = document.getElementById('compare-prox-place-search');
+  const overlay = document.getElementById('compare-place-overlay');
+
+  modeKind?.addEventListener('change', syncCompareModeFields, { signal });
+  syncCompareModeFields();
+
+  if (searchRoot && cfg.localeId) {
+    cellPickerPlaceSearch = mountPlaceSearch(searchRoot, { localeId: cfg.localeId });
+  }
+
+  overlay?.querySelectorAll('[data-compare-place-close]').forEach((el) => {
+    el.addEventListener('click', () => closeCellPlacePicker(), { signal });
+  });
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key !== 'Escape') return;
+      if (overlay && !overlay.hidden) closeCellPlacePicker();
+    },
+    { signal },
+  );
+
+  runBtn?.addEventListener(
+    'click',
+    async () => {
+    if (!cellPickerTd) return;
+    const listingId = cellPickerTd.dataset.listingId;
+    const origin = cellPickerOrigin();
+    if (!listingId || !origin || !cfg.localeId) {
+      setCompareProxStatus('Listing needs a geocoded location', { error: true });
+      return;
+    }
+
+    setCompareProxStatus('Finding route…');
+    setCompareSaveVisible(false);
+    const choices = document.getElementById('compare-prox-choices');
+    if (choices) {
+      choices.hidden = true;
+      choices.replaceChildren();
+    }
+
+    const modeEl = document.getElementById('compare-prox-mode');
+    const travel_mode = modeEl instanceof HTMLSelectElement ? modeEl.value : 'DRIVE';
+    cellPickerTravelMode = travel_mode;
+    const kindVal =
+      modeKind instanceof HTMLSelectElement ? modeKind.value : 'nearest';
+
+    try {
+      let body;
+      if (kindVal === 'search') {
+        const place = cellPickerPlaceSearch?.getResolved?.();
+        if (!place) {
+          setCompareProxStatus('Choose a place from search first', { error: true });
+          return;
+        }
+        body = {
+          listing_id: listingId,
+          locale_id: cfg.localeId,
+          kind: 'fixed_pin',
+          pin_lat: place.lat,
+          pin_lng: place.lng,
+          pin_name: place.name,
+          pin_place_id: place.placeId,
+          travel_mode,
+        };
+      } else {
+        const typeEl = document.getElementById('compare-prox-place-type');
+        body = {
+          listing_id: listingId,
+          locale_id: cfg.localeId,
+          kind: 'place_type',
+          place_type_key: typeEl instanceof HTMLSelectElement ? typeEl.value : '',
+          travel_mode,
+        };
+      }
+
+      const res = await fetch('/api/proximity/compute-one-off', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCompareProxStatus(data.error || 'Failed', { error: true });
+        return;
+      }
+      cellPickerLastResult = data.result;
+      renderCompareProxResult(data.result);
+      renderCompareChoices(data.result, origin);
+    } catch (e) {
+      setCompareProxStatus(e instanceof Error ? e.message : 'Compute failed', { error: true });
+    }
+    },
+    { signal },
+  );
+
+  saveBtn?.addEventListener(
+    'click',
+    async () => {
+    if (!cellPickerTd || !cellPickerLastResult || cellPickerLastResult.status !== 'ok') return;
+    const listingId = cellPickerTd.dataset.listingId;
+    const criterionId = cellPickerTd.dataset.criterionId;
+    if (!listingId || !criterionId) return;
+
+    const origin = cellPickerOrigin();
+    const href = directionsUrl(cellPickerTd, cellPickerLastResult);
+
+    const lockRes = await fetch('/api/proximity/lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        listing_id: listingId,
+        criterion_id: criterionId,
+        locked: true,
+        place_id: cellPickerLastResult.place_id,
+        place_name: cellPickerLastResult.place_name,
+        place_lat: cellPickerLastResult.place_lat,
+        place_lng: cellPickerLastResult.place_lng,
+        duration_sec: cellPickerLastResult.duration_sec,
+        distance_m: cellPickerLastResult.distance_m,
+        maps_url: href || cellPickerLastResult.maps_url,
+      }),
+    });
+    const lockData = await lockRes.json();
+    if (!lockRes.ok) {
+      alert(lockData.error || 'Could not update location');
+      return;
+    }
+
+    const td = cellPickerTd;
+    const result = lockData.result || cellPickerLastResult;
+    closeCellPlacePicker();
+    renderCell(td, result);
+    equalizeCompareRows();
+    },
+    { signal },
+  );
 }
 
 async function hydrateAndCompute() {
@@ -314,7 +879,12 @@ async function hydrateAndCompute() {
     if (seeded) {
       try {
         const row = JSON.parse(seeded.textContent || '');
-        if (row.status === 'ok') {
+        // Use DB cache on page load — only compute when we have no usable result.
+        if (row?.status === 'ok' && row.place_id) {
+          renderCell(td, row);
+          continue;
+        }
+        if (row && row.status !== 'error') {
           renderCell(td, row);
           continue;
         }
@@ -345,10 +915,31 @@ function equalizeCompareRows() {
   }
 }
 
-initKindToggle();
-initCompareColumnOverlay();
-initCriterionForm();
-initDeleteButtons();
-equalizeCompareRows();
-hydrateAndCompute();
+let comparePageAbort = null;
+
+function bootComparePage() {
+  if (!document.querySelector('td[data-listing-id][data-criterion-id]')) return;
+
+  if (comparePageAbort) comparePageAbort.abort();
+  comparePageAbort = new AbortController();
+  const { signal } = comparePageAbort;
+
+  // Maps/directions state is tied to the previous page DOM — reset on soft nav.
+  cellPickerMap = null;
+  cellPickerDirectionsRenderer = null;
+  cellPickerDirectionsService = null;
+  cellPickerLastResult = null;
+  cellPickerTd = null;
+
+  initKindToggle(signal);
+  initCompareColumnOverlay(signal);
+  initCriterionForm(signal);
+  initDeleteButtons(signal);
+  initCellPlacePicker(signal);
+  equalizeCompareRows();
+  hydrateAndCompute();
+}
+
+bootComparePage();
 window.addEventListener('resize', equalizeCompareRows);
+document.addEventListener('astro:page-load', bootComparePage);

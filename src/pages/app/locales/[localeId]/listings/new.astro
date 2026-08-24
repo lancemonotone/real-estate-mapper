@@ -13,11 +13,13 @@ const base = `/app/locales/${locale.id}`;
 <AppLayout
   title={`New listing — ${locale.name}`}
   crumbs={[
-    { href: '/app', label: 'Nest' },
+    { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
-    { href: `${base}/listings`, label: 'Listings' },
+    { href: base, label: 'Listings' },
     { label: 'New' },
   ]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="listings"
 >
   <h1>New listing</h1>
   <section class="stack">

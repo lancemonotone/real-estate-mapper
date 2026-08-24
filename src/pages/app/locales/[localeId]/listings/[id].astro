@@ -1,11 +1,17 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../../components/DirectionsOverlay.astro';
-import SourceOverlay from '../../../../../components/SourceOverlay.astro';
 import ListingForm from '../../../../../components/ListingForm.astro';
 import '../../../../../styles/listing-map.css';
 import { PLACE_TYPE_CATALOG } from '../../../../../lib/proximity/place-types';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import {
+  formatAmenities,
+  formatMoney,
+  formatNumber,
+  formatSqft,
+} from '../../../../../lib/listings/format-attributes';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -57,16 +63,38 @@ const { data: proximityResults } = await supabase
 
 const resultByCriterion = new Map((proximityResults ?? []).map((r) => [r.criterion_id, r]));
 
+const { data: localeTours } = await supabase
+  .from('tour_days')
+  .select('id, tour_date')
+  .eq('locale_id', locale.id)
+  .order('tour_date', { ascending: true });
+
+const tourIds = (localeTours ?? []).map((t) => t.id);
+let assignment: { tourDayId: string; tourDate: string } | null = null;
+if (tourIds.length > 0) {
+  const { data: stop } = await supabase
+    .from('tour_stops')
+    .select('tour_day_id')
+    .eq('listing_id', listing.id)
+    .in('tour_day_id', tourIds)
+    .limit(1)
+    .maybeSingle();
+  if (stop) {
+    const day = (localeTours ?? []).find((t) => t.id === stop.tour_day_id);
+    if (day) assignment = { tourDayId: day.id, tourDate: day.tour_date };
+  }
+}
+
 const hasLocation = listing.lat != null && listing.lng != null;
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
 const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 const photoUrl = listing.photo_url ?? '';
 const base = `/app/locales/${locale.id}`;
+const listingTitle = listing.name || 'Listing';
 const placeTypes = Object.entries(PLACE_TYPE_CATALOG).map(([key, v]) => ({
   key,
   label: v.label,
 }));
-const listingTitle = listing.name || 'Listing';
 
 const compareRows = (criteria ?? []).map((c) => {
   const row = resultByCriterion.get(c.id);
@@ -79,175 +107,282 @@ const compareRows = (criteria ?? []).map((c) => {
     result: row ?? null,
   };
 });
+
+const attributeFacts: { label: string; value: string }[] = [
+  listing.price_monthly != null && { label: 'Price / mo', value: formatMoney(listing.price_monthly) },
+  listing.beds != null && { label: 'Beds', value: formatNumber(listing.beds) },
+  listing.baths != null && { label: 'Baths', value: formatNumber(listing.baths) },
+  listing.sqft != null && { label: 'Sq ft', value: formatSqft(listing.sqft) },
+  listing.deposit != null && { label: 'Deposit', value: formatMoney(listing.deposit) },
+  listing.fees_monthly != null && { label: 'Fees / mo', value: formatMoney(listing.fees_monthly) },
+  listing.pet_rent_monthly != null && {
+    label: 'Pet rent / mo',
+    value: formatMoney(listing.pet_rent_monthly),
+  },
+  listing.pet_deposit != null && { label: 'Pet deposit', value: formatMoney(listing.pet_deposit) },
+  (listing.amenities?.length ?? 0) > 0 && {
+    label: 'Amenities',
+    value: formatAmenities(listing.amenities),
+  },
+].filter(Boolean) as { label: string; value: string }[];
 ---
 <AppLayout
   title={listingTitle}
   crumbs={[
-    { href: '/app', label: 'Nest' },
+    { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
-    { href: `${base}/listings`, label: 'Listings' },
+    { href: base, label: 'Listings' },
     { label: listingTitle },
   ]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="listings"
 >
-  <h1>{listingTitle}</h1>
+  <div class="locale-hero__heading">
+    <h1 class="locale-hero__name">{listingTitle}</h1>
+    {
+      listing.source_url && (
+        <a
+          class="secondary icon-btn"
+          href={listing.source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open listing source"
+          aria-label="Open listing source"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M14 4h6v6"></path>
+            <path d="M10 14L20 4"></path>
+            <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
+          </svg>
+        </a>
+      )
+    }
+    <div class="locale-hero__actions">
+      <button
+        type="button"
+        class="secondary icon-btn"
+        data-listing-overlay-open="tour"
+        title="Tour"
+        aria-label="Tour"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+          <path d="M3 10h18"></path>
+          <path d="M8 3v4"></path>
+          <path d="M16 3v4"></path>
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="secondary icon-btn"
+        data-listing-overlay-open="edit"
+        title="Edit listing"
+        aria-label="Edit listing"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <section class="listing-hero">
-    <div class="listing-hero__meta glass panel stack">
+    <div class="listing-hero__meta stack">
       {
-        listing.address && (
-          <p>
-            <span class="visually-hidden">Address</span>
-            {listing.address}
-          </p>
+        listing.address ? (
+          <p class="listing-hero__address">{listing.address}</p>
+        ) : (
+          <p class="muted">No address yet.</p>
         )
       }
-      {
-        listing.appointment_at && (
-          <p>
-            <strong>Appointment</strong>
-            <br />
-            {new Date(listing.appointment_at).toLocaleString()}
-          </p>
-        )
-      }
-      {
-        listing.notes && (
-          <p>
-            <strong>Notes</strong>
-            <br />
-            {listing.notes}
-          </p>
-        )
-      }
-      <div class="listing-hero__links">
-        {
-          listing.source_url && (
-            <a
-              href={listing.source_url}
-              data-source-overlay
-              data-source-title="Listing source"
-            >
-              Listing source
-            </a>
-          )
-        }
-        <a href={`${base}/compare`}>Open Compare</a>
-      </div>
 
-      <div class="stack prox-saved">
-        <h3>Places</h3>
-        <p class="muted prox-places-lede">
-          Travel times from this listing.{' '}
-          <strong class="prox-lede-accent">On Compare</strong> also shows on the Locale Compare
-          page.{' '}
-          <strong>Listing only</strong> stays private to this listing.
-        </p>
+      {
+        attributeFacts.length > 0 ? (
+          <dl class="listing-facts">
+            {attributeFacts.map((fact) => (
+              <div class="listing-facts__row">
+                <dt>{fact.label}</dt>
+                <dd>{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p class="muted">No attributes yet.</p>
+        )
+      }
+
+      <div class="listing-hero__travel prox-saved">
+        <header class="listing-section__header">
+          <h2 class="listing-section__title">Travel Times</h2>
+          <button type="button" class="button" data-listing-overlay-open="place">
+            Add place
+          </button>
+        </header>
         {
           compareRows.length === 0 && (listingPlaces ?? []).length === 0 ? (
             <p class="muted" id="listing-places-empty">
-              None yet — use the Places tab below.
+              None yet — add a place.
             </p>
-          ) : null
-        }
-        <ul class="stack prox-places-list" id="listing-places-list">
-          {compareRows.map((row) => {
-            const placeId = row.result?.place_id ?? '';
-            return (
-              <li
-                class="prox-saved-item prox-saved-item--compare"
-                data-listing-prox-cell
-                data-column-label={row.label}
-                data-listing-id={listing.id}
-                data-criterion-id={row.criterionId}
-                data-listing-lat={listing.lat != null ? String(listing.lat) : ''}
-                data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
-                data-travel-mode={row.travelMode}
-              >
-                {row.result ? (
-                  <span class="seeded" hidden>
-                    {JSON.stringify(row.result)}
-                  </span>
-                ) : null}
-                <div class="prox-saved-item__media" data-prox-thumb>
-                  {
-                    placeId ? (
-                      <img
-                        class="prox-saved-item__thumb"
-                        src={`/api/places/photo?place_id=${encodeURIComponent(placeId)}&max=120`}
-                        alt=""
-                        loading="lazy"
-                        width="72"
-                        height="54"
-                        onerror="this.hidden=true"
-                      />
-                    ) : null
-                  }
-                </div>
-                <div class="prox-saved-item__body">
-                      <strong>
-                        {row.label}
-                      </strong>
-                  <span class="muted prox-cell-meta">
-                    {row.result?.status === 'ok'
-                      ? [
-                          row.result.place_name,
-                          formatListingMeta(row.result.duration_sec, row.result.distance_m),
-                        ]
+          ) : (
+            <div class="matrix-scroll matrix-scroll--fit">
+              <table class="data matrix-table matrix-table--fit" aria-label="Travel Times">
+                <tbody id="listing-places-list">
+                  {compareRows.map((row) => {
+                    const placeId = row.result?.place_id ?? '';
+                    const timeLabel =
+                      row.result?.status === 'ok'
+                        ? [
+                            row.result.place_name,
+                            formatListingMeta(row.result.duration_sec, row.result.distance_m),
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : row.result
+                          ? row.result.status
+                          : 'Pending…';
+                    return (
+                      <tr
+                        class="prox-saved-item prox-saved-item--compare"
+                        data-listing-prox-cell
+                        data-column-label={row.label}
+                        data-listing-id={listing.id}
+                        data-criterion-id={row.criterionId}
+                        data-listing-lat={listing.lat != null ? String(listing.lat) : ''}
+                        data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
+                        data-travel-mode={row.travelMode}
+                      >
+                        <th scope="row" class="matrix-table__listing">
+                          {row.result ? (
+                            <span class="seeded" hidden>
+                              {JSON.stringify(row.result)}
+                            </span>
+                          ) : null}
+                          <div class="matrix-listing">
+                            <span class="matrix-listing__media" data-prox-thumb>
+                              {placeId ? (
+                                <img
+                                  class="matrix-listing__thumb prox-saved-item__thumb"
+                                  src={`/api/places/photo?place_id=${encodeURIComponent(placeId)}&max=120`}
+                                  alt=""
+                                  loading="lazy"
+                                  onerror="this.hidden=true"
+                                />
+                              ) : (
+                                <span
+                                  class="matrix-listing__thumb matrix-listing__thumb--empty"
+                                  aria-hidden="true"
+                                >
+                                  No photo
+                                </span>
+                              )}
+                            </span>
+                            <span class="matrix-listing__text">
+                              <span class="matrix-listing__name">{row.label}</span>
+                            </span>
+                          </div>
+                        </th>
+                        <td class="prox-cell-meta">{timeLabel}</td>
+                        <td class="matrix-type">
+                          <span
+                            class="matrix-type__icon"
+                            title="Travel Times"
+                            aria-label="Travel Times"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                              <path d="M4 6h16"></path>
+                              <path d="M4 12h16"></path>
+                              <path d="M4 18h10"></path>
+                              <path d="M16 16l2 2 4-4"></path>
+                            </svg>
+                          </span>
+                        </td>
+                        <td class="listing-matrix-actions" data-cell-actions></td>
+                      </tr>
+                    );
+                  })}
+                  {(listingPlaces ?? []).map((p) => (
+                    <tr
+                      class="prox-saved-item prox-saved-item--listing"
+                      data-place-row-id={p.id}
+                      data-place-lat={String(p.lat)}
+                      data-place-lng={String(p.lng)}
+                      data-place-id={p.place_id}
+                      data-place-name={p.name}
+                      data-travel-mode={p.travel_mode}
+                      data-duration-sec={p.duration_sec != null ? String(p.duration_sec) : ''}
+                      data-distance-m={p.distance_m != null ? String(p.distance_m) : ''}
+                      data-maps-url={p.maps_url ?? ''}
+                    >
+                      <th scope="row" class="matrix-table__listing">
+                        <div class="matrix-listing">
+                          <span class="matrix-listing__media" data-prox-thumb>
+                            {p.place_id ? (
+                              <img
+                                class="matrix-listing__thumb prox-saved-item__thumb"
+                                src={`/api/places/photo?place_id=${encodeURIComponent(p.place_id)}&max=120`}
+                                alt=""
+                                loading="lazy"
+                                onerror="this.hidden=true"
+                              />
+                            ) : (
+                              <span
+                                class="matrix-listing__thumb matrix-listing__thumb--empty"
+                                aria-hidden="true"
+                              >
+                                No photo
+                              </span>
+                            )}
+                          </span>
+                          <span class="matrix-listing__text">
+                            <span class="matrix-listing__name">{p.name}</span>
+                          </span>
+                        </div>
+                      </th>
+                      <td class="prox-cell-meta">
+                        {[formatListingMeta(p.duration_sec, p.distance_m), p.travel_mode]
                           .filter(Boolean)
-                          .join(' · ')
-                      : row.result
-                        ? row.result.status
-                        : 'Pending…'}
-                  </span>
-                  <span class="prox-place-tag prox-place-tag--compare">On Compare</span>
-                </div>
-                <div class="prox-saved-item__actions cell-actions" data-cell-actions></div>
-              </li>
-            );
-          })}
-          {(listingPlaces ?? []).map((p) => (
-            <li
-              class="prox-saved-item prox-saved-item--listing"
-              data-place-row-id={p.id}
-              data-place-lat={String(p.lat)}
-              data-place-lng={String(p.lng)}
-              data-place-id={p.place_id}
-              data-place-name={p.name}
-              data-travel-mode={p.travel_mode}
-              data-duration-sec={p.duration_sec != null ? String(p.duration_sec) : ''}
-              data-distance-m={p.distance_m != null ? String(p.distance_m) : ''}
-              data-maps-url={p.maps_url ?? ''}
-            >
-              <div class="prox-saved-item__media" data-prox-thumb>
-                {
-                  p.place_id ? (
-                    <img
-                      class="prox-saved-item__thumb"
-                      src={`/api/places/photo?place_id=${encodeURIComponent(p.place_id)}&max=120`}
-                      alt=""
-                      loading="lazy"
-                      width="72"
-                      height="54"
-                      onerror="this.hidden=true"
-                    />
-                  ) : null
-                }
-              </div>
-              <div class="prox-saved-item__body">
-                <strong>{p.name}</strong>
-                <span class="muted">
-                  {[formatListingMeta(p.duration_sec, p.distance_m), p.travel_mode]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-                <span class="prox-place-tag prox-place-tag--listing">Listing only</span>
-              </div>
-              <div class="prox-saved-item__actions cell-actions" data-listing-place-actions></div>
-            </li>
-          ))}
-        </ul>
+                          .join(' · ')}
+                      </td>
+                      <td class="matrix-type">
+                        <span
+                          class="matrix-type__icon"
+                          title="Listing only"
+                          aria-label="Listing only"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M3 10.5L12 3l9 7.5"></path>
+                            <path d="M5 9.5V21h14V9.5"></path>
+                            <path d="M10 21v-6h4v6"></path>
+                          </svg>
+                        </span>
+                      </td>
+                      <td class="listing-matrix-actions" data-listing-place-actions></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
       </div>
+
+      <p class="listing-hero__tour">
+        {
+          assignment ? (
+            <>
+              On tour{' '}
+              <a href={`${base}/tours/${assignment.tourDayId}`}>
+                {formatTourDate(assignment.tourDate)}
+              </a>
+            </>
+          ) : (
+            <span class="muted">Not on a tour</span>
+          )
+        }
+      </p>
     </div>
+
     <div class="listing-hero__visual stack">
       {
         photoUrl ? (
@@ -260,143 +395,49 @@ const compareRows = (criteria ?? []).map((c) => {
         hasLocation ? (
           <div
             id="listing-map"
-            class="listing-map map-well"
+            class="listing-map map-well listing-hero__map"
             data-key={browserKey}
             data-map-id={mapId}
             data-lat={String(listing.lat)}
             data-lng={String(listing.lng)}
             data-title={listing.name || listing.address || 'Listing'}
+            data-address={listing.address || ''}
             data-photo-url={photoUrl}
           ></div>
         ) : (
-          <p class="listing-map-missing muted">
-            No map yet — add an address and geocode (or use Retry geocode in Edit).
-          </p>
+          <p class="listing-map-missing muted">No map yet — add an address in Edit.</p>
         )
       }
     </div>
   </section>
 
-  <div class="listing-tabs" data-listing-tabs>
-    <ul class="listing-tabs__list" role="tablist">
-      <li>
+  <!-- Edit overlay -->
+  <div
+    id="listing-overlay-edit"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="listing-overlay-edit-title"
+    data-listing-overlay="edit"
+  >
+    <div class="compare-column-overlay__backdrop" data-listing-overlay-close></div>
+    <div class="compare-column-overlay__panel glass glass--strong listing-overlay__panel">
+      <header class="compare-column-overlay__header">
+        <h2 id="listing-overlay-edit-title">Edit listing</h2>
         <button
           type="button"
-          class="secondary listing-tabs__tab"
-          role="tab"
-          id="tab-places"
-          aria-controls="panel-places"
-          aria-selected="true"
-          data-tab="places"
+          class="secondary icon-btn"
+          data-listing-overlay-close
+          aria-label="Close"
+          title="Close"
         >
-          Places
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
         </button>
-      </li>
-      <li>
-        <button
-          type="button"
-          class="secondary listing-tabs__tab"
-          role="tab"
-          id="tab-edit"
-          aria-controls="panel-edit"
-          aria-selected="false"
-          data-tab="edit"
-        >
-          Edit
-        </button>
-      </li>
-    </ul>
-
-    <section
-      class="listing-tabs__panel proximity-panel panel glass stack"
-      id="panel-places"
-      role="tabpanel"
-      aria-labelledby="tab-places"
-      data-panel="places"
-    >
-      <h2 class="visually-hidden">Places</h2>
-      <p class="muted prox-lede">
-        Find a nearby type or search a place. Save it as <strong>listing only</strong>, or
-        <strong>Add to Compare</strong> so it appears for every listing on the Locale Compare page.
-      </p>
-      <div class="prox-fields stack">
-        <label>
-          Mode
-          <select id="prox-mode-kind">
-            <option value="nearest">Nearest type</option>
-            <option value="search">Search place</option>
-          </select>
-        </label>
-        <div id="prox-nearest-fields" class="stack">
-          <label>
-            Place type
-            <select id="prox-place-type">
-              {placeTypes.map((t) => (
-                <option value={t.key}>{t.label}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div id="prox-search-fields" class="stack" hidden>
-          <div class="place-search" id="prox-place-search">
-            <label>
-              Place or address
-              <input
-                type="search"
-                data-place-search-input
-                placeholder="Start typing…"
-                autocomplete="off"
-              />
-            </label>
-            <ul class="place-search__results stack" data-place-search-results hidden></ul>
-            <p class="alert" data-place-search-error hidden></p>
-          </div>
-        </div>
-        <label>
-          Travel mode
-          <select id="prox-mode">
-            <option value="DRIVE">Drive</option>
-            <option value="WALK">Walk</option>
-            <option value="BICYCLE">Bicycle</option>
-            <option value="TRANSIT">Transit</option>
-          </select>
-        </label>
-      </div>
-      <div class="prox-actions">
-        <button type="button" id="prox-run" title="Find nearby places and drive times">
-          Find route
-        </button>
-        <button
-          type="button"
-          id="prox-use-listing"
-          class="secondary"
-          hidden
-          title="Save this place for this listing only"
-        >
-          Save as listing only
-        </button>
-        <button
-          type="button"
-          id="prox-add-compare"
-          class="secondary"
-          hidden
-          title="Add this place as a Locale Compare column"
-        >
-          Add to Compare
-        </button>
-      </div>
-      <div id="prox-choices" class="prox-choices stack" hidden></div>
-      <div id="prox-result" class="prox-result" hidden></div>
-    </section>
-
-    <section
-      class="listing-tabs__panel"
-      id="panel-edit"
-      role="tabpanel"
-      aria-labelledby="tab-edit"
-      data-panel="edit"
-      hidden
-    >
+      </header>
       <ListingForm
         listing={listing}
         action="/api/listings/update"
@@ -408,7 +449,222 @@ const compareRows = (criteria ?? []).map((c) => {
         </button>
       </ListingForm>
       <p id="geocode-status" class="muted"></p>
-    </section>
+    </div>
+  </div>
+
+  <!-- Tour overlay -->
+  <div
+    id="listing-overlay-tour"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="listing-overlay-tour-title"
+    data-listing-overlay="tour"
+  >
+    <div class="compare-column-overlay__backdrop" data-listing-overlay-close></div>
+    <div class="compare-column-overlay__panel glass glass--strong">
+      <header class="compare-column-overlay__header">
+        <h2 id="listing-overlay-tour-title">Tour</h2>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-listing-overlay-close
+          aria-label="Close"
+          title="Close"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
+        </button>
+      </header>
+
+      {
+        assignment ? (
+          <div class="stack">
+            <p>
+              Currently on{' '}
+              <a href={`${base}/tours/${assignment.tourDayId}`}>
+                {formatTourDate(assignment.tourDate)}
+              </a>
+              .
+            </p>
+            <form method="post" action="/api/tours/unassign">
+              <input type="hidden" name="listing_id" value={listing.id} />
+              <input type="hidden" name="tour_day_id" value={assignment.tourDayId} />
+              <input type="hidden" name="locale_id" value={locale.id} />
+              <input type="hidden" name="return_to" value={`${base}/listings/${listing.id}`} />
+              <button type="submit" class="secondary">
+                Remove from tour
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div class="stack">
+            {
+              (localeTours ?? []).length > 0 ? (
+                <>
+                  <p class="muted">Choose an existing tour day, or pick a new date.</p>
+                  <ul class="listing-tour-picks stack">
+                    {(localeTours ?? []).map((tour) => (
+                      <li>
+                        <form method="post" action="/api/tours/assign">
+                          <input type="hidden" name="listing_id" value={listing.id} />
+                          <input type="hidden" name="locale_id" value={locale.id} />
+                          <input type="hidden" name="tour_date" value={tour.tour_date} />
+                          <button type="submit" class="secondary listing-tour-picks__btn">
+                            {formatTourDate(tour.tour_date)}
+                          </button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p class="muted">No tour days yet — pick a date to create one.</p>
+              )
+            }
+            <form method="post" action="/api/tours/assign" class="listing-tour-assign stack">
+              <input type="hidden" name="listing_id" value={listing.id} />
+              <input type="hidden" name="locale_id" value={locale.id} />
+              <label>
+                New tour date
+                <input type="date" name="tour_date" required />
+              </label>
+              <button type="submit">Assign</button>
+            </form>
+          </div>
+        )
+      }
+    </div>
+  </div>
+
+  <!-- Add / change place overlay -->
+  <div
+    id="listing-overlay-place"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="listing-overlay-place-title"
+    data-listing-overlay="place"
+  >
+    <div class="compare-column-overlay__backdrop" data-listing-overlay-close></div>
+    <div
+      class="compare-column-overlay__panel glass glass--strong listing-overlay__panel listing-overlay__panel--place"
+    >
+      <header class="compare-column-overlay__header">
+        <h2 id="listing-overlay-place-title">Add place</h2>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-listing-overlay-close
+          aria-label="Close"
+          title="Close"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
+        </button>
+      </header>
+      <div class="place-picker">
+        <div class="place-picker__form proximity-panel stack">
+          <p class="muted prox-lede" id="prox-lede">
+            Find a nearby type or search a place, then save.
+          </p>
+          <div class="prox-fields stack">
+            <label>
+              Mode
+              <select id="prox-mode-kind">
+                <option value="nearest">Nearest type</option>
+                <option value="search">Search place</option>
+              </select>
+            </label>
+            <div id="prox-nearest-fields" class="stack">
+              <label>
+                Place type
+                <select id="prox-place-type">
+                  {placeTypes.map((t) => (
+                    <option value={t.key}>{t.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div id="prox-search-fields" class="stack" hidden>
+              <div class="place-search" id="prox-place-search">
+                <label>
+                  Place or address
+                  <input
+                    type="search"
+                    data-place-search-input
+                    placeholder="Start typing…"
+                    autocomplete="off"
+                  />
+                </label>
+                <ul class="place-search__results stack" data-place-search-results hidden></ul>
+                <p class="alert" data-place-search-error hidden></p>
+              </div>
+            </div>
+            <label>
+              Travel mode
+              <select id="prox-mode">
+                <option value="DRIVE">Drive</option>
+                <option value="WALK">Walk</option>
+                <option value="BICYCLE">Bicycle</option>
+                <option value="TRANSIT">Transit</option>
+              </select>
+            </label>
+          </div>
+          <div class="prox-actions">
+            <button type="button" id="prox-run" title="Find nearby places and drive times">
+              Find route
+            </button>
+            <button
+              type="button"
+              id="prox-save"
+              class="secondary"
+              hidden
+              title="Save this location"
+            >
+              Save
+            </button>
+          </div>
+          <div id="prox-choices" class="prox-choices stack" hidden></div>
+          <div id="prox-result" class="prox-result" hidden></div>
+        </div>
+        <div class="place-picker__map-col">
+          <div
+            id="prox-picker-map"
+            class="place-picker__map map-well"
+            data-key={browserKey}
+            data-map-id={mapId}
+            data-lat={listing.lat != null ? String(listing.lat) : ''}
+            data-lng={listing.lng != null ? String(listing.lng) : ''}
+            data-locale-lat={String(locale.center_lat)}
+            data-locale-lng={String(locale.center_lng)}
+          >
+          </div>
+          <p id="prox-picker-map-meta" class="place-picker__map-meta muted" hidden></p>
+          <a
+            id="prox-picker-maps-link"
+            class="secondary icon-btn place-picker__maps-link"
+            href="#"
+            target="_blank"
+            rel="noopener"
+            hidden
+            aria-label="Open in Google Maps"
+            title="Open in Google Maps"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
+              <path d="M12 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 
   {hasLocation && <script src="/scripts/listing-map.js" type="module"></script>}
@@ -419,31 +675,26 @@ const compareRows = (criteria ?? []).map((c) => {
       hasLocation,
       mapKey: browserKey,
       mapId,
+      localeLat: locale.center_lat,
+      localeLng: locale.center_lng,
     }}
   >
-    window.__WAYHOME_LISTING_PROX__ = { listingId, localeId, hasLocation, mapKey, mapId };
+    window.__WAYHOME_LISTING_PROX__ = {
+      listingId,
+      localeId,
+      hasLocation,
+      mapKey,
+      mapId,
+      localeLat,
+      localeLng,
+    };
     window.__WAYHOME_MAPS__ = { mapKey, mapId };
   </script>
   <DirectionsOverlay />
-  <SourceOverlay />
   <script src="/scripts/directions-overlay.js" type="module"></script>
-  <script src="/scripts/source-overlay.js" type="module"></script>
   <script src="/scripts/listing-proximity.js" type="module"></script>
+  <script src="/scripts/listing-detail.js" type="module"></script>
   <script define:vars={{ listingId: listing.id }}>
-    document.querySelectorAll('[data-listing-tabs] [role="tab"]').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const name = tab.getAttribute('data-tab');
-        document.querySelectorAll('[data-listing-tabs] [role="tab"]').forEach((t) => {
-          const selected = t === tab;
-          t.setAttribute('aria-selected', selected ? 'true' : 'false');
-        });
-        document.querySelectorAll('[data-listing-tabs] [data-panel]').forEach((panel) => {
-          const el = panel;
-          el.hidden = el.getAttribute('data-panel') !== name;
-        });
-      });
-    });
-
     document.getElementById('geocode-retry')?.addEventListener('click', async () => {
       const status = document.getElementById('geocode-status');
       if (status) status.textContent = 'Geocoding…';
@@ -462,18 +713,6 @@ const compareRows = (criteria ?? []).map((c) => {
     });
   </script>
   <style>
-    .visually-hidden {
-      position: absolute;
-      inline-size: 1px;
-      block-size: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
     .proximity-panel {
       --prox-gap: 1.35rem;
       gap: var(--prox-gap);
@@ -547,70 +786,31 @@ const compareRows = (criteria ?? []).map((c) => {
       color: var(--primary);
     }
 
-    .prox-saved-item {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.65rem;
-      padding-block: 0.55rem;
-      padding-inline: 0.55rem 0.25rem;
-      margin-inline: -0.55rem;
-      border-block-end: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-    }
-
-    .prox-saved-item--compare {
-      background: color-mix(in srgb, var(--primary) 12%, transparent);
-      border-inline-start: 3px solid var(--primary);
-      border-block-end-color: color-mix(in srgb, var(--primary) 25%, var(--border));
-    }
-
-    .prox-saved-item--compare .prox-saved-item__thumb {
-      border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-    }
-
-    .prox-saved-item--listing {
-      border-inline-start: 3px solid var(--accent);
-      background: color-mix(in srgb, var(--accent) 8%, transparent);
-    }
-
     .prox-place-tag--listing {
       color: var(--accent);
     }
 
-    .prox-saved-item__media {
+    .listing-row--static.prox-saved-item--compare {
+      border-color: color-mix(in srgb, var(--primary) 45%, var(--border-accent));
+      background: color-mix(in srgb, var(--primary) 10%, var(--glass-wash-strong));
+    }
+
+    .listing-row--static.prox-saved-item--listing {
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--border-accent));
+      background: color-mix(in srgb, var(--accent) 8%, var(--glass-wash-strong));
+    }
+
+    .listing-row__actions {
       flex: 0 0 auto;
-    }
-
-    .prox-saved-item__thumb {
-      --thumb-w: 4.5rem;
-      --thumb-h: 3.4rem;
-
-      display: block;
-      inline-size: var(--thumb-w);
-      block-size: var(--thumb-h);
-      object-fit: cover;
-      border-radius: var(--radius-sm, 0.4rem);
-      border: 1px solid var(--border);
-      background: var(--bg-1);
-    }
-
-    .prox-saved-item__body {
-      min-inline-size: 0;
-      flex: 1 1 8rem;
-
-      & strong,
-      & .muted {
-        display: block;
-      }
-    }
-
-    .prox-saved-item__actions {
       display: flex;
       flex-wrap: wrap;
       gap: 0.35rem;
       align-items: center;
+      margin-block-start: 0;
+    }
+
+    .prox-saved-item__actions {
+      margin-block-start: 0;
     }
 
     .prox-choices {

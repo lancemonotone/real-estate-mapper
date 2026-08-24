@@ -22,10 +22,12 @@ const hasCenter = !localeNeedsSetup(locale);
 <AppLayout
   title={`Edit ${locale.name}`}
   crumbs={[
-    { href: '/app', label: 'Nest' },
+    { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
     { label: 'Edit' },
   ]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="edit"
 >
   <h1>Edit Locale</h1>
   {

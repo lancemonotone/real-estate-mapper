@@ -1,0 +1,39 @@
+---
+import type { LocaleNavSection } from '../lib/ui/locale-nav';
+
+interface Props {
+  localeId: string;
+  localeName: string;
+  current: LocaleNavSection;
+}
+
+const { localeId, current } = Astro.props;
+const base = `/app/locales/${localeId}`;
+
+const items: { section: LocaleNavSection; href: string; label: string }[] = [
+  { section: 'listings', href: base, label: 'Listings' },
+  { section: 'travel', href: `${base}/compare`, label: 'Travel Times' },
+  { section: 'attributes', href: `${base}/attributes`, label: 'Compare' },
+  { section: 'tours', href: `${base}/tours`, label: 'Tours' },
+];
+---
+<nav class="locale-nav" aria-label={`${Astro.props.localeName} sections`} data-locale-nav>
+  <span class="locale-nav__pill" aria-hidden="true" data-locale-nav-pill></span>
+  {
+    items.map((item) => (
+      <a
+        class:list={[
+          'button',
+          'secondary',
+          'locale-nav__link',
+          current === item.section && 'locale-nav__link--active',
+        ]}
+        href={item.href}
+        aria-current={current === item.section ? 'page' : undefined}
+        data-locale-nav-link
+      >
+        {item.label}
+      </a>
+    ))
+  }
+</nav>

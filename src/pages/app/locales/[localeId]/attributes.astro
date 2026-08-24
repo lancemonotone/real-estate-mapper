@@ -41,30 +41,88 @@ const rows = (listings ?? []) as Pick<
   | 'amenities'
 >[];
 
-const columns: { label: string; cell: (l: (typeof rows)[number]) => string }[] = [
-  { label: 'Price / mo', cell: (l) => formatMoney(l.price_monthly) },
-  { label: 'Deposit', cell: (l) => formatMoney(l.deposit) },
-  { label: 'Fees / mo', cell: (l) => formatMoney(l.fees_monthly) },
-  { label: 'Sq ft', cell: (l) => formatSqft(l.sqft) },
-  { label: 'Beds', cell: (l) => formatNumber(l.beds) },
-  { label: 'Baths', cell: (l) => formatNumber(l.baths) },
-  { label: 'Pet rent / mo', cell: (l) => formatMoney(l.pet_rent_monthly) },
-  { label: 'Pet deposit', cell: (l) => formatMoney(l.pet_deposit) },
-  { label: 'Amenities', cell: (l) => formatAmenities(l.amenities) },
+type Row = (typeof rows)[number];
+
+const columns: {
+  label: string;
+  sortType: 'text' | 'number';
+  sortValue: (l: Row) => string;
+  cell: (l: Row) => string;
+  wide?: boolean;
+}[] = [
+  {
+    label: 'Price',
+    sortType: 'number',
+    sortValue: (l) => (l.price_monthly == null ? '' : String(l.price_monthly)),
+    cell: (l) => formatMoney(l.price_monthly),
+  },
+  {
+    label: 'Deposit',
+    sortType: 'number',
+    sortValue: (l) => (l.deposit == null ? '' : String(l.deposit)),
+    cell: (l) => formatMoney(l.deposit),
+  },
+  {
+    label: 'Fees',
+    sortType: 'number',
+    sortValue: (l) => (l.fees_monthly == null ? '' : String(l.fees_monthly)),
+    cell: (l) => formatMoney(l.fees_monthly),
+  },
+  {
+    label: 'Sq ft',
+    sortType: 'number',
+    sortValue: (l) => (l.sqft == null ? '' : String(l.sqft)),
+    cell: (l) => formatSqft(l.sqft),
+  },
+  {
+    label: 'Beds',
+    sortType: 'number',
+    sortValue: (l) => (l.beds == null ? '' : String(l.beds)),
+    cell: (l) => formatNumber(l.beds),
+  },
+  {
+    label: 'Baths',
+    sortType: 'number',
+    sortValue: (l) => (l.baths == null ? '' : String(l.baths)),
+    cell: (l) => formatNumber(l.baths),
+  },
+  {
+    label: 'Pet rent',
+    sortType: 'number',
+    sortValue: (l) => (l.pet_rent_monthly == null ? '' : String(l.pet_rent_monthly)),
+    cell: (l) => formatMoney(l.pet_rent_monthly),
+  },
+  {
+    label: 'Pet deposit',
+    sortType: 'number',
+    sortValue: (l) => (l.pet_deposit == null ? '' : String(l.pet_deposit)),
+    cell: (l) => formatMoney(l.pet_deposit),
+  },
+  {
+    label: 'Amenities',
+    sortType: 'text',
+    sortValue: (l) => (l.amenities ?? []).join(', '),
+    cell: (l) => formatAmenities(l.amenities),
+    wide: true,
+  },
 ];
 ---
 <AppLayout
-  title={`Attributes — ${locale.name}`}
+  title={`Compare — ${locale.name}`}
   crumbs={[
-    { href: '/app', label: 'Nest' },
+    { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
-    { label: 'Attributes' },
+    { label: 'Compare' },
   ]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="attributes"
 >
   <header class="compare-header">
     <div class="compare-header__titles">
-      <h1 class="compare-header__title">Attributes</h1>
-      <p class="muted compare-header__sub">Listing details side by side for this Locale.</p>
+      <h1 class="compare-header__title">Compare</h1>
+      <p class="muted compare-header__sub">
+        Listing details side by side. Click a column header to sort.
+      </p>
     </div>
   </header>
 
@@ -72,13 +130,24 @@ const columns: { label: string; cell: (l: (typeof rows)[number]) => string }[] =
     rows.length === 0 ? (
       <p class="muted">No listings in this Locale yet.</p>
     ) : (
-      <div class="attributes-scroll">
-        <table class="data attributes-table">
+      <div class="matrix-scroll matrix-scroll--wrap">
+        <table class="data matrix-table matrix-table--wrap" data-sortable>
           <thead>
             <tr>
-              <th class="attributes-table__listing">Listing</th>
+              <th class="matrix-table__listing" data-sort-type="text">
+                <button type="button" class="matrix-sort">
+                  Listing
+                </button>
+              </th>
               {columns.map((col) => (
-                <th>{col.label}</th>
+                <th
+                  class:list={[col.wide ? 'matrix-table__wide' : 'matrix-table__compact']}
+                  data-sort-type={col.sortType}
+                >
+                  <button type="button" class="matrix-sort">
+                    {col.label}
+                  </button>
+                </th>
               ))}
             </tr>
           </thead>
@@ -88,27 +157,36 @@ const columns: { label: string; cell: (l: (typeof rows)[number]) => string }[] =
               const photo = listing.photo_url;
               return (
                 <tr>
-                  <th scope="row" class="attributes-table__listing">
-                    <a class="attributes-listing" href={`${base}/listings/${listing.id}`}>
-                      <span class="attributes-listing__media">
+                  <th
+                    scope="row"
+                    class="matrix-table__listing"
+                    data-sort-value={title}
+                  >
+                    <a class="matrix-listing" href={`${base}/listings/${listing.id}`}>
+                      <span class="matrix-listing__media">
                         {photo ? (
-                          <img class="attributes-listing__thumb" src={photo} alt="" loading="lazy" />
+                          <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
                         ) : (
-                          <span class="attributes-listing__thumb attributes-listing__thumb--empty" aria-hidden="true">
+                          <span class="matrix-listing__thumb matrix-listing__thumb--empty" aria-hidden="true">
                             No photo
                           </span>
                         )}
                       </span>
-                      <span class="attributes-listing__text">
-                        <span class="attributes-listing__name">{title}</span>
+                      <span class="matrix-listing__text">
+                        <span class="matrix-listing__name">{title}</span>
                         {listing.address && listing.name ? (
-                          <span class="muted attributes-listing__address">{listing.address}</span>
+                          <span class="muted matrix-listing__address">{listing.address}</span>
                         ) : null}
                       </span>
                     </a>
                   </th>
                   {columns.map((col) => (
-                    <td>{col.cell(listing)}</td>
+                    <td
+                      class:list={[col.wide ? 'matrix-table__wide' : 'matrix-table__compact']}
+                      data-sort-value={col.sortValue(listing)}
+                    >
+                      {col.cell(listing)}
+                    </td>
                   ))}
                 </tr>
               );
@@ -118,4 +196,6 @@ const columns: { label: string; cell: (l: (typeof rows)[number]) => string }[] =
       </div>
     )
   }
+
+  <script src="/scripts/matrix-sort.js" type="module"></script>
 </AppLayout>

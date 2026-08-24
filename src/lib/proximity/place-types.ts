@@ -39,7 +39,7 @@ export const PLACE_TYPE_CATALOG: Record<
 export const PROXIMITY_SHORTLIST_N = 5;
 
 /** How many routed candidates to return for user choice (listing explore). */
-export const PROXIMITY_CHOICE_N = 3;
+export const PROXIMITY_CHOICE_N = 5;
 
 export type PoiCandidate = {
   placeId: string;

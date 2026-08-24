@@ -1,11 +1,15 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+import { listingBadges } from '../../../../../lib/listings/badges';
+import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
 const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
 if (!locale) return new Response('Not found', { status: 404 });
+
+const base = `/app/locales/${locale.id}`;
 
 const { data: tours } = await supabase
   .from('tour_days')
@@ -13,31 +17,209 @@ const { data: tours } = await supabase
   .eq('locale_id', locale.id)
   .order('tour_date', { ascending: true });
 
-const base = `/app/locales/${locale.id}`;
+const tourDayIds = (tours ?? []).map((t) => t.id);
+const { data: assignedStops } =
+  tourDayIds.length > 0
+    ? await supabase.from('tour_stops').select('listing_id').in('tour_day_id', tourDayIds)
+    : { data: [] as { listing_id: string }[] };
+const assignedIds = new Set((assignedStops ?? []).map((a) => a.listing_id));
+
+const { data: listings } = await supabase
+  .from('listings')
+  .select('id, name, address, lat, lng, photo_path, photo_url')
+  .eq('locale_id', locale.id)
+  .order('created_at', { ascending: false });
+
+const unassigned = (listings ?? []).filter((l) => !assignedIds.has(l.id));
+const canPlan = unassigned.length > 0;
 ---
 <AppLayout
   title={`Tours — ${locale.name}`}
   crumbs={[
-    { href: '/app', label: 'Nest' },
+    { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
     { label: 'Tours' },
   ]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="tours"
 >
-  <h1>Tour days</h1>
+  <header class="compare-header">
+    <div class="compare-header__titles">
+      <h1 class="compare-header__title">Tours</h1>
+    </div>
+    {
+      canPlan ? (
+        <button type="button" class="button compare-header__add" data-tours-plan-open>
+          Plan
+        </button>
+      ) : null
+    }
+  </header>
+
+  <section class="tours-days stack">
+    {
+      (tours ?? []).length === 0 ? (
+        <p class="muted">
+          No tour days yet.
+          {canPlan ? (
+            <>
+              {' '}
+              <button type="button" class="linkish" data-tours-plan-open>
+                Plan
+              </button>{' '}
+              a route from unassigned listings.
+            </>
+          ) : (
+            ' Add listings first, then assign them to a day.'
+          )}
+        </p>
+      ) : (
+        <ul class="stack tours-days__list">
+          {(tours ?? []).map((tour) => (
+            <li>
+              <a href={`${base}/tours/${tour.id}`}>
+                {formatTourDate(tour.tour_date)}
+                {tour.label ? ` — ${tour.label}` : ''}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+
   {
-    (tours ?? []).length === 0 ? (
-      <p class="muted">No tour days yet.</p>
-    ) : (
-      <ul class="stack">
-        {(tours ?? []).map((tour) => (
-          <li>
-            <a href={`${base}/tours/${tour.id}`}>
-              {tour.tour_date}
-              {tour.label ? ` — ${tour.label}` : ''}
-            </a>
-          </li>
-        ))}
-      </ul>
+    canPlan && (
+      <div
+        id="tours-plan-overlay"
+        class="compare-column-overlay tours-plan-overlay"
+        hidden
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tours-plan-title"
+      >
+        <div class="compare-column-overlay__backdrop" data-tours-plan-close></div>
+        <div class="compare-column-overlay__panel glass glass--strong tours-plan-overlay__panel">
+          <header class="compare-column-overlay__header">
+            <h2 id="tours-plan-title">Plan</h2>
+            <button
+              type="button"
+              class="secondary icon-btn"
+              data-tours-plan-close
+              aria-label="Close"
+              title="Close"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6l12 12"></path>
+                <path d="M18 6L6 18"></path>
+              </svg>
+            </button>
+          </header>
+          <p class="muted">
+            Auto-plan groups nearby unassigned listings into day drafts. Or pick listings manually,
+            preview a route, and save one day.
+          </p>
+
+          <div class="tours-plan__auto stack">
+            <button type="button" class="secondary" data-tours-auto-plan>
+              Auto-plan by proximity
+            </button>
+            <p class="muted tours-plan__auto-hint" id="auto-plan-hint" hidden></p>
+            <div id="auto-plan-result" class="tours-plan__auto-result stack" hidden>
+              <h3 class="tours-plan__result-title">Proposed days</h3>
+              <div id="auto-plan-groups" class="stack"></div>
+              <button type="button" class="button" data-tours-auto-plan-save>
+                Save tour days
+              </button>
+            </div>
+          </div>
+
+          <hr class="tours-plan__divider" />
+
+          <form id="plan-form" class="stack" data-tours-plan-form>
+            <fieldset class="tours-plan__listings">
+              <legend>Manual — listings</legend>
+              {unassigned.map((listing) => {
+                const title = listing.name || listing.address || 'Untitled';
+                const badges = listingBadges(listing);
+                return (
+                  <label class="tours-plan__listing">
+                    <input type="checkbox" name="listing" value={listing.id} />
+                    <span>
+                      {title}
+                      {badges.length > 0 ? (
+                        <span class="muted"> · {badges.join(', ')}</span>
+                      ) : null}
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+
+            <p class="muted">
+              Start: use a custom address <em>or</em> pick a listing (custom address wins if both).
+            </p>
+            <label>
+              Custom start address
+              <input
+                type="text"
+                name="customStartAddress"
+                id="plan-start-address"
+                placeholder="optional"
+                autocomplete="street-address"
+              />
+            </label>
+            <label>
+              Start listing
+              <select name="start" id="plan-start">
+                <option value="">Select start listing</option>
+                {unassigned.map((l) => (
+                  <option value={l.id}>{l.name || l.address || l.id}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Custom end address
+              <input
+                type="text"
+                name="customEndAddress"
+                id="plan-end-address"
+                placeholder="optional"
+                autocomplete="street-address"
+              />
+            </label>
+            <button type="submit">Preview route</button>
+          </form>
+
+          <p class="alert" id="plan-error" hidden role="alert"></p>
+          <div id="plan-result" class="tours-plan__result stack" hidden>
+            <h3 class="tours-plan__result-title">Preview</h3>
+            <ol id="plan-order" class="tours-plan__order"></ol>
+            <p class="muted" id="plan-meta"></p>
+          </div>
+
+          <form id="plan-save-form" class="tours-plan__save stack" hidden data-tours-plan-save>
+            <label>
+              Tour date
+              <input type="date" name="tourDate" required />
+            </label>
+            <button type="submit">Save as tour day</button>
+          </form>
+        </div>
+      </div>
     )
   }
+
+  <script
+    define:vars={{
+      localeId: locale.id,
+      toursBase: `${base}/tours`,
+      listingLabels: Object.fromEntries(
+        unassigned.map((l) => [l.id, l.name || l.address || l.id]),
+      ),
+    }}
+  >
+    window.__WAYHOME_TOURS_PLAN__ = { localeId, toursBase, listingLabels };
+  </script>
+  {canPlan && <script src="/scripts/tours-plan.js" type="module"></script>}
 </AppLayout>

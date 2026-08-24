@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -15,6 +16,7 @@ if (!locale) return new Response('Not found', { status: 404 });
 
 const toursBase = `/app/locales/${tour.locale_id}/tours`;
 const base = `/app/locales/${tour.locale_id}`;
+const tourTitle = formatTourDate(tour.tour_date);
 
 const { data: stops } = await supabase
   .from('tour_stops')
@@ -42,119 +44,271 @@ const mapStops = (stops ?? [])
 
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
 const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+const stopCount = (stops ?? []).length;
 ---
 <AppLayout
-  title={`Tour ${tour.tour_date}`}
+  title={tourTitle}
   crumbs={[
-    { href: '/app', label: 'Nest' },
+    { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
     { href: toursBase, label: 'Tours' },
-    { label: tour.tour_date },
+    { label: tourTitle },
   ]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="tours"
 >
-  <h1>Tour {tour.tour_date}</h1>
+  <div class="locale-hero__heading">
+    <h1 class="locale-hero__name">{tourTitle}</h1>
+    <p class="muted locale-hero__count">
+      {stopCount === 1 ? '1 stop' : `${stopCount} stops`}
+    </p>
+    <div class="locale-hero__actions">
+      <button type="button" class="button" data-tour-plan-route-open>
+        Plan Route
+      </button>
+    </div>
+  </div>
 
-  <section class="stack">
-    <h2>Start / end (optional)</h2>
-    <p class="muted">Leave blank to use a property. Custom addresses are geocoded when you save.</p>
-    <form method="post" action="/api/tours/endpoints">
-      <input type="hidden" name="tour_day_id" value={tour.id} />
-      <label>
-        Custom start address
-        <input
-          type="text"
-          name="start_address"
-          value={tour.start_address ?? ''}
-          placeholder="e.g. home or hotel"
-        />
-      </label>
-      {hasCustomStart && (
-        <label>
-          <input type="checkbox" name="clear_start" value="1" /> Clear custom start
-        </label>
-      )}
-      <label>
-        Custom end address
-        <input
-          type="text"
-          name="end_address"
-          value={tour.end_address ?? ''}
-          placeholder="optional"
-        />
-      </label>
-      {hasCustomEnd && (
-        <label>
-          <input type="checkbox" name="clear_end" value="1" /> Clear custom end
-        </label>
-      )}
-      <button type="submit">Save start / end</button>
-    </form>
-    {hasCustomStart && (
-      <p class="muted">Custom start: {tour.start_address}</p>
-    )}
-    {hasCustomEnd && (
-      <p class="muted">Custom end: {tour.end_address}</p>
-    )}
+  <p id="plan-route-status" class="alert" hidden role="alert"></p>
+
+  <section class="locale-browse">
+    <div class="locale-browse__list">
+      <ol class="tours-stops">
+        {
+          hasCustomStart && (
+            <li class="tours-stops__item tours-stops__item--endpoint" data-listing-id="custom-start">
+              <div class="tours-stops__main">
+                <strong class="listing-row__name">Custom start</strong>
+                <span class="muted listing-row__address">{tour.start_address}</span>
+              </div>
+            </li>
+          )
+        }
+        {(stops ?? []).map((stop) => {
+          const listing = stop.listings;
+          const title = listing?.name || listing?.address || stop.listing_id;
+          const photo = listing?.photo_url;
+          const href = listing ? `${base}/listings/${stop.listing_id}` : null;
+          return (
+            <li class="tours-stops__item" data-listing-id={stop.listing_id}>
+              {href ? (
+                <a class="matrix-listing tours-stops__link" href={href}>
+                  <span class="matrix-listing__media">
+                    {photo ? (
+                      <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
+                    ) : (
+                      <span
+                        class="matrix-listing__thumb matrix-listing__thumb--empty"
+                        aria-hidden="true"
+                      >
+                        No photo
+                      </span>
+                    )}
+                  </span>
+                  <span class="matrix-listing__text">
+                    <span class="matrix-listing__name">
+                      {!hasCustomStart && stop.is_start ? 'START · ' : ''}
+                      {title}
+                    </span>
+                    {listing?.address && listing?.name ? (
+                      <span class="muted matrix-listing__address">{listing.address}</span>
+                    ) : null}
+                    {stop.leg_duration_sec != null ? (
+                      <span class="muted matrix-listing__address">
+                        Next leg ~{Math.round(stop.leg_duration_sec / 60)} min
+                      </span>
+                    ) : null}
+                  </span>
+                </a>
+              ) : (
+                <div class="tours-stops__main">
+                  <strong class="listing-row__name">{title}</strong>
+                </div>
+              )}
+              <div class="tours-stops__actions">
+                {!hasCustomStart && !stop.is_start && (
+                  <form method="post" action="/api/tours/set-start">
+                    <input type="hidden" name="tour_day_id" value={tour.id} />
+                    <input type="hidden" name="listing_id" value={stop.listing_id} />
+                    <button
+                      type="submit"
+                      class="secondary icon-btn"
+                      title="Set as start listing"
+                      aria-label="Set as start listing"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M5 12h14"></path>
+                        <path d="M13 6l6 6-6 6"></path>
+                      </svg>
+                    </button>
+                  </form>
+                )}
+                <form method="post" action="/api/tours/unassign">
+                  <input type="hidden" name="tour_day_id" value={tour.id} />
+                  <input type="hidden" name="listing_id" value={stop.listing_id} />
+                  <input type="hidden" name="locale_id" value={locale.id} />
+                  <button
+                    type="submit"
+                    class="secondary icon-btn"
+                    title="Remove from tour"
+                    aria-label="Remove from tour"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M6 6l12 12"></path>
+                      <path d="M18 6L6 18"></path>
+                    </svg>
+                  </button>
+                </form>
+              </div>
+            </li>
+          );
+        })}
+        {
+          hasCustomEnd && (
+            <li class="tours-stops__item tours-stops__item--endpoint" data-listing-id="custom-end">
+              <div class="tours-stops__main">
+                <strong class="listing-row__name">Custom end</strong>
+                <span class="muted listing-row__address">{tour.end_address}</span>
+              </div>
+            </li>
+          )
+        }
+      </ol>
+      {
+        stopCount === 0 && !hasCustomStart && !hasCustomEnd ? (
+          <p class="muted">No stops on this tour day yet.</p>
+        ) : null
+      }
+    </div>
+
+    <div class="locale-browse__map">
+      <div
+        id="tour-map"
+        class="map-well locale-browse__map-well"
+        data-stops={JSON.stringify(mapStops)}
+        data-key={browserKey}
+        data-map-id={mapId}
+        data-polyline={tour.encoded_polyline ?? ''}
+        data-custom-start={hasCustomStart
+          ? JSON.stringify({
+              lat: tour.start_lat,
+              lng: tour.start_lng,
+              address: tour.start_address,
+            })
+          : ''}
+        data-custom-end={hasCustomEnd
+          ? JSON.stringify({
+              lat: tour.end_lat,
+              lng: tour.end_lng,
+              address: tour.end_address,
+            })
+          : ''}
+      ></div>
+    </div>
   </section>
 
-  <ol class="stack">
-    {hasCustomStart && <li>CUSTOM START · {tour.start_address}</li>}
-    {(stops ?? []).map((stop) => (
-      <li>
-        {!hasCustomStart && stop.is_start ? 'START · ' : ''}
-        {stop.listings?.name || stop.listings?.address || stop.listing_id}
-        {stop.leg_duration_sec != null && (
-          <span> — next leg ~{Math.round(stop.leg_duration_sec / 60)} min</span>
-        )}
-        {!hasCustomStart && !stop.is_start && (
-          <form method="post" action="/api/tours/set-start" style="display:inline">
-            <input type="hidden" name="tour_day_id" value={tour.id} />
-            <input type="hidden" name="listing_id" value={stop.listing_id} />
-            <button type="submit">Set start listing</button>
-          </form>
-        )}
-      </li>
-    ))}
-    {hasCustomEnd && <li>CUSTOM END · {tour.end_address}</li>}
-  </ol>
-  <button type="button" id="optimize-btn">Optimize route</button>
-  <pre id="optimize-status"></pre>
   <div
-    id="tour-map"
-    class="map-well"
-    style="height:420px;margin-top:1rem"
-    data-stops={JSON.stringify(mapStops)}
-    data-key={browserKey}
-    data-map-id={mapId}
-    data-polyline={tour.encoded_polyline ?? ''}
-    data-custom-start={hasCustomStart
-      ? JSON.stringify({
-          lat: tour.start_lat,
-          lng: tour.start_lng,
-          address: tour.start_address,
-        })
-      : ''}
-    data-custom-end={hasCustomEnd
-      ? JSON.stringify({
-          lat: tour.end_lat,
-          lng: tour.end_lng,
-          address: tour.end_address,
-        })
-      : ''}
-  ></div>
-  <script src="/scripts/tour-map.js" type="module"></script>
+    id="tour-plan-route-overlay"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tour-plan-route-title"
+  >
+    <div class="compare-column-overlay__backdrop" data-tour-plan-route-close></div>
+    <div class="compare-column-overlay__panel glass glass--strong">
+      <header class="compare-column-overlay__header">
+        <h2 id="tour-plan-route-title">Plan Route</h2>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-tour-plan-route-close
+          aria-label="Close"
+          title="Close"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
+        </button>
+      </header>
+      <p class="muted">
+        Optional custom start/end. Leave blank to use a listing. Go saves endpoints and optimizes the
+        stop order.
+      </p>
+      <form
+        method="post"
+        action="/api/tours/endpoints"
+        class="stack"
+        data-tour-plan-route-form
+      >
+        <input type="hidden" name="tour_day_id" value={tour.id} />
+        <label>
+          Custom start address
+          <span class="field-clearable">
+            <input
+              type="text"
+              name="start_address"
+              value={tour.start_address ?? ''}
+              placeholder="e.g. home or hotel"
+              autocomplete="street-address"
+              data-clearable-input
+              data-clear-flag-name="clear_start"
+              data-had-saved={hasCustomStart ? '1' : '0'}
+            />
+            <button
+              type="button"
+              class="field-clearable__clear"
+              data-clearable-clear
+              title="Clear"
+              aria-label="Clear custom start"
+              hidden
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6l12 12"></path>
+                <path d="M18 6L6 18"></path>
+              </svg>
+            </button>
+            <input type="hidden" name="clear_start" value="" data-clearable-flag />
+          </span>
+        </label>
+        <label>
+          Custom end address
+          <span class="field-clearable">
+            <input
+              type="text"
+              name="end_address"
+              value={tour.end_address ?? ''}
+              placeholder="optional"
+              autocomplete="street-address"
+              data-clearable-input
+              data-clear-flag-name="clear_end"
+              data-had-saved={hasCustomEnd ? '1' : '0'}
+            />
+            <button
+              type="button"
+              class="field-clearable__clear"
+              data-clearable-clear
+              title="Clear"
+              aria-label="Clear custom end"
+              hidden
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6l12 12"></path>
+                <path d="M18 6L6 18"></path>
+              </svg>
+            </button>
+            <input type="hidden" name="clear_end" value="" data-clearable-flag />
+          </span>
+        </label>
+        <button type="submit">Go</button>
+      </form>
+    </div>
+  </div>
+
   <script define:vars={{ tourId: tour.id }}>
-    document.getElementById('optimize-btn')?.addEventListener('click', async () => {
-      const status = document.getElementById('optimize-status');
-      if (status) status.textContent = 'Optimizing…';
-      const res = await fetch('/api/tours/optimize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tourDayId: tourId }),
-      });
-      const data = await res.json();
-      if (status) status.textContent = JSON.stringify(data, null, 2);
-      if (data.ok) location.reload();
-    });
+    window.__WAYHOME_TOUR_DAY__ = { tourId };
   </script>
+  <script src="/scripts/tour-map.js" type="module"></script>
+  <script src="/scripts/tours-day.js" type="module"></script>
 </AppLayout>

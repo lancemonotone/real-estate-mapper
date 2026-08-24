@@ -1,3 +1,5 @@
+import { createPinHoverController } from './map-pin-hover.js';
+
 async function loadGoogleMaps(key) {
   if (window.google?.maps?.importLibrary) return;
   await new Promise((resolve, reject) => {
@@ -12,13 +14,14 @@ async function loadGoogleMaps(key) {
 
 async function initListingMap() {
   const el = document.getElementById('listing-map');
-  if (!el) return;
+  if (!el || el.dataset.mapReady === '1') return;
 
   const key = el.dataset.key;
   const mapId = el.dataset.mapId;
   const lat = Number(el.dataset.lat);
   const lng = Number(el.dataset.lng);
   const title = el.dataset.title || 'Listing';
+  const address = el.dataset.address || '';
   const photoUrl = el.dataset.photoUrl || '';
 
   if (!key || !mapId) {
@@ -32,8 +35,11 @@ async function initListingMap() {
 
   await loadGoogleMaps(key);
 
-  const { Map } = await google.maps.importLibrary('maps');
-  const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
+  const { Map, InfoWindow } = await google.maps.importLibrary('maps');
+  const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary('marker');
+
+  el.replaceChildren();
+  el.dataset.mapReady = '1';
 
   const position = { lat, lng };
   const map = new Map(el, {
@@ -42,22 +48,33 @@ async function initListingMap() {
     mapId,
   });
 
-  const content = document.createElement('div');
-  content.className = 'listing-map-marker';
-  const label = document.createElement('div');
-  label.textContent = title;
-  content.appendChild(label);
-  if (photoUrl) {
-    const img = document.createElement('img');
-    img.src = photoUrl;
-    img.alt = '';
-    content.appendChild(img);
-  }
+  const pin = new PinElement({
+    background: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#0d9488',
+    borderColor: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d97706',
+    glyphColor: getComputedStyle(document.documentElement).getPropertyValue('--primary-contrast').trim() || '#ffffff',
+  });
 
-  new AdvancedMarkerElement({ map, position, title, content });
+  const marker = new AdvancedMarkerElement({
+    map,
+    position,
+    title,
+    content: pin.element,
+  });
+
+  const pinHover = createPinHoverController(map, InfoWindow);
+  pinHover.bind(marker, pin.element, {
+    name: title,
+    address,
+    photoUrl: photoUrl || null,
+  });
 }
 
-initListingMap().catch((err) => {
-  const el = document.getElementById('listing-map');
-  if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
-});
+function bootListingMap() {
+  initListingMap().catch((err) => {
+    const el = document.getElementById('listing-map');
+    if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
+  });
+}
+
+bootListingMap();
+document.addEventListener('astro:page-load', bootListingMap);

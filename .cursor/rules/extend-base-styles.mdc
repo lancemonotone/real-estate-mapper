@@ -1,0 +1,31 @@
+---
+description: Shared base styles for visual elements — extend, never one-off redefine
+alwaysApply: true
+---
+
+# Extend base styles (no one-off visual clones)
+
+## Rule
+
+When a UI piece looks like an existing control (button, icon button, nav tab, panel, matrix row, overlay, form field), **extend the shared base** — do not invent a parallel class that re-declares the same chrome.
+
+## Do
+
+- Put shared visual contracts on base selectors / tokens (`button`, `.button`, `.icon-btn`, `.panel`, etc.).
+- Variant or context styles only override what differs: CSS variables (`--control-pad-*`), layout (`flex`), or one semantic state.
+- HTML composes bases: `class="button secondary locale-nav__link"`, not a standalone lookalike.
+- If no base exists yet, **create the base first**, then extend it for the new use.
+
+## Do not
+
+- Copy-paste padding, border-radius, font-weight, hover, focus into a new BEM block “just for this screen.”
+- Redefine `display` / `padding` / `border` / `font` on a child when adjusting `--control-pad-block` (or similar) would suffice.
+- Grow one-off classes that drift from the design system and force future fixes in N places.
+
+## Examples
+
+| Situation | Wrong | Right |
+|-----------|-------|-------|
+| Locale nav tabs | Full button chrome in `.locale-nav__link` | `button` + `secondary` + slim `.locale-nav__link` overrides |
+| Slightly denser CTA | New `.tours-plan-go` with its own padding | `.button` + `--control-pad-block: …` |
+| Icon control | Custom square + SVG rules inline | `.icon-btn` (+ size var if needed) |

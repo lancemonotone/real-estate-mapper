@@ -4,8 +4,11 @@ import '../../../../styles/locale-map.css';
 import {
   nearestAllowedRadiusMiles,
   milesToMeters,
+  metersToMiles,
 } from '../../../../lib/geo/locale-radius';
+import { haversineMeters } from '../../../../lib/geo/haversine';
 import { getLocaleForNestMember, localeNeedsSetup } from '../../../../lib/supabase/nest';
+import { formatMoney } from '../../../../lib/listings/format-attributes';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -23,61 +26,181 @@ const centerLine = locale.center_label
   : hasCenter
     ? `${locale.center_lat.toFixed(4)}, ${locale.center_lng.toFixed(4)} · ${radiusMiles} mi radius`
     : null;
+
+const { data: listings } = await supabase
+  .from('listings')
+  .select('*')
+  .eq('locale_id', locale.id)
+  .order('created_at', { ascending: false });
+
+const rows = (listings ?? []).map((listing) => {
+  const distanceM =
+    hasCenter && listing.lat != null && listing.lng != null
+      ? haversineMeters(
+          { lat: locale.center_lat, lng: locale.center_lng },
+          { lat: listing.lat, lng: listing.lng },
+        )
+      : null;
+  return { listing, distanceM };
+});
+
+const mapListings = rows
+  .filter(({ listing }) => listing.lat != null && listing.lng != null)
+  .map(({ listing }) => ({
+    id: listing.id,
+    name: listing.name || listing.address || 'Listing',
+    address: listing.address || '',
+    lat: listing.lat as number,
+    lng: listing.lng as number,
+    photoUrl: listing.photo_url,
+  }));
 ---
 <AppLayout
   title={locale.name}
-  crumbs={[{ href: '/app', label: 'Nest' }, { label: locale.name }]}
+  crumbs={[{ href: '/app', label: 'Home' }, { label: locale.name }]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="listings"
 >
-  <header class="locale-hero stack">
-    <div class="locale-hero__heading">
-      <h1 class="locale-hero__name">{locale.name}</h1>
-      <a
-        class="secondary icon-btn locale-hero__edit"
-        href={`${base}/edit`}
-        title="Edit Locale name, center, and radius"
-        aria-label="Edit Locale name, center, and radius"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M12 20h9"></path>
-          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-        </svg>
-      </a>
+  <div class="locale-hero__heading">
+    <h1 class="locale-hero__name">{locale.name}</h1>
+    <a
+      class="secondary icon-btn locale-hero__edit"
+      href={`${base}/edit`}
+      title="Edit Locale name, center, and radius"
+      aria-label="Edit Locale name, center, and radius"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      </svg>
+    </a>
+    <p class="muted locale-hero__count">
+      {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
+    </p>
+    <div class="locale-hero__actions">
+      {
+        rows.length > 0 && (
+          <label class="listings-sort">
+            <span class="visually-hidden">Sort by</span>
+            <select id="listings-sort" data-listings-sort>
+              <option value="recent">Newest</option>
+              <option value="distance">Distance</option>
+              <option value="price">Lowest price</option>
+            </select>
+          </label>
+        )
+      }
+      <a class="button locale-hero__add" href={`${base}/listings/new`}>Add listing</a>
     </div>
+  </div>
 
-    {centerLine && <p class="muted locale-hero__meta">{centerLine}</p>}
-
-    {
-      localeNeedsSetup(locale) && (
-        <p class="alert" role="alert">
-          This Locale needs a real center. Use the edit button to search a place name.
-        </p>
-      )
-    }
-
-    <nav class="locale-nav" aria-label="Locale sections">
-      <a class="locale-nav__link" href={`${base}/listings`}>Listings</a>
-      <a class="locale-nav__link" href={`${base}/compare`}>Compare</a>
-      <a class="locale-nav__link" href={`${base}/attributes`}>Attributes</a>
-      <a class="locale-nav__link" href={`${base}/unscheduled`}>Unscheduled</a>
-      <a class="locale-nav__link" href={`${base}/tours`}>Tours</a>
-    </nav>
-  </header>
+  {centerLine && <p class="muted locale-hero__meta">{centerLine}</p>}
 
   {
-    hasCenter ? (
-      <div
-        id="locale-map"
-        class="locale-map map-well"
-        data-key={browserKey}
-        data-map-id={mapId}
-        data-lat={String(locale.center_lat)}
-        data-lng={String(locale.center_lng)}
-        data-radius-m={String(milesToMeters(radiusMiles))}
-        data-title={locale.name}
-      ></div>
-    ) : (
-      <p class="muted">No map until a center place is set.</p>
+    localeNeedsSetup(locale) && (
+      <p class="alert" role="alert">
+        This Locale needs a real center. Use the edit button to search a place name.
+      </p>
     )
   }
+
+  <section class="locale-browse">
+    <div class="locale-browse__list">
+      {
+        rows.length === 0 ? (
+          <div class="listings-empty glass panel stack">
+            <p class="muted">No listings in this Locale yet.</p>
+            <a class="button" href={`${base}/listings/new`}>
+              Add your first listing
+            </a>
+          </div>
+        ) : (
+          <div class="matrix-scroll">
+            <table class="data matrix-table" id="listings-table">
+              <thead>
+                <tr>
+                  <th class="matrix-table__listing">Listing</th>
+                  <th>Distance</th>
+                  <th>Price / mo</th>
+                </tr>
+              </thead>
+              <tbody id="listings-list" data-listings-list>
+                {rows.map(({ listing, distanceM }) => {
+                  const title = listing.name || listing.address || 'Untitled';
+                  const photo = listing.photo_url;
+                  const created = listing.created_at ? Date.parse(listing.created_at) : 0;
+                  const price = listing.price_monthly;
+                  const distanceLabel =
+                    distanceM != null
+                      ? `${metersToMiles(distanceM).toFixed(1)} mi`
+                      : '—';
+                  return (
+                    <tr
+                      data-listing-id={listing.id}
+                      data-sort-recent={String(Number.isFinite(created) ? created : 0)}
+                      data-sort-distance={distanceM != null ? String(distanceM) : ''}
+                      data-sort-price={price != null ? String(price) : ''}
+                    >
+                      <th scope="row" class="matrix-table__listing">
+                        <a class="matrix-listing" href={`${base}/listings/${listing.id}`}>
+                          <span class="matrix-listing__media">
+                            {photo ? (
+                              <img
+                                class="matrix-listing__thumb"
+                                src={photo}
+                                alt=""
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span
+                                class="matrix-listing__thumb matrix-listing__thumb--empty"
+                                aria-hidden="true"
+                              >
+                                No photo
+                              </span>
+                            )}
+                          </span>
+                          <span class="matrix-listing__text">
+                            <span class="matrix-listing__name">{title}</span>
+                            {listing.address && listing.name ? (
+                              <span class="muted matrix-listing__address">{listing.address}</span>
+                            ) : null}
+                          </span>
+                        </a>
+                      </th>
+                      <td>{distanceLabel}</td>
+                      <td>{formatMoney(price)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+    </div>
+
+    <div class="locale-browse__map">
+      {
+        hasCenter ? (
+          <div
+            id="locale-map"
+            class="locale-map map-well locale-browse__map-well"
+            data-key={browserKey}
+            data-map-id={mapId}
+            data-lat={String(locale.center_lat)}
+            data-lng={String(locale.center_lng)}
+            data-radius-m={String(milesToMeters(radiusMiles))}
+            data-title={locale.name}
+            data-listings={JSON.stringify(mapListings)}
+          ></div>
+        ) : (
+          <p class="muted">No map until a center place is set.</p>
+        )
+      }
+    </div>
+  </section>
+
   {hasCenter && <script src="/scripts/locale-map.js" type="module"></script>}
+  <script src="/scripts/listings-sort.js" type="module"></script>
 </AppLayout>

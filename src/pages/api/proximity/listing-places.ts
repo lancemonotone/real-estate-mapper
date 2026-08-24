@@ -98,6 +98,90 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   });
 };
 
+export const PATCH: APIRoute = async ({ request, cookies, locals }) => {
+  const supabase =
+    locals.supabase ?? createSupabaseServerClient(request, cookies);
+  const user =
+    locals.user ??
+    (await supabase.auth.getUser()).data.user;
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+
+  let body: {
+    id?: string;
+    place_id?: string;
+    name?: string;
+    lat?: number;
+    lng?: number;
+    travel_mode?: string;
+    label?: string | null;
+    duration_sec?: number | null;
+    distance_m?: number | null;
+    maps_url?: string | null;
+  };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
+  }
+
+  const id = typeof body.id === 'string' ? body.id.trim() : '';
+  const placeId = typeof body.place_id === 'string' ? body.place_id.trim() : '';
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const travelMode = body.travel_mode;
+
+  if (!id || !placeId || !name) {
+    return new Response(
+      JSON.stringify({ error: 'id, place_id, and name required' }),
+      { status: 400 },
+    );
+  }
+  if (typeof body.lat !== 'number' || typeof body.lng !== 'number') {
+    return new Response(JSON.stringify({ error: 'lat and lng required' }), {
+      status: 400,
+    });
+  }
+  if (!travelMode || !isTravelMode(travelMode)) {
+    return new Response(
+      JSON.stringify({ error: 'travel_mode must be DRIVE, WALK, BICYCLE, or TRANSIT' }),
+      { status: 400 },
+    );
+  }
+
+  const { data, error } = await supabase
+    .from('listing_places')
+    .update({
+      place_id: placeId,
+      name,
+      lat: body.lat,
+      lng: body.lng,
+      travel_mode: travelMode,
+      label: typeof body.label === 'string' ? body.label.trim() || null : null,
+      duration_sec:
+        typeof body.duration_sec === 'number' ? Math.round(body.duration_sec) : null,
+      distance_m:
+        typeof body.distance_m === 'number' ? Math.round(body.distance_m) : null,
+      maps_url: typeof body.maps_url === 'string' ? body.maps_url : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    return new Response(
+      JSON.stringify({ error: error?.message ?? 'Failed to update listing place' }),
+      { status: 500 },
+    );
+  }
+
+  return new Response(JSON.stringify({ place: data }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
 export const DELETE: APIRoute = async ({ request, cookies, locals, url }) => {
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
