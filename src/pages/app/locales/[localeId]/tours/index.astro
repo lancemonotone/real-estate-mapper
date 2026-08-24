@@ -5,7 +5,7 @@ import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/locale-map.css';
 import { milesToMeters, nearestAllowedRadiusMiles } from '../../../../../lib/geo/locale-radius';
 import { getLocaleForNestMember, localeNeedsSetup } from '../../../../../lib/supabase/nest';
-import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
 import {
   tourEndGlyph,
   tourListingStopGlyph,
@@ -30,7 +30,7 @@ const selectedDate =
   dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : null;
 const weekAnchor = selectedDate ? parseDateKey(selectedDate) : new Date();
 const weekKeys = weekDateKeys(weekAnchor);
-const weekLabel = `${weekKeys[0]} → ${weekKeys[6]}`;
+const weekLabel = `${formatShortTourDate(weekKeys[0]!)} → ${formatShortTourDate(weekKeys[6]!)}`;
 
 const { data: tours } = await supabase
   .from('tour_days')
@@ -122,7 +122,8 @@ const mapListings = (listings ?? [])
 const needsAutoroute = Boolean(
   selectedTour &&
     selectedStops.length > 0 &&
-    !selectedTour.encoded_polyline,
+    !selectedTour.encoded_polyline &&
+    (selectedStops.length >= 2 || hasCustomEnd),
 );
 
 const seed = {
@@ -146,11 +147,17 @@ const seed = {
 >
   <header class="compare-header">
     <div class="compare-header__titles">
-      <h1 class="compare-header__title">Tours</h1>
+      <div class="compare-header__title-row">
+        <h1 class="compare-header__title">Tours</h1>
+        <p
+          id="tours-calendar-status"
+          class="alert compare-header__status is-empty"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </div>
     </div>
   </header>
-
-  <p id="tours-calendar-status" class="alert" hidden role="alert"></p>
 
   <div class="tours-workspace" data-tours-workspace>
     <aside
@@ -158,13 +165,18 @@ const seed = {
       data-tours-rail
     >
       <div class="tours-workspace__rail-head">
+        <h2 class="tours-workspace__rail-title">Unscheduled ({unassigned.length})</h2>
         <button
           type="button"
-          class="secondary tours-workspace__rail-toggle"
+          class="secondary icon-btn tours-workspace__rail-toggle"
           data-tours-rail-toggle
           aria-expanded={railExpanded ? 'true' : 'false'}
+          aria-label={railExpanded ? 'Collapse unscheduled' : 'Expand unscheduled'}
+          title={railExpanded ? 'Collapse' : 'Expand'}
         >
-          Unscheduled ({unassigned.length})
+          <svg class="tours-workspace__rail-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 6l-6 6 6 6"></path>
+          </svg>
         </button>
       </div>
       <div class="tours-workspace__rail-body" data-tours-rail-body>
@@ -236,6 +248,7 @@ const seed = {
         daysByDate={daysByDate}
         selectedDate={selectedDate}
         weekLabel={weekLabel}
+        jumpValue={selectedDate ?? weekKeys[0]!}
       />
 
       <section class="tours-workspace__day" data-tours-day-panel>

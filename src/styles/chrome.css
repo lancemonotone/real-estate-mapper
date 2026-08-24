@@ -347,6 +347,32 @@ table.compare {
   margin-block-end: 0.25rem;
 }
 
+.compare-header__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 1rem;
+  min-block-size: 2.75rem;
+}
+
+.compare-header__title-row .compare-header__title {
+  margin-block-end: 0;
+  flex: 0 0 auto;
+}
+
+.compare-header__status {
+  margin: 0;
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+
+  &.is-empty,
+  &:empty {
+    visibility: hidden;
+  }
+}
+
 .compare-header__sub {
   margin: 0;
 }
@@ -2572,12 +2598,36 @@ body.directions-overlay-open {
     & .tours-workspace__rail-body {
       display: none;
     }
+
+    & .tours-workspace__rail-chevron {
+      rotate: 180deg;
+    }
   }
 }
 
+.tours-workspace__rail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.tours-workspace__rail-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  min-inline-size: 0;
+}
+
 .tours-workspace__rail-toggle {
-  inline-size: 100%;
-  justify-content: flex-start;
+  flex: 0 0 auto;
+}
+
+.tours-workspace__rail-chevron {
+  display: block;
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  transition: rotate 120ms ease;
 }
 
 .tours-workspace__rail-body {
@@ -2652,6 +2702,7 @@ body.directions-overlay-open {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
+  margin-block-end: 0.85rem;
 }
 
 .tours-workspace__day-title {
@@ -2677,6 +2728,7 @@ body.directions-overlay-open {
 }
 
 .tour-week__nav {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2684,10 +2736,41 @@ body.directions-overlay-open {
 }
 
 .tour-week__label {
+  --control-pad-block: 0.35rem;
+  --control-descender: 0.1em;
+
   flex: 1 1 auto;
-  text-align: center;
+  appearance: none;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 0.9rem;
   font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  padding-block-start: var(--control-pad-block);
+  padding-block-end: calc(var(--control-pad-block) - var(--control-descender));
+  padding-inline: 0.35rem;
+  border-radius: 0.4rem;
+
+  &:hover {
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent, #2563eb);
+    outline-offset: 2px;
+  }
+}
+
+.tour-week__jump-input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .tour-week__grid {

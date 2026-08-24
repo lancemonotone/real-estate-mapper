@@ -12,14 +12,9 @@ function statusEl() {
 function showStatus(message, isError = true) {
   const el = statusEl();
   if (!el) return;
-  if (!message) {
-    el.hidden = true;
-    el.textContent = '';
-    return;
-  }
-  el.hidden = false;
-  el.textContent = message;
-  el.classList.toggle('alert--error', isError);
+  el.textContent = message || '';
+  el.classList.toggle('alert--error', Boolean(message) && isError);
+  el.classList.toggle('is-empty', !message);
 }
 
 function openOverlay(id) {
@@ -105,7 +100,9 @@ async function runAssign(listingIds, tourDate, mode) {
       setPendingConflict({ kind: 'assign', listingIds, toDate: tourDate });
       return;
     }
-    if (result.optimizeError) showStatus(result.optimizeError, true);
+    if (result.optimizeError && !/at least 2 geocoded/i.test(result.optimizeError)) {
+      showStatus(result.optimizeError, true);
+    }
     reloadForDay(tourDate);
   } catch (e) {
     showStatus(e instanceof Error ? e.message : 'Assign failed', true);
@@ -120,7 +117,9 @@ async function runMoveDay(fromDate, toDate, mode) {
       setPendingConflict({ kind: 'moveDay', fromDate, toDate });
       return;
     }
-    if (result.optimizeError) showStatus(result.optimizeError, true);
+    if (result.optimizeError && !/at least 2 geocoded/i.test(result.optimizeError)) {
+      showStatus(result.optimizeError, true);
+    }
     reloadForDay(toDate);
   } catch (e) {
     showStatus(e instanceof Error ? e.message : 'Move failed', true);
@@ -385,6 +384,31 @@ async function boot() {
     () => weekShift(1),
     { signal },
   );
+
+  const jumpBtn = root.querySelector('[data-tour-week-jump]');
+  const jumpInput = root.querySelector('[data-tour-week-jump-input]');
+  jumpBtn?.addEventListener(
+    'click',
+    () => {
+      if (!(jumpInput instanceof HTMLInputElement)) return;
+      if (typeof jumpInput.showPicker === 'function') {
+        jumpInput.showPicker();
+      } else {
+        jumpInput.focus();
+        jumpInput.click();
+      }
+    },
+    { signal },
+  );
+  jumpInput?.addEventListener(
+    'change',
+    () => {
+      if (!(jumpInput instanceof HTMLInputElement) || !jumpInput.value) return;
+      reloadForDay(jumpInput.value);
+    },
+    { signal },
+  );
+
   root.querySelector('[data-tour-week-info]')?.addEventListener(
     'click',
     () => openOverlay('tours-info-overlay'),
@@ -429,11 +453,15 @@ async function boot() {
     'click',
     () => {
       const rail = root.querySelector('[data-tours-rail]');
-      if (!rail) return;
+      const toggle = root.querySelector('[data-tours-rail-toggle]');
+      if (!rail || !toggle) return;
       const collapsed = rail.classList.toggle('is-collapsed');
-      root
-        .querySelector('[data-tours-rail-toggle]')
-        ?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggle.setAttribute(
+        'aria-label',
+        collapsed ? 'Expand unscheduled' : 'Collapse unscheduled',
+      );
+      toggle.setAttribute('title', collapsed ? 'Expand' : 'Collapse');
     },
     { signal },
   );

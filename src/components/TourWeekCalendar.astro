@@ -10,6 +10,8 @@ interface Props {
   selectedDate: string | null;
   idPrefix?: string;
   weekLabel?: string;
+  /** ISO date for the week jump picker value (usually week start or selected day). */
+  jumpValue?: string;
 }
 
 const {
@@ -18,6 +20,7 @@ const {
   selectedDate,
   idPrefix = 'tour-week',
   weekLabel = 'Week',
+  jumpValue = weekKeys[0] ?? '',
 } = Astro.props;
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -34,7 +37,23 @@ function dayNum(key: string): string {
         <path d="M15 6l-6 6 6 6"></path>
       </svg>
     </button>
-    <span class="tour-week__label" data-tour-week-label>{weekLabel}</span>
+    <button
+      type="button"
+      class="tour-week__label"
+      data-tour-week-jump
+      title="Jump to a date"
+      aria-label={`Week of ${weekLabel}. Click to jump to a date.`}
+    >
+      {weekLabel}
+    </button>
+    <input
+      type="date"
+      class="tour-week__jump-input"
+      data-tour-week-jump-input
+      value={jumpValue}
+      tabindex="-1"
+      aria-hidden="true"
+    />
     <button type="button" class="secondary icon-btn" data-tour-week-next aria-label="Next week">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M9 6l6 6-6 6"></path>

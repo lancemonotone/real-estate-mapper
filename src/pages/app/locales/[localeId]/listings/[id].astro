@@ -7,7 +7,7 @@ import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/listing-map.css';
 import { PLACE_TYPE_CATALOG } from '../../../../../lib/proximity/place-types';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
-import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
 import { parseDateKey, toDateKey, weekDateKeys } from '../../../../../lib/tours/week';
 import {
   formatAmenities,
@@ -112,7 +112,7 @@ const listingTourSelected =
     ? listingTourDayParam
     : assignment?.tourDate ?? toDateKey(new Date());
 const listingTourWeekKeys = weekDateKeys(parseDateKey(listingTourSelected));
-const listingTourWeekLabel = `${listingTourWeekKeys[0]} → ${listingTourWeekKeys[6]}`;
+const listingTourWeekLabel = `${formatShortTourDate(listingTourWeekKeys[0]!)} → ${formatShortTourDate(listingTourWeekKeys[6]!)}`;
 
 const selectedListingTour = (localeTours ?? []).find((t) => t.tour_date === listingTourSelected);
 let selectedDayStopLabels: string[] = [];
@@ -563,6 +563,7 @@ const attributeFacts: { label: string; value: string }[] = [
           selectedDate={listingTourSelected}
           idPrefix="listing-tour-week"
           weekLabel={listingTourWeekLabel}
+          jumpValue={listingTourSelected}
         />
         <div class="listing-tour-day">
           <h3 class="listing-tour-day__title">{formatTourDate(listingTourSelected)}</h3>

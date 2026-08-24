@@ -102,6 +102,32 @@ function boot() {
     { signal },
   );
 
+  const jumpBtn = root.querySelector('[data-tour-week-jump]');
+  const jumpInput = root.querySelector('[data-tour-week-jump-input]');
+  jumpBtn?.addEventListener(
+    'click',
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!(jumpInput instanceof HTMLInputElement)) return;
+      if (typeof jumpInput.showPicker === 'function') {
+        jumpInput.showPicker();
+      } else {
+        jumpInput.focus();
+        jumpInput.click();
+      }
+    },
+    { signal },
+  );
+  jumpInput?.addEventListener(
+    'change',
+    () => {
+      if (!(jumpInput instanceof HTMLInputElement) || !jumpInput.value) return;
+      reloadWithDay(jumpInput.value);
+    },
+    { signal },
+  );
+
   // Hide the tours-workspace info control if present; listing uses a simpler flow.
   root.querySelector('[data-tour-week-info]')?.setAttribute('hidden', '');
 
