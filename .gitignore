@@ -4,6 +4,7 @@ node_modules/
 # Build / Astro
 dist/
 .astro/
+.vercel/
 
 # Env / secrets
 .env
