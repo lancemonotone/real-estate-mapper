@@ -179,41 +179,49 @@ const seed = {
         }
         <p class="muted" id="auto-plan-hint" hidden></p>
         <div id="auto-plan-clusters" class="tours-workspace__clusters stack" hidden></div>
-        <ul class="tours-workspace__unscheduled stack" data-tours-unscheduled>
+        <ul class="tours-stops tours-workspace__unscheduled" data-tours-unscheduled>
           {
             unassigned.map((listing) => {
               const title = listing.name || listing.address || 'Untitled';
+              const href = `${base}/listings/${listing.id}`;
               return (
                 <li
-                  class="tours-workspace__card"
+                  class="tours-stops__item"
                   draggable="true"
                   data-listing-id={listing.id}
                   data-drag-kind="listing"
                 >
-                  <span class="matrix-listing__media">
-                    {listing.photo_url ? (
-                      <img
-                        class="matrix-listing__thumb"
-                        src={listing.photo_url}
-                        alt=""
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span
-                        class="matrix-listing__thumb matrix-listing__thumb--empty"
-                        aria-hidden="true"
-                      >
-                        No photo
-                      </span>
-                    )}
-                  </span>
-                  <span class="tours-workspace__card-text">
-                    <span class="matrix-listing__name">{title}</span>
-                  </span>
-                  <FavoriteHeart
-                    listingId={listing.id}
-                    favorited={Boolean(listing.is_favorite)}
-                  />
+                  <a class="matrix-listing tours-stops__link" href={href}>
+                    <span class="matrix-listing__media">
+                      {listing.photo_url ? (
+                        <img
+                          class="matrix-listing__thumb"
+                          src={listing.photo_url}
+                          alt=""
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span
+                          class="matrix-listing__thumb matrix-listing__thumb--empty"
+                          aria-hidden="true"
+                        >
+                          No photo
+                        </span>
+                      )}
+                    </span>
+                    <span class="matrix-listing__text">
+                      <span class="matrix-listing__name">{title}</span>
+                      {listing.address && listing.name ? (
+                        <span class="muted matrix-listing__address">{listing.address}</span>
+                      ) : null}
+                    </span>
+                  </a>
+                  <div class="tours-stops__actions">
+                    <FavoriteHeart
+                      listingId={listing.id}
+                      favorited={Boolean(listing.is_favorite)}
+                    />
+                  </div>
                 </li>
               );
             })

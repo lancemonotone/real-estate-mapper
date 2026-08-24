@@ -2565,32 +2565,20 @@ body.directions-overlay-open {
   margin: 0;
   padding: 0;
   min-block-size: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 
   &.is-drop-target {
     outline: 2px dashed var(--accent, #2563eb);
     outline-offset: 2px;
   }
-}
 
-.tours-workspace__card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.35rem 0.4rem;
-  border-radius: 0.5rem;
-  cursor: grab;
-  border: 1px solid transparent;
-
-  &.is-selected,
-  &.is-dragging {
-    border-color: color-mix(in oklab, var(--accent, #2563eb) 45%, transparent);
-    background: color-mix(in oklab, var(--accent, #2563eb) 10%, transparent);
+  & .tours-stops__item.is-selected,
+  & .tours-stops__item.is-dragging {
+    outline: 1px solid color-mix(in oklab, var(--accent, #2563eb) 50%, transparent);
+    background: color-mix(in oklab, var(--accent, #2563eb) 10%, var(--glass-wash-strong));
   }
-}
-
-.tours-workspace__card-text {
-  min-inline-size: 0;
 }
 
 .tours-workspace__clusters {
