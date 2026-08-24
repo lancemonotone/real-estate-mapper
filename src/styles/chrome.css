@@ -2403,13 +2403,13 @@ body.directions-overlay-open {
 .locale-hero__title {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.35rem;
   flex: 1 1 auto;
   min-inline-size: 0;
 
   & .locale-hero__name {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-inline-size: 0;
   }
 
