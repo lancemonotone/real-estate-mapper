@@ -2534,20 +2534,19 @@ body.directions-overlay-open {
   }
 
   @media (min-width: 1024px) {
-    --tours-rail-w: 2.75rem;
+    --tours-rail-w: max-content;
     grid-template-columns:
       var(--tours-rail-w)
       minmax(0, var(--tours-center-fr))
       minmax(0, var(--tours-map-fr));
   }
 
-  /* Rail open: keep center lean so map stays useful */
+  /* Rail open: widen unscheduled; shrink center; keep map share */
   &:has(.tours-workspace__rail:not(.is-collapsed)) {
     @media (min-width: 1024px) {
-      --tours-rail-w: min(17.5rem, 22%);
-      --tours-center-fr: 0.92fr;
-      --tours-map-fr: 1.2fr;
-      --tours-gap: 0.85rem;
+      --tours-rail-w: min(22rem, 30%);
+      --tours-center-fr: 0.85fr;
+      --tours-map-fr: 1fr;
     }
   }
 
