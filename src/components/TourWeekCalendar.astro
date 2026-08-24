@@ -1,0 +1,95 @@
+---
+interface DayMeta {
+  id: string;
+  stopCount: number;
+}
+
+interface Props {
+  weekKeys: string[];
+  daysByDate: Record<string, DayMeta>;
+  selectedDate: string | null;
+  idPrefix?: string;
+  weekLabel?: string;
+}
+
+const {
+  weekKeys,
+  daysByDate,
+  selectedDate,
+  idPrefix = 'tour-week',
+  weekLabel = 'Week',
+} = Astro.props;
+
+const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function dayNum(key: string): string {
+  const parts = key.split('-');
+  return String(Number(parts[2] ?? '0'));
+}
+---
+<div class="tour-week" data-tour-week id={idPrefix}>
+  <div class="tour-week__nav">
+    <button type="button" class="secondary icon-btn" data-tour-week-prev aria-label="Previous week">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M15 6l-6 6 6 6"></path>
+      </svg>
+    </button>
+    <span class="tour-week__label" data-tour-week-label>{weekLabel}</span>
+    <button type="button" class="secondary icon-btn" data-tour-week-next aria-label="Next week">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M9 6l6 6-6 6"></path>
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="secondary icon-btn"
+      data-tour-week-info
+      aria-label="How scheduling works"
+      title="How scheduling works"
+    >
+      <span aria-hidden="true">i</span>
+    </button>
+  </div>
+  <div class="tour-week__grid" role="grid" aria-label="Tour week">
+    {
+      weekKeys.map((key, i) => {
+        const meta = daysByDate[key];
+        const selected = selectedDate === key;
+        const hasTour = Boolean(meta && meta.stopCount > 0);
+        return (
+          <button
+            type="button"
+            class:list={[
+              'tour-week__cell',
+              selected && 'is-selected',
+              hasTour && 'has-tour',
+            ]}
+            role="gridcell"
+            data-tour-date={key}
+            data-tour-day-id={meta?.id ?? ''}
+            data-stop-count={meta?.stopCount ?? 0}
+            aria-pressed={selected ? 'true' : 'false'}
+            aria-label={`${weekdayLabels[i]} ${key}${hasTour ? `, ${meta!.stopCount} stops` : ''}`}
+          >
+            <span class="tour-week__weekday">{weekdayLabels[i]}</span>
+            <span class="tour-week__daynum">{dayNum(key)}</span>
+            {
+              hasTour ? (
+                <span
+                  class="tour-week__dot"
+                  data-tour-day-dot
+                  draggable="true"
+                  title="Drag to move this tour day"
+                >
+                  {meta!.stopCount}
+                </span>
+              ) : (
+                <span class="tour-week__dot tour-week__dot--empty" aria-hidden="true"></span>
+              )
+            }
+          </button>
+        );
+      })
+    }
+  </div>
+</div>

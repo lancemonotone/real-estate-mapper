@@ -44,9 +44,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const { data: tour } = await supabase
     .from('tour_days')
-    .select('locale_id')
+    .select('locale_id, tour_date')
     .eq('id', tourDayId)
     .single();
 
+  if (tour?.tour_date) {
+    return redirect(`/app/locales/${tour.locale_id}/tours?day=${tour.tour_date}`);
+  }
   return redirect(`/app/locales/${tour?.locale_id}/tours/${tourDayId}`);
 };

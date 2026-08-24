@@ -3,10 +3,12 @@ import AppLayout from '../../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../../components/DirectionsOverlay.astro';
 import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import ListingForm from '../../../../../components/ListingForm.astro';
+import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/listing-map.css';
 import { PLACE_TYPE_CATALOG } from '../../../../../lib/proximity/place-types';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
 import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import { parseDateKey, toDateKey, weekDateKeys } from '../../../../../lib/tours/week';
 import {
   formatAmenities,
   formatMoney,
@@ -84,6 +86,46 @@ if (tourIds.length > 0) {
     const day = (localeTours ?? []).find((t) => t.id === stop.tour_day_id);
     if (day) assignment = { tourDayId: day.id, tourDate: day.tour_date };
   }
+}
+
+const { data: tourStopCounts } =
+  tourIds.length > 0
+    ? await supabase.from('tour_stops').select('tour_day_id').in('tour_day_id', tourIds)
+    : { data: [] as { tour_day_id: string }[] };
+
+const stopCountByDay = new Map<string, number>();
+for (const row of tourStopCounts ?? []) {
+  stopCountByDay.set(row.tour_day_id, (stopCountByDay.get(row.tour_day_id) ?? 0) + 1);
+}
+
+const listingTourDaysByDate: Record<string, { id: string; stopCount: number }> = {};
+for (const tour of localeTours ?? []) {
+  listingTourDaysByDate[tour.tour_date] = {
+    id: tour.id,
+    stopCount: stopCountByDay.get(tour.id) ?? 0,
+  };
+}
+
+const listingTourDayParam = Astro.url.searchParams.get('tourDay');
+const listingTourSelected =
+  listingTourDayParam && /^\d{4}-\d{2}-\d{2}$/.test(listingTourDayParam)
+    ? listingTourDayParam
+    : assignment?.tourDate ?? toDateKey(new Date());
+const listingTourWeekKeys = weekDateKeys(parseDateKey(listingTourSelected));
+const listingTourWeekLabel = `${listingTourWeekKeys[0]} → ${listingTourWeekKeys[6]}`;
+
+const selectedListingTour = (localeTours ?? []).find((t) => t.tour_date === listingTourSelected);
+let selectedDayStopLabels: string[] = [];
+if (selectedListingTour) {
+  const { data: dayStops } = await supabase
+    .from('tour_stops')
+    .select('listings(name, address)')
+    .eq('tour_day_id', selectedListingTour.id)
+    .order('sort_order', { ascending: true, nullsFirst: false });
+  selectedDayStopLabels = (dayStops ?? []).map((s) => {
+    const l = s.listings as { name: string | null; address: string | null } | null;
+    return l?.name || l?.address || 'Stop';
+  });
 }
 
 const hasLocation = listing.lat != null && listing.lng != null;
@@ -496,7 +538,7 @@ const attributeFacts: { label: string; value: string }[] = [
           <div class="stack">
             <p>
               Currently on{' '}
-              <a href={`${base}/tours/${assignment.tourDayId}`}>
+              <a href={`${base}/tours?day=${assignment.tourDate}`}>
                 {formatTourDate(assignment.tourDate)}
               </a>
               .
@@ -511,43 +553,43 @@ const attributeFacts: { label: string; value: string }[] = [
               </button>
             </form>
           </div>
-        ) : (
-          <div class="stack">
-            {
-              (localeTours ?? []).length > 0 ? (
-                <>
-                  <p class="muted">Choose an existing tour day, or pick a new date.</p>
-                  <ul class="listing-tour-picks stack">
-                    {(localeTours ?? []).map((tour) => (
-                      <li>
-                        <form method="post" action="/api/tours/assign">
-                          <input type="hidden" name="listing_id" value={listing.id} />
-                          <input type="hidden" name="locale_id" value={locale.id} />
-                          <input type="hidden" name="tour_date" value={tour.tour_date} />
-                          <button type="submit" class="secondary listing-tour-picks__btn">
-                            {formatTourDate(tour.tour_date)}
-                          </button>
-                        </form>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : (
-                <p class="muted">No tour days yet — pick a date to create one.</p>
-              )
-            }
-            <form method="post" action="/api/tours/assign" class="listing-tour-assign stack">
-              <input type="hidden" name="listing_id" value={listing.id} />
-              <input type="hidden" name="locale_id" value={locale.id} />
-              <label>
-                New tour date
-                <input type="date" name="tour_date" required />
-              </label>
-              <button type="submit">Assign</button>
-            </form>
-          </div>
-        )
+        ) : null
       }
+
+      <div class="stack" data-listing-tour-calendar>
+        <TourWeekCalendar
+          weekKeys={listingTourWeekKeys}
+          daysByDate={listingTourDaysByDate}
+          selectedDate={listingTourSelected}
+          idPrefix="listing-tour-week"
+          weekLabel={listingTourWeekLabel}
+        />
+        <div class="listing-tour-day">
+          <h3 class="listing-tour-day__title">{formatTourDate(listingTourSelected)}</h3>
+          {
+            selectedDayStopLabels.length > 0 ? (
+              <ul class="stack">
+                {selectedDayStopLabels.map((label) => (
+                  <li>{label}</li>
+                ))}
+              </ul>
+            ) : (
+              <p class="muted">No stops on this day yet.</p>
+            )
+          }
+          <button
+            type="button"
+            class="button"
+            data-listing-tour-add
+            disabled={assignment?.tourDate === listingTourSelected}
+          >
+            {assignment?.tourDate === listingTourSelected
+              ? 'Already on this day'
+              : 'Add to this day'}
+          </button>
+          <p class="alert" id="listing-tour-status" hidden role="alert"></p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -688,6 +730,8 @@ const attributeFacts: { label: string; value: string }[] = [
       mapId,
       localeLat: locale.center_lat,
       localeLng: locale.center_lng,
+      listingTourSelected,
+      listingPath: `${base}/listings/${listing.id}`,
     }}
   >
     window.__WAYHOME_LISTING_PROX__ = {
@@ -700,11 +744,18 @@ const attributeFacts: { label: string; value: string }[] = [
       localeLng,
     };
     window.__WAYHOME_MAPS__ = { mapKey, mapId };
+    window.__WAYHOME_LISTING_TOUR_CAL__ = {
+      localeId,
+      listingId,
+      selectedDate: listingTourSelected,
+      listingPath,
+    };
   </script>
   <DirectionsOverlay />
   <script src="/scripts/directions-overlay.js" type="module"></script>
   <script src="/scripts/listing-proximity.js" type="module"></script>
   <script src="/scripts/listing-detail.js" type="module"></script>
+  <script src="/scripts/listing-tour-calendar.js" type="module"></script>
   <script define:vars={{ listingId: listing.id }}>
     document.getElementById('geocode-retry')?.addEventListener('click', async () => {
       const status = document.getElementById('geocode-status');

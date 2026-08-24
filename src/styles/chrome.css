@@ -2513,3 +2513,235 @@ body.directions-overlay-open {
 #auto-plan-hint[hidden] {
   display: none;
 }
+
+/* Tours calendar workspace */
+.tours-workspace {
+  --tours-gap: 1rem;
+  --tours-rail-w: 100%;
+  --tours-map-h: 16rem;
+
+  display: grid;
+  gap: var(--tours-gap);
+  grid-template-columns: 1fr;
+  align-items: start;
+  margin-block: 1rem;
+
+  @media (min-width: 768px) {
+    --tours-gap: 1.25rem;
+    --tours-map-h: min(50dvh, 28rem);
+  }
+
+  @media (min-width: 1024px) {
+    --tours-rail-w: min(16rem, 28%);
+    grid-template-columns: var(--tours-rail-w) minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+}
+
+.tours-workspace__rail {
+  min-inline-size: 0;
+  border: 1px solid color-mix(in oklab, var(--fg) 12%, transparent);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  background: color-mix(in oklab, var(--bg-1, var(--bg-0)) 80%, transparent);
+
+  &.is-collapsed .tours-workspace__rail-body {
+    display: none;
+  }
+}
+
+.tours-workspace__rail-toggle {
+  inline-size: 100%;
+  justify-content: flex-start;
+}
+
+.tours-workspace__rail-body {
+  display: grid;
+  gap: 0.75rem;
+  margin-block-start: 0.75rem;
+}
+
+.tours-workspace__unscheduled {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-block-size: 2.5rem;
+
+  &.is-drop-target {
+    outline: 2px dashed var(--accent, #2563eb);
+    outline-offset: 2px;
+  }
+}
+
+.tours-workspace__card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.35rem 0.4rem;
+  border-radius: 0.5rem;
+  cursor: grab;
+  border: 1px solid transparent;
+
+  &.is-selected,
+  &.is-dragging {
+    border-color: color-mix(in oklab, var(--accent, #2563eb) 45%, transparent);
+    background: color-mix(in oklab, var(--accent, #2563eb) 10%, transparent);
+  }
+}
+
+.tours-workspace__card-text {
+  min-inline-size: 0;
+}
+
+.tours-workspace__clusters {
+  gap: 0.5rem;
+}
+
+.tours-workspace__cluster {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px dashed color-mix(in oklab, var(--fg) 22%, transparent);
+  cursor: grab;
+}
+
+.tours-workspace__main {
+  min-inline-size: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.tours-workspace__map {
+  min-inline-size: 0;
+
+  @media (min-width: 1024px) {
+    position: sticky;
+    inset-block-start: 1rem;
+  }
+
+  & .map-well {
+    block-size: var(--tours-map-h);
+    inline-size: 100%;
+    margin-block: 0;
+
+    @media (min-width: 1024px) {
+      --tours-map-h: min(70dvh, 36rem);
+    }
+  }
+}
+
+.tours-workspace__day-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.tours-workspace__day-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.tours-workspace__day-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+  margin-inline-start: auto;
+}
+
+.tours-workspace__conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tour-week {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.tour-week__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tour-week__label {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.tour-week__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.tour-week__cell {
+  --control-pad-block: 0.35rem;
+  --control-descender: 0.08em;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-block-size: 4.25rem;
+  padding-block-start: var(--control-pad-block);
+  padding-block-end: calc(var(--control-pad-block) - var(--control-descender));
+  padding-inline: 0.2rem;
+  border-radius: 0.65rem;
+  border: 1px solid color-mix(in oklab, var(--fg) 14%, transparent);
+  background: color-mix(in oklab, var(--bg-1, var(--bg-0)) 70%, transparent);
+  color: inherit;
+  cursor: pointer;
+
+  &.is-selected {
+    border-color: var(--accent, #2563eb);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent, #2563eb) 40%, transparent);
+  }
+
+  &.is-drop-target {
+    outline: 2px dashed var(--accent, #2563eb);
+  }
+}
+
+.tour-week__weekday {
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+
+.tour-week__daynum {
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.tour-week__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.35rem;
+  min-block-size: 1.35rem;
+  padding-inline: 0.25rem;
+  border-radius: 999px;
+  background: var(--primary, #0d9488);
+  color: var(--primary-contrast, #fff);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: grab;
+
+  &.tour-week__dot--empty {
+    background: transparent;
+    min-block-size: 1.35rem;
+  }
+}
+
+.tours-stops__item[data-drag-kind='listing'] {
+  cursor: grab;
+
+  &.is-selected {
+    outline: 1px solid color-mix(in oklab, var(--accent, #2563eb) 50%, transparent);
+  }
+}

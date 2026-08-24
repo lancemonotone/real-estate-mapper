@@ -1,9 +1,17 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
-import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
-import { listingBadges } from '../../../../../lib/listings/badges';
+import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
+import '../../../../../styles/locale-map.css';
+import { milesToMeters, nearestAllowedRadiusMiles } from '../../../../../lib/geo/locale-radius';
+import { getLocaleForNestMember, localeNeedsSetup } from '../../../../../lib/supabase/nest';
 import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import {
+  tourEndGlyph,
+  tourListingStopGlyph,
+  tourStartGlyph,
+} from '../../../../../lib/tours/stop-glyph';
+import { parseDateKey, weekDateKeys } from '../../../../../lib/tours/week';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -11,6 +19,18 @@ const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : nul
 if (!locale) return new Response('Not found', { status: 404 });
 
 const base = `/app/locales/${locale.id}`;
+const toursBase = `${base}/tours`;
+const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
+const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
+const hasCenter = !localeNeedsSetup(locale);
+const radiusMiles = nearestAllowedRadiusMiles(locale.radius_m);
+
+const dayParam = Astro.url.searchParams.get('day');
+const selectedDate =
+  dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : null;
+const weekAnchor = selectedDate ? parseDateKey(selectedDate) : new Date();
+const weekKeys = weekDateKeys(weekAnchor);
+const weekLabel = `${weekKeys[0]} → ${weekKeys[6]}`;
 
 const { data: tours } = await supabase
   .from('tour_days')
@@ -19,11 +39,31 @@ const { data: tours } = await supabase
   .order('tour_date', { ascending: true });
 
 const tourDayIds = (tours ?? []).map((t) => t.id);
-const { data: assignedStops } =
+const { data: allStops } =
   tourDayIds.length > 0
-    ? await supabase.from('tour_stops').select('listing_id').in('tour_day_id', tourDayIds)
-    : { data: [] as { listing_id: string }[] };
-const assignedIds = new Set((assignedStops ?? []).map((a) => a.listing_id));
+    ? await supabase
+        .from('tour_stops')
+        .select('*, listings(*)')
+        .in('tour_day_id', tourDayIds)
+        .order('sort_order', { ascending: true, nullsFirst: false })
+    : { data: [] as never[] };
+
+const stopsByDay = new Map<string, NonNullable<typeof allStops>>();
+for (const stop of allStops ?? []) {
+  const list = stopsByDay.get(stop.tour_day_id) ?? [];
+  list.push(stop);
+  stopsByDay.set(stop.tour_day_id, list);
+}
+
+const daysByDate: Record<string, { id: string; stopCount: number }> = {};
+for (const tour of tours ?? []) {
+  daysByDate[tour.tour_date] = {
+    id: tour.id,
+    stopCount: (stopsByDay.get(tour.id) ?? []).length,
+  };
+}
+
+const assignedIds = new Set((allStops ?? []).map((s) => s.listing_id));
 
 const { data: listings } = await supabase
   .from('listings')
@@ -32,7 +72,67 @@ const { data: listings } = await supabase
   .order('created_at', { ascending: false });
 
 const unassigned = (listings ?? []).filter((l) => !assignedIds.has(l.id));
-const canPlan = unassigned.length > 0;
+const railExpanded = unassigned.length > 0;
+
+const selectedTour = selectedDate
+  ? (tours ?? []).find((t) => t.tour_date === selectedDate) ?? null
+  : null;
+const selectedStops = selectedTour ? (stopsByDay.get(selectedTour.id) ?? []) : [];
+const hasCustomStart =
+  selectedTour?.start_lat != null && selectedTour?.start_lng != null;
+const hasCustomEnd = selectedTour?.end_lat != null && selectedTour?.end_lng != null;
+const listingCount = selectedStops.length;
+
+const mapStops = selectedStops
+  .map((s, index) => ({ s, index }))
+  .filter(({ s }) => s.listings && s.listings.lat != null && s.listings.lng != null)
+  .map(({ s, index }) => {
+    const { glyph, role } = tourListingStopGlyph({
+      hasCustomStart,
+      hasCustomEnd,
+      index,
+      listingCount,
+    });
+    return {
+      id: s.listing_id,
+      name: s.listings!.name || s.listings!.address || 'Stop',
+      address: s.listings!.address || '',
+      lat: s.listings!.lat!,
+      lng: s.listings!.lng!,
+      photoUrl: s.listings!.photo_url,
+      sortOrder: s.sort_order,
+      legDurationSec: s.leg_duration_sec,
+      isStart: s.is_start,
+      glyph,
+      role,
+      kind: 'listing',
+    };
+  });
+
+const mapListings = (listings ?? [])
+  .filter((l) => l.lat != null && l.lng != null)
+  .map((l) => ({
+    id: l.id,
+    name: l.name || l.address || 'Listing',
+    lat: l.lat!,
+    lng: l.lng!,
+    photoUrl: l.photo_url,
+  }));
+
+const needsAutoroute = Boolean(
+  selectedTour &&
+    selectedStops.length > 0 &&
+    !selectedTour.encoded_polyline,
+);
+
+const seed = {
+  localeId: locale.id,
+  toursBase,
+  selectedDate,
+  weekStart: weekKeys[0],
+  needsAutoroute,
+  selectedTourId: selectedTour?.id ?? null,
+};
 ---
 <AppLayout
   title={`Tours — ${locale.name}`}
@@ -48,67 +148,403 @@ const canPlan = unassigned.length > 0;
     <div class="compare-header__titles">
       <h1 class="compare-header__title">Tours</h1>
     </div>
-    {
-      canPlan ? (
-        <button type="button" class="button compare-header__add" data-tours-plan-open>
-          Plan
-        </button>
-      ) : null
-    }
   </header>
 
-  <section class="tours-days stack">
-    {
-      (tours ?? []).length === 0 ? (
-        <p class="muted">
-          No tour days yet.
-          {canPlan ? (
-            <>
-              {' '}
-              <button type="button" class="linkish" data-tours-plan-open>
-                Plan
-              </button>{' '}
-              a route from unassigned listings.
-            </>
+  <p id="tours-calendar-status" class="alert" hidden role="alert"></p>
+
+  <div class="tours-workspace" data-tours-workspace>
+    <aside
+      class:list={['tours-workspace__rail', !railExpanded && 'is-collapsed']}
+      data-tours-rail
+    >
+      <div class="tours-workspace__rail-head">
+        <button
+          type="button"
+          class="secondary tours-workspace__rail-toggle"
+          data-tours-rail-toggle
+          aria-expanded={railExpanded ? 'true' : 'false'}
+        >
+          Unscheduled ({unassigned.length})
+        </button>
+      </div>
+      <div class="tours-workspace__rail-body" data-tours-rail-body>
+        {
+          unassigned.length > 0 ? (
+            <button type="button" class="secondary" data-tours-auto-plan>
+              Auto-plan
+            </button>
           ) : (
-            ' Add listings first, then assign them to a day.'
-          )}
-        </p>
-      ) : (
-        <ul class="stack tours-days__list">
-          {(tours ?? []).map((tour) => (
-            <li>
-              <a href={`${base}/tours/${tour.id}`}>
-                {formatTourDate(tour.tour_date)}
-                {tour.label ? ` — ${tour.label}` : ''}
-              </a>
-            </li>
-          ))}
+            <p class="muted">No unscheduled listings.</p>
+          )
+        }
+        <p class="muted" id="auto-plan-hint" hidden></p>
+        <div id="auto-plan-clusters" class="tours-workspace__clusters stack" hidden></div>
+        <ul class="tours-workspace__unscheduled stack" data-tours-unscheduled>
+          {
+            unassigned.map((listing) => {
+              const title = listing.name || listing.address || 'Untitled';
+              return (
+                <li
+                  class="tours-workspace__card"
+                  draggable="true"
+                  data-listing-id={listing.id}
+                  data-drag-kind="listing"
+                >
+                  <span class="matrix-listing__media">
+                    {listing.photo_url ? (
+                      <img
+                        class="matrix-listing__thumb"
+                        src={listing.photo_url}
+                        alt=""
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span
+                        class="matrix-listing__thumb matrix-listing__thumb--empty"
+                        aria-hidden="true"
+                      >
+                        No photo
+                      </span>
+                    )}
+                  </span>
+                  <span class="tours-workspace__card-text">
+                    <span class="matrix-listing__name">{title}</span>
+                  </span>
+                  <FavoriteHeart
+                    listingId={listing.id}
+                    favorited={Boolean(listing.is_favorite)}
+                  />
+                </li>
+              );
+            })
+          }
         </ul>
-      )
-    }
-  </section>
+      </div>
+    </aside>
+
+    <div class="tours-workspace__main">
+      <TourWeekCalendar
+        weekKeys={weekKeys}
+        daysByDate={daysByDate}
+        selectedDate={selectedDate}
+        weekLabel={weekLabel}
+      />
+
+      <section class="tours-workspace__day" data-tours-day-panel>
+        {
+          selectedTour ? (
+            <>
+              <div class="tours-workspace__day-head">
+                <h2 class="tours-workspace__day-title">
+                  {formatTourDate(selectedTour.tour_date)}
+                </h2>
+                <span
+                  class="locale-hero__stop-count"
+                  aria-label={
+                    listingCount === 1 ? '1 stop' : `${listingCount} stops`
+                  }
+                >
+                  {listingCount}
+                </span>
+                <div class="tours-workspace__day-actions">
+                  <button
+                    type="button"
+                    class="tour-stop-badge tour-stop-badge--endpoint"
+                    data-tours-se-open="start"
+                    title="Custom start"
+                    aria-label="Custom start"
+                  >
+                    {tourStartGlyph()}
+                  </button>
+                  <button
+                    type="button"
+                    class="tour-stop-badge tour-stop-badge--endpoint"
+                    data-tours-se-open="end"
+                    title="Custom end"
+                    aria-label="Custom end"
+                  >
+                    {tourEndGlyph()}
+                  </button>
+                </div>
+              </div>
+              <ol class="tours-stops" data-tours-stops data-tour-day-id={selectedTour.id}>
+                {hasCustomStart && (
+                  <li
+                    class="tours-stops__item tours-stops__item--endpoint"
+                    data-listing-id="custom-start"
+                  >
+                    <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
+                      {tourStartGlyph()}
+                    </span>
+                    <div class="matrix-listing tours-stops__link">
+                      <span class="matrix-listing__text">
+                        <span class="matrix-listing__name">
+                          {selectedTour.start_name ||
+                            selectedTour.start_address ||
+                            'Start'}
+                        </span>
+                      </span>
+                    </div>
+                  </li>
+                )}
+                {selectedStops.map((stop, index) => {
+                  const listing = stop.listings;
+                  const title = listing?.name || listing?.address || stop.listing_id;
+                  const photo = listing?.photo_url;
+                  const href = listing ? `${base}/listings/${stop.listing_id}` : null;
+                  const { glyph, role } = tourListingStopGlyph({
+                    hasCustomStart,
+                    hasCustomEnd,
+                    index,
+                    listingCount,
+                  });
+                  const badgeClass =
+                    role === 'stop'
+                      ? 'tour-stop-badge tour-stop-badge--stop'
+                      : 'tour-stop-badge tour-stop-badge--endpoint';
+                  return (
+                    <li
+                      class="tours-stops__item"
+                      draggable="true"
+                      data-listing-id={stop.listing_id}
+                      data-drag-kind="listing"
+                    >
+                      <span class={badgeClass} aria-hidden="true">
+                        {glyph}
+                      </span>
+                      {href ? (
+                        <a class="matrix-listing tours-stops__link" href={href}>
+                          <span class="matrix-listing__media">
+                            {photo ? (
+                              <img
+                                class="matrix-listing__thumb"
+                                src={photo}
+                                alt=""
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span
+                                class="matrix-listing__thumb matrix-listing__thumb--empty"
+                                aria-hidden="true"
+                              >
+                                No photo
+                              </span>
+                            )}
+                          </span>
+                          <span class="matrix-listing__text">
+                            <span class="matrix-listing__name">{title}</span>
+                          </span>
+                        </a>
+                      ) : (
+                        <div class="tours-stops__main">
+                          <strong>{title}</strong>
+                        </div>
+                      )}
+                      <div class="tours-stops__actions">
+                        <FavoriteHeart
+                          listingId={stop.listing_id}
+                          favorited={Boolean(listing?.is_favorite)}
+                        />
+                        {!hasCustomStart && !stop.is_start && (
+                          <form method="post" action="/api/tours/set-start">
+                            <input type="hidden" name="tour_day_id" value={selectedTour.id} />
+                            <input type="hidden" name="listing_id" value={stop.listing_id} />
+                            <button
+                              type="submit"
+                              class="tour-stop-badge tour-stop-badge--endpoint tour-stop-set-start"
+                              title="Set as start"
+                              aria-label="Set as start"
+                            >
+                              {tourStartGlyph()}
+                            </button>
+                          </form>
+                        )}
+                        <button
+                          type="button"
+                          class="secondary icon-btn"
+                          data-tours-unassign={stop.listing_id}
+                          title="Remove from tour"
+                          aria-label="Remove from tour"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M6 6l12 12"></path>
+                            <path d="M18 6L6 18"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+                {hasCustomEnd && (
+                  <li
+                    class="tours-stops__item tours-stops__item--endpoint"
+                    data-listing-id="custom-end"
+                  >
+                    <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
+                      {tourEndGlyph()}
+                    </span>
+                    <div class="matrix-listing tours-stops__link">
+                      <span class="matrix-listing__text">
+                        <span class="matrix-listing__name">
+                          {selectedTour.end_name || selectedTour.end_address || 'End'}
+                        </span>
+                      </span>
+                    </div>
+                  </li>
+                )}
+              </ol>
+              {listingCount === 0 && !hasCustomStart && !hasCustomEnd ? (
+                <p class="muted">No stops on this day. Drop listings here from the rail.</p>
+              ) : null}
+            </>
+          ) : selectedDate ? (
+            <p class="muted">
+              No tour on {formatTourDate(selectedDate)}. Drop listings onto this date to create
+              one.
+            </p>
+          ) : (
+            <p class="muted">Select a day on the calendar, or drop a listing onto a date.</p>
+          )
+        }
+      </section>
+    </div>
+
+    <div class="tours-workspace__map">
+      {
+        selectedTour && (mapStops.length > 0 || hasCustomStart || hasCustomEnd) ? (
+          <div
+            id="tour-map"
+            class="map-well locale-browse__map-well"
+            data-stops={JSON.stringify(mapStops)}
+            data-key={browserKey}
+            data-map-id={mapId}
+            data-polyline={selectedTour.encoded_polyline ?? ''}
+            data-custom-start={
+              hasCustomStart
+                ? JSON.stringify({
+                    lat: selectedTour.start_lat,
+                    lng: selectedTour.start_lng,
+                    address: selectedTour.start_address,
+                    name: selectedTour.start_name,
+                  })
+                : ''
+            }
+            data-custom-end={
+              hasCustomEnd
+                ? JSON.stringify({
+                    lat: selectedTour.end_lat,
+                    lng: selectedTour.end_lng,
+                    address: selectedTour.end_address,
+                    name: selectedTour.end_name,
+                  })
+                : ''
+            }
+          ></div>
+        ) : hasCenter ? (
+          <div
+            id="locale-map"
+            class="locale-map map-well locale-browse__map-well"
+            data-key={browserKey}
+            data-map-id={mapId}
+            data-lat={String(locale.center_lat)}
+            data-lng={String(locale.center_lng)}
+            data-radius-m={String(milesToMeters(radiusMiles))}
+            data-title={locale.name}
+            data-listings={JSON.stringify(mapListings)}
+          ></div>
+        ) : (
+          <p class="muted">No map until a center place is set.</p>
+        )
+      }
+    </div>
+  </div>
+
+  <div
+    id="tours-conflict-overlay"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tours-conflict-title"
+  >
+    <div class="compare-column-overlay__backdrop" data-tours-conflict-close></div>
+    <div class="compare-column-overlay__panel glass glass--strong">
+      <header class="compare-column-overlay__header">
+        <h2 id="tours-conflict-title">That day already has stops</h2>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-tours-conflict-close
+          aria-label="Close"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
+        </button>
+      </header>
+      <p class="muted">
+        Merge keeps existing stops and adds the new ones. Replace moves this day’s current stops
+        back to unscheduled.
+      </p>
+      <div class="tours-workspace__conflict-actions">
+        <button type="button" class="button" data-tours-conflict-mode="merge">Merge</button>
+        <button type="button" class="secondary" data-tours-conflict-mode="replace">
+          Replace
+        </button>
+        <button type="button" class="secondary" data-tours-conflict-close>Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="tours-info-overlay"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tours-info-title"
+  >
+    <div class="compare-column-overlay__backdrop" data-tours-info-close></div>
+    <div class="compare-column-overlay__panel glass glass--strong">
+      <header class="compare-column-overlay__header">
+        <h2 id="tours-info-title">Scheduling tips</h2>
+        <button type="button" class="secondary icon-btn" data-tours-info-close aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
+        </button>
+      </header>
+      <ul class="stack">
+        <li>Click a date to select it and see stops under the week.</li>
+        <li>Drag listings from Unscheduled onto a date to schedule them.</li>
+        <li>Drag a numbered day circle to move a whole tour.</li>
+        <li>On a phone, tap a listing then tap a date.</li>
+        <li>Keyboard: focus a listing, Space to pick it up, arrow to a day, Space to drop.</li>
+      </ul>
+    </div>
+  </div>
 
   {
-    canPlan && (
+    selectedTour && (
       <div
-        id="tours-plan-overlay"
-        class="compare-column-overlay tours-plan-overlay"
+        id="tours-se-overlay"
+        class="compare-column-overlay"
         hidden
         role="dialog"
         aria-modal="true"
-        aria-labelledby="tours-plan-title"
+        aria-labelledby="tours-se-title"
       >
-        <div class="compare-column-overlay__backdrop" data-tours-plan-close></div>
-        <div class="compare-column-overlay__panel glass glass--strong tours-plan-overlay__panel">
+        <div class="compare-column-overlay__backdrop" data-tours-se-close></div>
+        <div class="compare-column-overlay__panel glass glass--strong">
           <header class="compare-column-overlay__header">
-            <h2 id="tours-plan-title">Plan</h2>
+            <h2 id="tours-se-title">Custom start / end</h2>
             <button
               type="button"
               class="secondary icon-btn"
-              data-tours-plan-close
+              data-tours-se-close
               aria-label="Close"
-              title="Close"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M6 6l12 12"></path>
@@ -116,117 +552,142 @@ const canPlan = unassigned.length > 0;
               </svg>
             </button>
           </header>
-          <p class="muted">
-            Auto-plan groups nearby unassigned listings into day drafts. Or pick listings manually,
-            preview a route, and save one day.
-          </p>
-
-          <div class="tours-plan__auto stack">
-            <button type="button" class="secondary" data-tours-auto-plan>
-              Auto-plan by proximity
-            </button>
-            <p class="muted tours-plan__auto-hint" id="auto-plan-hint" hidden></p>
-            <div id="auto-plan-result" class="tours-plan__auto-result stack" hidden>
-              <h3 class="tours-plan__result-title">Proposed days</h3>
-              <div id="auto-plan-groups" class="stack"></div>
-              <button type="button" class="button" data-tours-auto-plan-save>
-                Save tour days
-              </button>
-            </div>
-          </div>
-
-          <hr class="tours-plan__divider" />
-
-          <form id="plan-form" class="stack" data-tours-plan-form>
-            <fieldset class="tours-plan__listings">
-              <legend>Manual — listings</legend>
-              {unassigned.map((listing) => {
-                const title = listing.name || listing.address || 'Untitled';
-                const badges = listingBadges(listing);
-                return (
-                  <div class="tours-plan__listing-row">
-                    <label class="tours-plan__listing">
-                      <input type="checkbox" name="listing" value={listing.id} />
-                      <span>
-                        {title}
-                        {badges.length > 0 ? (
-                          <span class="muted"> · {badges.join(', ')}</span>
-                        ) : null}
-                      </span>
-                    </label>
-                    <FavoriteHeart
-                      listingId={listing.id}
-                      favorited={Boolean(listing.is_favorite)}
-                    />
-                  </div>
-                );
-              })}
-            </fieldset>
-
-            <p class="muted">
-              Start: use a custom address <em>or</em> pick a listing (custom address wins if both).
-            </p>
-            <label>
+          <form method="post" action="/api/tours/endpoints" class="stack" data-tours-se-form>
+            <input type="hidden" name="tour_day_id" value={selectedTour.id} />
+            <label data-tours-se-field="start">
               Custom start address
-              <input
-                type="text"
-                name="customStartAddress"
-                id="plan-start-address"
-                placeholder="optional"
-                autocomplete="street-address"
-              />
+              <div class="place-search" id="tours-se-start-search">
+                <span class="field-clearable">
+                  <input
+                    type="search"
+                    name="start_address"
+                    value={selectedTour.start_address ?? ''}
+                    placeholder="Search nearby…"
+                    autocomplete="off"
+                    data-place-search-input
+                    data-clearable-input
+                    data-clear-flag-name="clear_start"
+                    data-had-saved={hasCustomStart ? '1' : '0'}
+                  />
+                  <button
+                    type="button"
+                    class="field-clearable__clear"
+                    data-clearable-clear
+                    title="Clear"
+                    aria-label="Clear custom start"
+                    hidden
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M6 6l12 12"></path>
+                      <path d="M18 6L6 18"></path>
+                    </svg>
+                  </button>
+                  <input type="hidden" name="clear_start" value="" data-clearable-flag />
+                </span>
+                <input
+                  type="hidden"
+                  name="start_lat"
+                  value={hasCustomStart ? String(selectedTour.start_lat) : ''}
+                  data-endpoint-lat
+                />
+                <input
+                  type="hidden"
+                  name="start_lng"
+                  value={hasCustomStart ? String(selectedTour.start_lng) : ''}
+                  data-endpoint-lng
+                />
+                <input
+                  type="hidden"
+                  name="start_name"
+                  value={selectedTour.start_name ?? ''}
+                  data-endpoint-name
+                />
+                <input
+                  type="hidden"
+                  name="start_place_id"
+                  value={selectedTour.start_place_id ?? ''}
+                  data-endpoint-place-id
+                />
+                <ul class="place-search__results stack" data-place-search-results hidden></ul>
+                <p class="alert" data-place-search-error hidden></p>
+              </div>
             </label>
-            <label>
-              Start listing
-              <select name="start" id="plan-start">
-                <option value="">Select start listing</option>
-                {unassigned.map((l) => (
-                  <option value={l.id}>{l.name || l.address || l.id}</option>
-                ))}
-              </select>
-            </label>
-            <label>
+            <label data-tours-se-field="end">
               Custom end address
-              <input
-                type="text"
-                name="customEndAddress"
-                id="plan-end-address"
-                placeholder="optional"
-                autocomplete="street-address"
-              />
+              <div class="place-search" id="tours-se-end-search">
+                <span class="field-clearable">
+                  <input
+                    type="search"
+                    name="end_address"
+                    value={selectedTour.end_address ?? ''}
+                    placeholder="Search nearby…"
+                    autocomplete="off"
+                    data-place-search-input
+                    data-clearable-input
+                    data-clear-flag-name="clear_end"
+                    data-had-saved={hasCustomEnd ? '1' : '0'}
+                  />
+                  <button
+                    type="button"
+                    class="field-clearable__clear"
+                    data-clearable-clear
+                    title="Clear"
+                    aria-label="Clear custom end"
+                    hidden
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M6 6l12 12"></path>
+                      <path d="M18 6L6 18"></path>
+                    </svg>
+                  </button>
+                  <input type="hidden" name="clear_end" value="" data-clearable-flag />
+                </span>
+                <input
+                  type="hidden"
+                  name="end_lat"
+                  value={hasCustomEnd ? String(selectedTour.end_lat) : ''}
+                  data-endpoint-lat
+                />
+                <input
+                  type="hidden"
+                  name="end_lng"
+                  value={hasCustomEnd ? String(selectedTour.end_lng) : ''}
+                  data-endpoint-lng
+                />
+                <input
+                  type="hidden"
+                  name="end_name"
+                  value={selectedTour.end_name ?? ''}
+                  data-endpoint-name
+                />
+                <input
+                  type="hidden"
+                  name="end_place_id"
+                  value={selectedTour.end_place_id ?? ''}
+                  data-endpoint-place-id
+                />
+                <ul class="place-search__results stack" data-place-search-results hidden></ul>
+                <p class="alert" data-place-search-error hidden></p>
+              </div>
             </label>
-            <button type="submit">Preview route</button>
-          </form>
-
-          <p class="alert" id="plan-error" hidden role="alert"></p>
-          <div id="plan-result" class="tours-plan__result stack" hidden>
-            <h3 class="tours-plan__result-title">Preview</h3>
-            <ol id="plan-order" class="tours-plan__order"></ol>
-            <p class="muted" id="plan-meta"></p>
-          </div>
-
-          <form id="plan-save-form" class="tours-plan__save stack" hidden data-tours-plan-save>
-            <label>
-              Tour date
-              <input type="date" name="tourDate" required />
-            </label>
-            <button type="submit">Save as tour day</button>
+            <button type="submit" class="button">Save</button>
           </form>
         </div>
       </div>
     )
   }
 
-  <script
-    define:vars={{
-      localeId: locale.id,
-      toursBase: `${base}/tours`,
-      listingLabels: Object.fromEntries(
-        unassigned.map((l) => [l.id, l.name || l.address || l.id]),
-      ),
-    }}
-  >
-    window.__WAYHOME_TOURS_PLAN__ = { localeId, toursBase, listingLabels };
+  <script define:vars={{ seed }}>
+    window.__WAYHOME_TOURS_CALENDAR__ = seed;
   </script>
-  {canPlan && <script src="/scripts/tours-plan.js" type="module"></script>}
+  <script src="/scripts/tours-calendar.js" type="module"></script>
+  {
+    selectedTour && (mapStops.length > 0 || hasCustomStart || hasCustomEnd) ? (
+      <script src="/scripts/tour-map.js" type="module"></script>
+    ) : hasCenter ? (
+      <script src="/scripts/locale-map.js" type="module"></script>
+    ) : null
+  }
+  {selectedTour ? <script src="/scripts/place-search.js" type="module"></script> : null}
+  <script src="/scripts/listing-favorite.js" type="module"></script>
 </AppLayout>
