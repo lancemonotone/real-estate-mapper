@@ -220,11 +220,15 @@ async function assignListings(
           end_name: null,
           end_place_id: null,
           encoded_polyline: null,
+          route_signature: null,
         })
         .eq('id', target.id);
     }
   } else {
-    await supabase.from('tour_days').update({ encoded_polyline: null }).eq('id', target.id);
+    await supabase
+      .from('tour_days')
+      .update({ encoded_polyline: null, route_signature: null })
+      .eq('id', target.id);
   }
 
   if (opts?.copyEndpointsFromDayId && opts.copyEndpointsFromDayId !== target.id) {
@@ -241,6 +245,7 @@ async function assignListings(
         .update({
           ...source,
           encoded_polyline: null,
+          route_signature: null,
         })
         .eq('id', target.id);
     }
@@ -301,7 +306,7 @@ export async function applyCalendarAction(
 
         await supabase
           .from('tour_days')
-          .update({ encoded_polyline: null })
+          .update({ encoded_polyline: null, route_signature: null })
           .eq('id', action.tourDayId);
         const opt = await ensureStartThenOptimize(supabase, action.tourDayId);
         return {
@@ -372,7 +377,7 @@ export async function applyCalendarAction(
 
         await supabase
           .from('tour_days')
-          .update({ encoded_polyline: null })
+          .update({ encoded_polyline: null, route_signature: null })
           .eq('id', action.tourDayId);
         const opt = await ensureStartThenOptimize(supabase, action.tourDayId);
         return {

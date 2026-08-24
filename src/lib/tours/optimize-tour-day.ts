@@ -94,12 +94,19 @@ export async function optimizeTourDay(
     }
     await supabase
       .from('tour_days')
-      .update({ encoded_polyline: result.encodedPolyline ?? null })
+      .update({
+        encoded_polyline: result.encodedPolyline ?? null,
+        route_signature: result.orderedIds.join(','),
+      })
       .eq('id', tourDayId);
 
     return { ok: true };
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Optimize failed';
+    await supabase
+      .from('tour_days')
+      .update({ encoded_polyline: null, route_signature: null })
+      .eq('id', tourDayId);
     return { ok: false, error: message, status: 500 };
   }
 }

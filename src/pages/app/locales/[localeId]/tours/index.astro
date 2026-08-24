@@ -119,10 +119,18 @@ const mapListings = (listings ?? [])
     photoUrl: l.photo_url,
   }));
 
+const routeSignatureCurrent = selectedStops.map((s) => s.listing_id).join(',');
+const routeFresh = Boolean(
+  selectedTour?.encoded_polyline &&
+    selectedTour.route_signature &&
+    selectedTour.route_signature === routeSignatureCurrent,
+);
+const mapPolyline = routeFresh ? (selectedTour?.encoded_polyline ?? '') : '';
+
 const needsAutoroute = Boolean(
   selectedTour &&
     selectedStops.length > 0 &&
-    !selectedTour.encoded_polyline &&
+    !routeFresh &&
     (selectedStops.length >= 2 || hasCustomEnd),
 );
 
@@ -439,9 +447,9 @@ const seed = {
             data-stops={JSON.stringify(mapStops)}
             data-key={browserKey}
             data-map-id={mapId}
-            data-polyline={selectedTour.encoded_polyline ?? ''}
+            data-polyline={mapPolyline}
             data-rev={[
-              selectedTour.encoded_polyline ?? '',
+              mapPolyline,
               ...mapStops.map((s) => s.id),
             ].join('|')}
             data-custom-start={

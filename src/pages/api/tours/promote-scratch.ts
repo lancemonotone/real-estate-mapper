@@ -46,6 +46,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         locale_id: body.localeId,
         tour_date: body.tourDate,
         encoded_polyline: body.encodedPolyline ?? null,
+        route_signature: body.listingIdsInOrder.join(','),
         start_address: hasCustomStart ? body.customStart?.address ?? null : null,
         start_lat: hasCustomStart ? body.customStart!.lat : null,
         start_lng: hasCustomStart ? body.customStart!.lng : null,

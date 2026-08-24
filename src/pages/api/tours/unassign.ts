@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
+import { optimizeTourDay } from '../../../lib/tours/optimize-tour-day';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -23,7 +24,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const { data: tourDay } = await supabase
     .from('tour_days')
-    .select('id, locale_id')
+    .select('id, locale_id, tour_date')
     .eq('id', tourDayId)
     .maybeSingle();
   if (!tourDay || tourDay.locale_id !== localeId) {
@@ -47,6 +48,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   if (dayEmpty) {
     const { error: dayError } = await supabase.from('tour_days').delete().eq('id', tourDayId);
     if (dayError) return new Response(dayError.message, { status: 400 });
+  } else {
+    await supabase
+      .from('tour_days')
+      .update({ encoded_polyline: null, route_signature: null })
+      .eq('id', tourDayId);
+    await optimizeTourDay(supabase, tourDayId);
   }
 
   if (returnTo.startsWith('/app/')) {
@@ -54,6 +61,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   }
   if (dayEmpty) {
     return redirect(`/app/locales/${localeId}/tours`);
+  }
+  if (tourDay.tour_date) {
+    return redirect(`/app/locales/${localeId}/tours?day=${tourDay.tour_date}`);
   }
   return redirect(`/app/locales/${localeId}/tours/${tourDayId}`);
 };

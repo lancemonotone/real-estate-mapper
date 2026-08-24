@@ -34,6 +34,14 @@ const hasCustomStart = tour.start_lat != null && tour.start_lng != null;
 const hasCustomEnd = tour.end_lat != null && tour.end_lng != null;
 const listingCount = (stops ?? []).length;
 
+const routeSignatureCurrent = (stops ?? []).map((s) => s.listing_id).join(',');
+const routeFresh = Boolean(
+  tour.encoded_polyline &&
+    tour.route_signature &&
+    tour.route_signature === routeSignatureCurrent,
+);
+const mapPolyline = routeFresh ? (tour.encoded_polyline ?? '') : '';
+
 const mapStops = (stops ?? [])
   .map((s, index) => ({ s, index }))
   .filter(
@@ -274,7 +282,7 @@ const stopCount = (stops ?? []).length;
         data-stops={JSON.stringify(mapStops)}
         data-key={browserKey}
         data-map-id={mapId}
-        data-polyline={tour.encoded_polyline ?? ''}
+        data-polyline={mapPolyline}
         data-custom-start={hasCustomStart
           ? JSON.stringify({
               lat: tour.start_lat,
