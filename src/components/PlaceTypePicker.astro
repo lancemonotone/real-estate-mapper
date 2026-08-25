@@ -1,0 +1,69 @@
+---
+import { PLACE_TYPE_GROUPS, placeTypeLabel } from '../lib/proximity/place-types';
+
+type Props = {
+  /** Hidden input name (form posts). Omit when only read by id. */
+  name?: string;
+  /** Element id for the value input (JS readers). */
+  id?: string;
+  value?: string;
+};
+
+const { name, id, value = 'beach' } = Astro.props;
+const selectedLabel = placeTypeLabel(value);
+---
+
+<div class="place-type-picker" data-place-type-picker>
+  <input
+    type="hidden"
+    data-place-type-value
+    value={value}
+    name={name}
+    id={id}
+  />
+  <button
+    type="button"
+    class="place-type-picker__trigger"
+    data-place-type-trigger
+    aria-expanded="false"
+    aria-haspopup="listbox"
+  >
+    <span data-place-type-trigger-label>{selectedLabel}</span>
+  </button>
+  <div class="place-type-picker__panel" data-place-type-panel hidden>
+    <input
+      type="search"
+      class="place-type-picker__filter"
+      data-place-type-filter
+      placeholder="Filter types…"
+      autocomplete="off"
+    />
+    <div
+      class="place-type-picker__list"
+      role="listbox"
+      data-place-type-list
+      tabindex="-1"
+    >
+      {
+        PLACE_TYPE_GROUPS.map((group) => (
+          <div class="place-type-picker__group" data-place-type-group>
+            <div class="place-type-picker__group-label">{group.category}</div>
+            {group.types.map((t) => (
+              <button
+                type="button"
+                class="place-type-picker__option"
+                role="option"
+                data-place-type-option
+                data-value={t.key}
+                data-label={t.label}
+                aria-selected={t.key === value ? 'true' : 'false'}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</div>

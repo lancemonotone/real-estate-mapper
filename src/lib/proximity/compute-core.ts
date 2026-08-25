@@ -14,9 +14,9 @@ import { fillLocalePoisForType } from './fill-pois';
 import { googleMapsDirectionsUrl } from './maps-url';
 import { pickWinnerByDuration, rankByDuration } from './pick-winner';
 import {
-  PLACE_TYPE_CATALOG,
   PROXIMITY_CHOICE_N,
   PROXIMITY_SHORTLIST_N,
+  isPlaceTypeKey,
   type PlaceTypeKey,
   type PoiCandidate,
 } from './place-types';
@@ -64,10 +64,6 @@ export type OneOffCriterionInput =
       travel_mode: TravelMode;
       locale_id: string;
     };
-
-function isPlaceTypeKey(key: string): key is PlaceTypeKey {
-  return Object.prototype.hasOwnProperty.call(PLACE_TYPE_CATALOG, key);
-}
 
 function isTravelMode(mode: string): mode is TravelMode {
   return (

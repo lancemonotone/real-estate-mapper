@@ -3,9 +3,9 @@ import AppLayout from '../../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../../components/DirectionsOverlay.astro';
 import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import ListingForm from '../../../../../components/ListingForm.astro';
+import PlaceTypePicker from '../../../../../components/PlaceTypePicker.astro';
 import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/listing-map.css';
-import { PLACE_TYPE_CATALOG } from '../../../../../lib/proximity/place-types';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
 import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
 import { parseDateKey, toDateKey, weekDateKeys } from '../../../../../lib/tours/week';
@@ -134,10 +134,6 @@ const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 const photoUrl = listing.photo_url ?? '';
 const base = `/app/locales/${locale.id}`;
 const listingTitle = listing.name || 'Listing';
-const placeTypes = Object.entries(PLACE_TYPE_CATALOG).map(([key, v]) => ({
-  key,
-  label: v.label,
-}));
 
 const compareRows = (criteria ?? []).map((c) => {
   const row = resultByCriterion.get(c.id);
@@ -703,11 +699,7 @@ const attributeFacts: { label: string; value: string }[] = [
             <div id="prox-nearest-fields" class="stack">
               <label>
                 Place type
-                <select id="prox-place-type">
-                  {placeTypes.map((t) => (
-                    <option value={t.key}>{t.label}</option>
-                  ))}
-                </select>
+                <PlaceTypePicker id="prox-place-type" value="beach" />
               </label>
             </div>
             <div id="prox-search-fields" class="stack" hidden>

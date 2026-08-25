@@ -2,7 +2,8 @@
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
 import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
-import { PLACE_TYPE_CATALOG } from '../../../../lib/proximity/place-types';
+import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
+import { placeTypeLabel } from '../../../../lib/proximity/place-types';
 import { getLocaleForNestMember } from '../../../../lib/supabase/nest';
 
 const { localeId } = Astro.params;
@@ -40,11 +41,6 @@ const resultMap = new Map<string, (typeof results)[number]>();
 for (const row of results ?? []) {
   resultMap.set(`${row.listing_id}:${row.criterion_id}`, row);
 }
-
-const placeTypes = Object.entries(PLACE_TYPE_CATALOG).map(([key, v]) => ({
-  key,
-  label: v.label,
-}));
 
 const listingRows = listings ?? [];
 const criterionRows = criteria ?? [];
@@ -105,26 +101,30 @@ const criterionRows = criteria ?? [];
                     data-sort-type="number"
                   >
                     <div class="matrix-criterion-head">
-                      <button type="button" class="matrix-sort matrix-criterion-head__label">
-                        {c.label}
-                      </button>
-                      <button
-                        type="button"
-                        class="secondary icon-btn delete-criterion"
-                        data-criterion-id={c.id}
-                        aria-label={`Delete ${c.label}`}
-                        title={`Delete ${c.label}`}
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                          <path d="M6 6l12 12"></path>
-                          <path d="M18 6L6 18"></path>
-                        </svg>
-                      </button>
+                      <div class="matrix-criterion-head__top">
+                        <button type="button" class="matrix-sort matrix-criterion-head__label">
+                          {c.label}
+                        </button>
+                        <button
+                          type="button"
+                          class="secondary icon-btn delete-criterion"
+                          data-criterion-id={c.id}
+                          aria-label={`Delete ${c.label}`}
+                          title={`Delete ${c.label}`}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M6 6l12 12"></path>
+                            <path d="M18 6L6 18"></path>
+                          </svg>
+                        </button>
+                      </div>
+                      <small class="muted matrix-criterion-head__meta">
+                        {c.kind === 'place_type'
+                          ? `Nearest · ${placeTypeLabel(c.place_type_key ?? '')}`
+                          : 'Shared place'} ·{' '}
+                        {c.travel_mode}
+                      </small>
                     </div>
-                    <small class="muted">
-                      {c.kind === 'place_type' ? `Nearest · ${c.place_type_key}` : 'Shared place'} ·{' '}
-                      {c.travel_mode}
-                    </small>
                   </th>
                 ))}
               </tr>
@@ -239,11 +239,7 @@ const criterionRows = criteria ?? [];
         </label>
         <label id="type-fields">
           Place type
-          <select name="place_type_key">
-            {placeTypes.map((t) => (
-              <option value={t.key}>{t.label}</option>
-            ))}
-          </select>
+          <PlaceTypePicker name="place_type_key" value="beach" />
         </label>
         <div id="pin-fields" class="pin-fields stack" hidden>
           <div class="place-search" id="compare-place-search">
@@ -314,11 +310,7 @@ const criterionRows = criteria ?? [];
             <div id="compare-prox-nearest-fields" class="stack">
               <label>
                 Place type
-                <select id="compare-prox-place-type">
-                  {placeTypes.map((t) => (
-                    <option value={t.key}>{t.label}</option>
-                  ))}
-                </select>
+                <PlaceTypePicker id="compare-prox-place-type" value="beach" />
               </label>
             </div>
             <div id="compare-prox-search-fields" class="stack" hidden>

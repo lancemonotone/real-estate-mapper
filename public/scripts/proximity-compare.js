@@ -1,4 +1,9 @@
 import { mountPlaceSearch } from './place-search.js';
+import {
+  mountAllPlaceTypePickers,
+  readPlaceTypeValue,
+  setPlaceTypeValue,
+} from './place-type-picker.js';
 import { iconBan, iconBtn, iconMapPin, iconPencil, iconRoute } from './ui-icons.js';
 
 function formatDuration(sec) {
@@ -795,7 +800,9 @@ function openCellPlacePicker(td, currentResult) {
   if (title) title.textContent = 'Change location';
   if (lede) lede.textContent = `Pick a new location for ${label} · ${listingName}.`;
   if (modeEl instanceof HTMLSelectElement) modeEl.value = cellPickerTravelMode;
-  if (placeTypeKey && typeEl instanceof HTMLSelectElement) {
+  if (placeTypeKey && typeEl instanceof HTMLInputElement) {
+    setPlaceTypeValue(typeEl, placeTypeKey);
+  } else if (placeTypeKey && typeEl instanceof HTMLSelectElement) {
     typeEl.value = placeTypeKey;
   }
   if (modeKind instanceof HTMLSelectElement) {
@@ -900,7 +907,7 @@ function initCellPlacePicker(signal) {
           listing_id: listingId,
           locale_id: cfg.localeId,
           kind: 'place_type',
-          place_type_key: typeEl instanceof HTMLSelectElement ? typeEl.value : '',
+          place_type_key: readPlaceTypeValue(typeEl),
           travel_mode,
         };
       }
@@ -1040,6 +1047,7 @@ function bootComparePage() {
   initCriterionForm(signal);
   initDeleteButtons(signal);
   initCellPlacePicker(signal);
+  mountAllPlaceTypePickers(document);
   equalizeCompareRows();
   void hydrateAndCompute(signal);
 }

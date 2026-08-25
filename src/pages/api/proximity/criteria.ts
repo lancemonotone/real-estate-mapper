@@ -85,7 +85,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     const key = body.place_type_key?.trim();
     if (!key || !isPlaceTypeKey(key)) {
       return new Response(
-        JSON.stringify({ error: 'place_type_key required and must be a curated type' }),
+        JSON.stringify({ error: 'place_type_key required and must be a Google Table A type' }),
         { status: 400 },
       );
     }

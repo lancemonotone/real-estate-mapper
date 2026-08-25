@@ -1,5 +1,9 @@
 import { mountPlaceSearch } from './place-search.js';
 import {
+  mountAllPlaceTypePickers,
+  readPlaceTypeValue,
+} from './place-type-picker.js';
+import {
   iconBan,
   iconBtn,
   iconMapPin,
@@ -1007,6 +1011,8 @@ function initProximityPanel() {
     });
   }
 
+  mountAllPlaceTypePickers(document);
+
   window.addEventListener(
     'listing-place-picker',
     (event) => {
@@ -1071,8 +1077,7 @@ function initProximityPanel() {
         await presentProximityResult(data.result, origin);
       } else {
         const typeEl = document.getElementById('prox-place-type');
-        const place_type_key =
-          typeEl instanceof HTMLSelectElement ? typeEl.value : '';
+        const place_type_key = readPlaceTypeValue(typeEl);
         const res = await fetch('/api/proximity/compute-one-off', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

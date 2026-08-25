@@ -5,6 +5,7 @@ import { haversineMeters } from '../geo/haversine';
 import type { Database, Locale } from '../types/database';
 import {
   PLACE_TYPE_CATALOG,
+  isPlaceTypeKey,
   type PlaceTypeKey,
   type PoiCandidate,
 } from './place-types';
@@ -66,10 +67,6 @@ export function tileSearchCenters(
   }
 
   return out;
-}
-
-function isPlaceTypeKey(key: string): key is PlaceTypeKey {
-  return Object.prototype.hasOwnProperty.call(PLACE_TYPE_CATALOG, key);
 }
 
 async function searchAtCenter(
