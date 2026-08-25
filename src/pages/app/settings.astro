@@ -1,7 +1,9 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
+import NestMemberList from '../../components/NestMemberList.astro';
 import { generateInviteToken } from '../../lib/crypto/invite-token';
-import { getPrimaryNestId } from '../../lib/supabase/nest';
+import { getPrimaryNestId, listNestMembers } from '../../lib/supabase/nest';
+import type { NestMemberProfile } from '../../lib/types/database';
 import { listUiThemes, resolveUiThemeId } from '../../lib/ui/themes';
 
 const user = Astro.locals.user!;
@@ -19,6 +21,11 @@ const { data: profile } = await supabase
   .eq('id', user.id)
   .maybeSingle();
 const currentThemeId = resolveUiThemeId(profile?.ui_theme_id);
+
+let nestMembers: NestMemberProfile[] = [];
+if (nestId) {
+  nestMembers = await listNestMembers(supabase, nestId);
+}
 
 if (!nestId) {
   errorMessage = 'No Nest found.';
@@ -81,6 +88,12 @@ const swatchVars: Record<string, { primary: string; accent: string }> = {
     <p id="theme-status" class="theme-status muted" aria-live="polite"></p>
   </section>
 
+  {
+    nestId && (
+      <NestMemberList members={nestMembers} currentUserId={user.id} heading="Nest members" />
+    )
+  }
+
   <section class="stack">
     <h2>Nest invite</h2>
     {
@@ -92,7 +105,7 @@ const swatchVars: Record<string, { primary: string; accent: string }> = {
       )
     }
     <form method="post">
-      <button type="submit">Generate / rotate invite link</button>
+      <button type="submit">Generate Invite Link</button>
     </form>
   </section>
 

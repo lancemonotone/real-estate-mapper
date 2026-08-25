@@ -1610,6 +1610,66 @@ tr[data-map-listing].is-map-hover > .matrix-table__listing {
   margin-block-end: 1.25rem;
 }
 
+.nest-members {
+  --members-gap: 0.65rem;
+
+  gap: var(--members-gap);
+  margin-block-end: 1.5rem;
+}
+
+.nest-members__heading {
+  margin: 0;
+  font-size: clamp(1.05rem, 1rem + 0.25vw, 1.2rem);
+}
+
+.nest-member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.nest-member-row {
+  --row-pad: 0.75rem 1rem;
+
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: var(--row-pad);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+}
+
+.nest-member-row__main {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.nest-member-row__name {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.nest-member-row__role {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.28rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--glass-wash-strong);
+  color: var(--text-muted);
+}
+
+.nest-member-row__role--owner {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+  background: color-mix(in srgb, var(--primary) 12%, var(--glass-wash-strong));
+  color: var(--primary);
+}
+
 .nest-empty {
   margin-block-start: 0.25rem;
 }

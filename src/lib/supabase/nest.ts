@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateInviteToken } from '../crypto/invite-token';
-import type { Database, Locale } from '../types/database';
+import type { Database, Locale, NestMemberProfile, NestRole } from '../types/database';
 
 type Client = SupabaseClient<Database>;
 
@@ -52,6 +52,39 @@ export async function listLocalesForNest(supabase: Client, nestId: string) {
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as Locale[];
+}
+
+export async function listNestMembers(
+  supabase: Client,
+  nestId: string,
+): Promise<NestMemberProfile[]> {
+  const { data: members, error } = await supabase
+    .from('nest_members')
+    .select('user_id, role, created_at')
+    .eq('nest_id', nestId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw new Error(error.message);
+  if (!members?.length) return [];
+
+  const userIds = members.map((m) => m.user_id);
+  const { data: profiles, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, display_name')
+    .in('id', userIds);
+
+  if (profileError) throw new Error(profileError.message);
+
+  const displayNameById = new Map(
+    (profiles ?? []).map((p) => [p.id, p.display_name] as const),
+  );
+
+  return members.map((member) => ({
+    userId: member.user_id,
+    role: member.role as NestRole,
+    displayName: displayNameById.get(member.user_id) ?? null,
+    createdAt: member.created_at,
+  }));
 }
 
 export async function getLocaleForNestMember(

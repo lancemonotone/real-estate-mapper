@@ -1,9 +1,11 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
+import NestMemberList from '../../components/NestMemberList.astro';
 import {
   ensureNestForUser,
   getPrimaryNestId,
   listLocalesForNest,
+  listNestMembers,
   localeNeedsSetup,
 } from '../../lib/supabase/nest';
 import { nearestAllowedRadiusMiles } from '../../lib/geo/locale-radius';
@@ -23,6 +25,7 @@ const { data: nest } = await supabase
   .single();
 
 const locales = await listLocalesForNest(supabase, nestId);
+const nestMembers = await listNestMembers(supabase, nestId);
 const nestName = nest?.name ?? 'Nest';
 
 const listingCountByLocale = new Map<string, number>();
@@ -64,6 +67,8 @@ const localeRows = locales.map((locale) => {
       <a class="button locale-hero__add" href="/app/locales/new">New Locale</a>
     </div>
   </header>
+
+  <NestMemberList members={nestMembers} currentUserId={user.id} />
 
   {
     localeRows.length === 0 ? (

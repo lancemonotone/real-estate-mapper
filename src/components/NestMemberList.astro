@@ -1,0 +1,54 @@
+---
+import type { NestMemberProfile } from '../lib/types/database';
+
+interface Props {
+  members: NestMemberProfile[];
+  currentUserId: string;
+  heading?: string;
+}
+
+const { members, currentUserId, heading = 'Members' } = Astro.props;
+
+function memberLabel(member: NestMemberProfile, isSelf: boolean): string {
+  const name = member.displayName?.trim();
+  if (name) return isSelf ? `${name} (you)` : name;
+  return isSelf ? 'You' : 'Member';
+}
+
+function roleLabel(role: NestMemberProfile['role']): string {
+  return role === 'owner' ? 'Owner' : 'Member';
+}
+---
+<section class="nest-members stack">
+  <h2 class="nest-members__heading">{heading}</h2>
+  {
+    members.length === 0 ? (
+      <p class="muted">No members yet.</p>
+    ) : (
+      <ul class="nest-member-list">
+        {
+          members.map((member) => {
+            const isSelf = member.userId === currentUserId;
+            return (
+              <li>
+                <div class="nest-member-row glass">
+                  <span class="nest-member-row__main">
+                    <span class="nest-member-row__name">{memberLabel(member, isSelf)}</span>
+                  </span>
+                  <span
+                    class:list={[
+                      'nest-member-row__role',
+                      member.role === 'owner' && 'nest-member-row__role--owner',
+                    ]}
+                  >
+                    {roleLabel(member.role)}
+                  </span>
+                </div>
+              </li>
+            );
+          })
+        }
+      </ul>
+    )
+  }
+</section>

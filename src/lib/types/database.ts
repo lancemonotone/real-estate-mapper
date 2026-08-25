@@ -21,6 +21,13 @@ export type NestMember = {
   created_at: string;
 };
 
+export type NestMemberProfile = {
+  userId: string;
+  role: NestRole;
+  displayName: string | null;
+  createdAt: string;
+};
+
 export type Locale = {
   id: string;
   nest_id: string;
