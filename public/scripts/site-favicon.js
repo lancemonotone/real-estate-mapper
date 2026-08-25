@@ -1,10 +1,17 @@
-/** Theme-aware favicon from computed --primary / --accent / --bg-0 tokens. */
-function faviconDataUrl(primary, accent, bg) {
+/** Theme-aware favicon: Fraunces W on --bg-0, letter in --primary. */
+function faviconDataUrl(primary, bg) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Wayhome">
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&amp;display=swap");
+    .mark {
+      font-family: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+  </style>
   <rect width="32" height="32" rx="8" fill="${bg}"/>
-  <path d="M16 7.5 23.5 13v11.5H8.5V13L16 7.5Z" fill="none" stroke="${primary}" stroke-width="1.75" stroke-linejoin="round"/>
-  <circle cx="16" cy="17.5" r="2.25" fill="${primary}"/>
-  <path d="M11 24.5c1.2-2.2 3-3.25 5-3.25s3.8 1.05 5 3.25" fill="none" stroke="${accent}" stroke-width="1.5" stroke-linecap="round"/>
+  <text class="mark" x="16" y="17" text-anchor="middle" dominant-baseline="middle" fill="${primary}">W</text>
 </svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
@@ -12,10 +19,9 @@ function faviconDataUrl(primary, accent, bg) {
 function themeFaviconHref() {
   const styles = getComputedStyle(document.documentElement);
   const primary = styles.getPropertyValue('--primary').trim();
-  const accent = styles.getPropertyValue('--accent').trim();
   const bg = styles.getPropertyValue('--bg-0').trim();
-  if (!primary || !accent || !bg) return '/favicon.svg';
-  return faviconDataUrl(primary, accent, bg);
+  if (!primary || !bg) return '/favicon.svg';
+  return faviconDataUrl(primary, bg);
 }
 
 function applyThemeFavicon() {
