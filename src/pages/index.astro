@@ -1,24 +1,81 @@
 ---
-import AuthLayout from '../layouts/AuthLayout.astro';
+import '../styles/tokens.css';
+import '../styles/chrome.css';
+import { DEFAULT_UI_THEME_ID } from '../lib/ui/themes';
 
 const supabaseConfigured = Boolean(
-  import.meta.env.PUBLIC_SUPABASE_URL && import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  import.meta.env.PUBLIC_SUPABASE_URL &&
+    import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
 ---
-<AuthLayout title="Welcome">
-  <h1>Wayhome</h1>
-  <p class="muted">Organize listings in your Nest by Locale and plan efficient driving tours.</p>
-  <p>
-    <a href="/signup">Sign up</a>
-    ·
-    <a href="/login">Sign in</a>
-  </p>
-  {
-    !supabaseConfigured && (
-      <p class="alert" role="alert">
-        Configure <code>PUBLIC_SUPABASE_URL</code> and <code>PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> in
-        <code>.env</code> (see <code>.env.example</code>).
-      </p>
-    )
-  }
-</AuthLayout>
+<!doctype html>
+<html lang="en" data-theme={DEFAULT_UI_THEME_ID}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Wayhome</title>
+  </head>
+  <body class="marketing-shell">
+    <main class="marketing-hero">
+      <div class="marketing-hero__copy">
+        <h1 class="marketing-hero__brand">Wayhome</h1>
+        <p class="marketing-hero__lede">
+          Organize listings in your Nest by Locale and plan efficient driving tours.
+        </p>
+        <div class="marketing-hero__cta">
+          <a class="button" href="/signup">Sign up</a>
+          <a class="button secondary" href="/login">Sign in</a>
+        </div>
+        {
+          !supabaseConfigured && (
+            <p class="alert marketing-hero__alert" role="alert">
+              Configure <code>PUBLIC_SUPABASE_URL</code> and{' '}
+              <code>PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> in <code>.env</code>.
+            </p>
+          )
+        }
+      </div>
+
+      <div class="marketing-hero__visual" aria-hidden="true">
+        <svg
+          class="marketing-route"
+          viewBox="0 0 640 480"
+          xmlns="http://www.w3.org/2000/svg"
+          focusable="false"
+        >
+          <defs>
+            <linearGradient id="marketing-road" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.95"></stop>
+              <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.85"></stop>
+            </linearGradient>
+          </defs>
+          <path
+            class="marketing-route__path"
+            d="M72 360 C140 300, 180 220, 250 200 S380 210, 420 150 S520 90, 580 120"
+            fill="none"
+            stroke="url(#marketing-road)"
+            stroke-width="6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ></path>
+          <g class="marketing-route__pin marketing-route__pin--1">
+            <circle cx="72" cy="360" r="18" class="marketing-route__halo"></circle>
+            <circle cx="72" cy="360" r="9" class="marketing-route__dot"></circle>
+          </g>
+          <g class="marketing-route__pin marketing-route__pin--2">
+            <circle cx="250" cy="200" r="18" class="marketing-route__halo"></circle>
+            <circle cx="250" cy="200" r="9" class="marketing-route__dot"></circle>
+          </g>
+          <g class="marketing-route__pin marketing-route__pin--3">
+            <circle cx="420" cy="150" r="18" class="marketing-route__halo"></circle>
+            <circle cx="420" cy="150" r="9" class="marketing-route__dot"></circle>
+          </g>
+          <g class="marketing-route__pin marketing-route__pin--4">
+            <circle cx="580" cy="120" r="18" class="marketing-route__halo"></circle>
+            <circle cx="580" cy="120" r="9" class="marketing-route__dot"></circle>
+          </g>
+        </svg>
+      </div>
+    </main>
+  </body>
+</html>

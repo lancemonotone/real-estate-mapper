@@ -72,6 +72,208 @@ h2 {
   flex-direction: column;
 }
 
+/* Public marketing landing — full-bleed hero, not the app panel shell. */
+.marketing-shell {
+  min-block-size: 100dvh;
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(
+      1100px 560px at 8% -8%,
+      var(--bg-mesh-a),
+      transparent 55%
+    ),
+    radial-gradient(900px 520px at 92% 12%, var(--bg-mesh-b), transparent 52%),
+    linear-gradient(165deg, var(--bg-0), var(--bg-1));
+  background-attachment: fixed;
+}
+
+.marketing-hero {
+  --hero-pad: clamp(1.25rem, 4vw, 2.5rem);
+  --hero-gap: clamp(1.5rem, 4vw, 2.75rem);
+  --copy-max: 28rem;
+
+  box-sizing: border-box;
+  min-block-size: 100dvh;
+  display: grid;
+  align-items: center;
+  gap: var(--hero-gap);
+  padding: var(--hero-pad);
+  grid-template-columns: 1fr;
+
+  @media (min-width: 768px) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    padding-inline: clamp(1.5rem, 6vw, 4rem);
+  }
+
+  @media (min-width: 1024px) {
+    --copy-max: 32rem;
+  }
+}
+
+.marketing-hero__copy {
+  max-inline-size: var(--copy-max);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: marketing-copy-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.marketing-hero__brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 2.2rem + 4vw, 5.25rem);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+
+.marketing-hero__lede {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: clamp(1.05rem, 1rem + 0.35vw, 1.25rem);
+  line-height: 1.45;
+  max-inline-size: 34ch;
+  animation: marketing-copy-in 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+}
+
+.marketing-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block-start: 0.35rem;
+  animation: marketing-copy-in 700ms cubic-bezier(0.22, 1, 0.36, 1) 220ms both;
+}
+
+.marketing-hero__alert {
+  margin-block-start: 0.5rem;
+}
+
+.marketing-hero__visual {
+  min-inline-size: 0;
+  inline-size: 100%;
+  justify-self: stretch;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-accent);
+  background:
+    radial-gradient(
+      80% 70% at 70% 30%,
+      color-mix(in srgb, var(--primary) 18%, transparent),
+      transparent 60%
+    ),
+    var(--glass-strong);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  animation: marketing-visual-in 900ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
+
+  @media (min-width: 768px) {
+    aspect-ratio: auto;
+    min-block-size: min(68dvh, 34rem);
+  }
+}
+
+.marketing-route {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.marketing-route__path {
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: marketing-route-draw 1600ms ease-out 350ms forwards;
+}
+
+.marketing-route__halo {
+  fill: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.marketing-route__dot {
+  fill: var(--primary);
+}
+
+.marketing-route__pin {
+  opacity: 0;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: marketing-pin-in 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.marketing-route__pin--1 {
+  animation-delay: 500ms;
+}
+
+.marketing-route__pin--2 {
+  animation-delay: 780ms;
+}
+
+.marketing-route__pin--3 {
+  animation-delay: 1040ms;
+}
+
+.marketing-route__pin--4 {
+  animation-delay: 1280ms;
+}
+
+@keyframes marketing-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes marketing-visual-in {
+  from {
+    opacity: 0;
+    transform: translateX(1rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes marketing-route-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes marketing-pin-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-hero__copy,
+  .marketing-hero__lede,
+  .marketing-hero__cta,
+  .marketing-hero__visual,
+  .marketing-route__path,
+  .marketing-route__pin {
+    animation: none;
+  }
+
+  .marketing-route__path {
+    stroke-dashoffset: 0;
+  }
+
+  .marketing-route__pin {
+    opacity: 1;
+  }
+}
+
 .app-header {
   --header-gap: 0.75rem;
 
@@ -1400,6 +1602,90 @@ tr[data-map-listing].is-map-hover > .matrix-table__listing {
   }
 }
 
+.nest-hero {
+  margin-block-end: 1.25rem;
+}
+
+.nest-empty {
+  margin-block-start: 0.25rem;
+}
+
+.nest-locale-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nest-locale-row {
+  --row-pad: 0.85rem 1rem;
+
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: var(--row-pad);
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border-accent));
+    background: color-mix(in srgb, var(--primary) 10%, var(--glass-wash-strong));
+    transform: translateY(-1px);
+    filter: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.nest-locale-row__main {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.nest-locale-row__name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.nest-locale-row__meta {
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.nest-locale-row__chip {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.28rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 14%, var(--glass-strong));
+  color: var(--danger);
+}
+
+.nest-locale-row__chevron {
+  flex-shrink: 0;
+  inline-size: 0.45rem;
+  block-size: 0.45rem;
+  border-inline-end: 2px solid var(--text-muted);
+  border-block-end: 2px solid var(--text-muted);
+  transform: rotate(-45deg);
+  opacity: 0.7;
+}
+
 .listings-list {
   list-style: none;
   margin: 0;
@@ -1408,6 +1694,7 @@ tr[data-map-listing].is-map-hover > .matrix-table__listing {
   flex-direction: column;
   gap: 0.65rem;
 }
+
 
 .listing-row {
   --row-pad: 0.75rem;

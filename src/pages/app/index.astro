@@ -6,6 +6,7 @@ import {
   listLocalesForNest,
   localeNeedsSetup,
 } from '../../lib/supabase/nest';
+import { nearestAllowedRadiusMiles } from '../../lib/geo/locale-radius';
 
 const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
@@ -22,22 +23,80 @@ const { data: nest } = await supabase
   .single();
 
 const locales = await listLocalesForNest(supabase, nestId);
----
-<AppLayout title={nest?.name ?? 'Nest'} crumbs={[{ label: nest?.name ?? 'Nest' }]}>
-  <p class="muted">Signed in as {user.email}</p>
+const nestName = nest?.name ?? 'Nest';
 
-  <h1>{nest?.name ?? 'Nest'}</h1>
-  <h2>Locales</h2>
-  <p><a href="/app/locales/new">New Locale</a></p>
+const listingCountByLocale = new Map<string, number>();
+if (locales.length > 0) {
+  const { data: listingRows } = await supabase
+    .from('listings')
+    .select('locale_id')
+    .in(
+      'locale_id',
+      locales.map((l) => l.id),
+    );
+  for (const row of listingRows ?? []) {
+    listingCountByLocale.set(
+      row.locale_id,
+      (listingCountByLocale.get(row.locale_id) ?? 0) + 1,
+    );
+  }
+}
+
+const localeRows = locales.map((locale) => {
+  const needsSetup = localeNeedsSetup(locale);
+  const listingCount = listingCountByLocale.get(locale.id) ?? 0;
+  const radiusMiles = needsSetup
+    ? null
+    : nearestAllowedRadiusMiles(locale.radius_m);
+  const center =
+    locale.center_label?.trim() ||
+    (needsSetup
+      ? null
+      : `${locale.center_lat.toFixed(2)}, ${locale.center_lng.toFixed(2)}`);
+  return { locale, needsSetup, listingCount, radiusMiles, center };
+});
+---
+<AppLayout title={nestName} crumbs={[{ label: nestName }]}>
+  <header class="locale-hero__heading nest-hero">
+    <h1 class="locale-hero__name">{nestName}</h1>
+    <p class="muted locale-hero__count">Your locales</p>
+    <div class="locale-hero__actions">
+      <a class="button locale-hero__add" href="/app/locales/new">New Locale</a>
+    </div>
+  </header>
+
   {
-    locales.length === 0 ? (
-      <p class="muted">No Locales yet. Create one to start collecting listings.</p>
+    localeRows.length === 0 ? (
+      <div class="listings-empty glass panel stack nest-empty">
+        <p class="muted">No Locales yet. Create one to start collecting listings.</p>
+        <a class="button" href="/app/locales/new">
+          Create your first Locale
+        </a>
+      </div>
     ) : (
-      <ul class="stack">
-        {locales.map((locale) => (
+      <ul class="stack nest-locale-list">
+        {localeRows.map(({ locale, needsSetup, listingCount, radiusMiles, center }) => (
           <li>
-            <a href={`/app/locales/${locale.id}`}>{locale.name}</a>
-            {localeNeedsSetup(locale) ? ' — Needs setup' : ''}
+            <a class="nest-locale-row glass" href={`/app/locales/${locale.id}`}>
+              <span class="nest-locale-row__main">
+                <span class="nest-locale-row__name">{locale.name}</span>
+                <span class="muted nest-locale-row__meta">
+                  {[
+                    listingCount === 1 ? '1 listing' : `${listingCount} listings`,
+                    center && radiusMiles != null
+                      ? `${center} · ${radiusMiles} mi`
+                      : center,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              </span>
+              {needsSetup ? (
+                <span class="nest-locale-row__chip">Needs setup</span>
+              ) : (
+                <span class="nest-locale-row__chevron" aria-hidden="true"></span>
+              )}
+            </a>
           </li>
         ))}
       </ul>
