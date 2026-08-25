@@ -62,49 +62,106 @@ const localeRows = locales.map((locale) => {
 <AppLayout title={nestName} crumbs={[{ label: nestName }]}>
   <header class="locale-hero__heading nest-hero">
     <h1 class="locale-hero__name">{nestName}</h1>
-    <p class="muted locale-hero__count">Your locales</p>
-    <div class="locale-hero__actions">
-      <a class="button locale-hero__add" href="/app/locales/new">New Locale</a>
-    </div>
   </header>
 
-  <NestMemberList members={nestMembers} currentUserId={user.id} />
+  <div class="nest-tabs" data-nest-tabs>
+    <nav
+      class="locale-nav nest-tabs__bar"
+      aria-label="Nest sections"
+      data-nest-tabs-bar
+      role="tablist"
+    >
+      <span class="locale-nav__pill" aria-hidden="true" data-nest-tabs-pill></span>
+      <button
+        type="button"
+        class="button secondary locale-nav__link"
+        id="nest-tab-members"
+        role="tab"
+        aria-selected="false"
+        aria-controls="nest-panel-members"
+        tabindex="-1"
+        data-nest-tab="members"
+      >
+        Members
+      </button>
+      <button
+        type="button"
+        class="button secondary locale-nav__link locale-nav__link--active"
+        id="nest-tab-locales"
+        role="tab"
+        aria-selected="true"
+        aria-controls="nest-panel-locales"
+        tabindex="0"
+        data-nest-tab="locales"
+      >
+        Locales
+      </button>
+    </nav>
 
-  {
-    localeRows.length === 0 ? (
-      <div class="listings-empty glass panel stack nest-empty">
-        <p class="muted">No Locales yet. Create one to start collecting listings.</p>
-        <a class="button" href="/app/locales/new">
-          Create your first Locale
-        </a>
+    <div
+      id="nest-panel-members"
+      class="nest-tabs__panel"
+      role="tabpanel"
+      aria-labelledby="nest-tab-members"
+      data-nest-tab-panel="members"
+      hidden
+    >
+      <NestMemberList
+        members={nestMembers}
+        currentUserId={user.id}
+        showHeading={false}
+      />
+    </div>
+
+    <div
+      id="nest-panel-locales"
+      class="nest-tabs__panel"
+      role="tabpanel"
+      aria-labelledby="nest-tab-locales"
+      data-nest-tab-panel="locales"
+    >
+      <div class="nest-tabs__panel-head">
+        <a class="button locale-hero__add" href="/app/locales/new">New Locale</a>
       </div>
-    ) : (
-      <ul class="stack nest-locale-list">
-        {localeRows.map(({ locale, needsSetup, listingCount, radiusMiles, center }) => (
-          <li>
-            <a class="nest-locale-row glass" href={`/app/locales/${locale.id}`}>
-              <span class="nest-locale-row__main">
-                <span class="nest-locale-row__name">{locale.name}</span>
-                <span class="muted nest-locale-row__meta">
-                  {[
-                    listingCount === 1 ? '1 listing' : `${listingCount} listings`,
-                    center && radiusMiles != null
-                      ? `${center} · ${radiusMiles} mi`
-                      : center,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-              </span>
-              {needsSetup ? (
-                <span class="badge badge--danger">Needs setup</span>
-              ) : (
-                <span class="nest-locale-row__chevron" aria-hidden="true"></span>
-              )}
+      {
+        localeRows.length === 0 ? (
+          <div class="listings-empty glass panel stack nest-empty">
+            <p class="muted">No Locales yet. Create one to start collecting listings.</p>
+            <a class="button" href="/app/locales/new">
+              Create your first Locale
             </a>
-          </li>
-        ))}
-      </ul>
-    )
-  }
+          </div>
+        ) : (
+          <ul class="stack nest-locale-list">
+            {localeRows.map(({ locale, needsSetup, listingCount, radiusMiles, center }) => (
+              <li>
+                <a class="nest-locale-row glass" href={`/app/locales/${locale.id}`}>
+                  <span class="nest-locale-row__main">
+                    <span class="nest-locale-row__name">{locale.name}</span>
+                    <span class="muted nest-locale-row__meta">
+                      {[
+                        listingCount === 1 ? '1 listing' : `${listingCount} listings`,
+                        center && radiusMiles != null
+                          ? `${center} · ${radiusMiles} mi`
+                          : center,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                  {needsSetup ? (
+                    <span class="badge badge--danger">Needs setup</span>
+                  ) : (
+                    <span class="nest-locale-row__chevron" aria-hidden="true"></span>
+                  )}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+  </div>
+
+  <script src="/scripts/nest-tabs.js" type="module"></script>
 </AppLayout>

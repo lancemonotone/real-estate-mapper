@@ -1,8 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { generateInviteToken } from '../crypto/invite-token';
+import { generateInviteToken, hashInviteToken } from '../crypto/invite-token';
 import type { Database, Locale, NestMemberProfile, NestRole } from '../types/database';
 
 type Client = SupabaseClient<Database>;
+
+export function isInviteRedirect(path: string): boolean {
+  return path.startsWith('/invite/');
+}
 
 export function localeNeedsSetup(
   locale: Pick<Locale, 'center_lat' | 'center_lng'>,
@@ -34,14 +38,50 @@ export async function ensureNestForUser(supabase: Client, userId: string) {
 export async function getPrimaryNestId(supabase: Client, userId: string) {
   const { data, error } = await supabase
     .from('nest_members')
-    .select('nest_id')
+    .select('nest_id, role, created_at')
     .eq('user_id', userId)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: true });
 
   if (error) throw new Error(error.message);
-  return data?.nest_id ?? null;
+  if (!data?.length) return null;
+  if (data.length === 1) return data[0].nest_id;
+
+  // Prefer a nest joined via invite (member) over a solo owner bootstrap nest.
+  const invitedNest = data.find((row) => row.role === 'member');
+  return invitedNest?.nest_id ?? data[0].nest_id;
+}
+
+export async function joinNestFromInvite(
+  supabase: Client,
+  userId: string,
+  rawToken: string,
+): Promise<{ joined: boolean; nestId: string | null; error: string | null }> {
+  const tokenHash = hashInviteToken(rawToken);
+  const { data: nestId, error: nestError } = await supabase.rpc('nest_id_for_invite', {
+    token_hash: tokenHash,
+  });
+
+  if (nestError) {
+    return { joined: false, nestId: null, error: nestError.message };
+  }
+  if (!nestId) {
+    return { joined: false, nestId: null, error: 'Invalid or expired invite link.' };
+  }
+
+  const { error: joinError } = await supabase.from('nest_members').insert({
+    nest_id: nestId,
+    user_id: userId,
+    role: 'member',
+  });
+
+  if (joinError) {
+    if (joinError.code === '23505') {
+      return { joined: true, nestId, error: null };
+    }
+    return { joined: false, nestId: null, error: joinError.message };
+  }
+
+  return { joined: true, nestId, error: null };
 }
 
 export async function listLocalesForNest(supabase: Client, nestId: string) {

@@ -5,9 +5,10 @@ interface Props {
   members: NestMemberProfile[];
   currentUserId: string;
   heading?: string;
+  showHeading?: boolean;
 }
 
-const { members, currentUserId, heading = 'Members' } = Astro.props;
+const { members, currentUserId, heading = 'Members', showHeading = true } = Astro.props;
 
 function memberLabel(member: NestMemberProfile, isSelf: boolean): string {
   const name = member.displayName?.trim();
@@ -20,7 +21,7 @@ function roleLabel(role: NestMemberProfile['role']): string {
 }
 ---
 <section class="nest-members stack">
-  <h2 class="nest-members__heading">{heading}</h2>
+  {showHeading && <h2 class="nest-members__heading">{heading}</h2>}
   {
     members.length === 0 ? (
       <p class="muted">No members yet.</p>

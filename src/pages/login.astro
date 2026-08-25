@@ -1,17 +1,19 @@
 ---
 import AuthLayout from '../layouts/AuthLayout.astro';
 import { createSupabaseServerClient } from '../lib/supabase/server';
-import { ensureNestForUser } from '../lib/supabase/nest';
+import { ensureNestForUser, isInviteRedirect } from '../lib/supabase/nest';
 
 const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
 const {
   data: { user },
 } = await supabase.auth.getUser();
-if (user) {
-  return Astro.redirect('/app');
-}
 
 const redirectTo = Astro.url.searchParams.get('redirect') || '/app';
+
+if (user) {
+  return Astro.redirect(redirectTo);
+}
+
 let errorMessage = '';
 
 if (Astro.request.method === 'POST') {
@@ -23,13 +25,17 @@ if (Astro.request.method === 'POST') {
     errorMessage = error.message;
   } else if (data.user) {
     try {
-      await ensureNestForUser(supabase, data.user.id);
+      if (!isInviteRedirect(redirectTo)) {
+        await ensureNestForUser(supabase, data.user.id);
+      }
       return Astro.redirect(redirectTo);
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : 'Could not create Nest';
     }
   }
 }
+
+const signupHref = `/signup?redirect=${encodeURIComponent(redirectTo)}`;
 ---
 <AuthLayout title="Sign in">
   <h1>Sign in</h1>
@@ -39,5 +45,5 @@ if (Astro.request.method === 'POST') {
     <label>Password <input type="password" name="password" required /></label>
     <button type="submit">Sign in</button>
   </form>
-  <p><a href="/signup">Need an account? Sign up</a></p>
+  <p><a href={signupHref}>Need an account? Sign up</a></p>
 </AuthLayout>

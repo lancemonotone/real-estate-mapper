@@ -1,7 +1,6 @@
 ---
 import { createSupabaseServerClient } from '../../lib/supabase/server';
-import { hashInviteToken } from '../../lib/crypto/invite-token';
-import { ensureNestForUser } from '../../lib/supabase/nest';
+import { joinNestFromInvite } from '../../lib/supabase/nest';
 
 const token = Astro.params.token;
 if (!token) {
@@ -17,38 +16,9 @@ if (!user) {
   return Astro.redirect(`/login?redirect=${encodeURIComponent(`/invite/${token}`)}`);
 }
 
-await ensureNestForUser(supabase, user.id);
+const { joined, error: joinError } = await joinNestFromInvite(supabase, user.id, token);
 
-const tokenHash = hashInviteToken(token);
-const { data: nestId, error: nestError } = await supabase.rpc('nest_id_for_invite', {
-  token_hash: tokenHash,
-});
-
-let errorMessage = '';
-let joined = false;
-
-if (nestError) {
-  errorMessage = nestError.message;
-} else if (!nestId) {
-  errorMessage = 'Invalid or expired invite link.';
-} else {
-  const { error: joinError } = await supabase.from('nest_members').insert({
-    nest_id: nestId as string,
-    user_id: user.id,
-    role: 'member',
-  });
-  if (joinError) {
-    if (joinError.code === '23505') {
-      joined = true;
-    } else {
-      errorMessage = joinError.message;
-    }
-  } else {
-    joined = true;
-  }
-}
-
-if (joined && !errorMessage) {
+if (joined && !joinError) {
   return Astro.redirect('/app');
 }
 ---
@@ -60,7 +30,7 @@ if (joined && !errorMessage) {
   </head>
   <body>
     <h1>Join Nest</h1>
-    {errorMessage && <p role="alert">{errorMessage}</p>}
+    {joinError && <p role="alert">{joinError}</p>}
     <p><a href="/app">Back to app</a></p>
   </body>
 </html>
