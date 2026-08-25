@@ -8,6 +8,10 @@ import {
   tourListingStopGlyph,
   tourStartGlyph,
 } from '../../../../../lib/tours/stop-glyph';
+import {
+  routeSignatureForListingIds,
+  sameRouteSignature,
+} from '../../../../../lib/tours/route-signature';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -34,11 +38,13 @@ const hasCustomStart = tour.start_lat != null && tour.start_lng != null;
 const hasCustomEnd = tour.end_lat != null && tour.end_lng != null;
 const listingCount = (stops ?? []).length;
 
-const routeSignatureCurrent = (stops ?? []).map((s) => s.listing_id).join(',');
+const routeSignatureCurrent = routeSignatureForListingIds(
+  (stops ?? []).map((s) => s.listing_id),
+);
 const routeFresh = Boolean(
   tour.encoded_polyline &&
     tour.route_signature &&
-    tour.route_signature === routeSignatureCurrent,
+    sameRouteSignature(tour.route_signature, routeSignatureCurrent),
 );
 const mapPolyline = routeFresh ? (tour.encoded_polyline ?? '') : '';
 
@@ -107,7 +113,11 @@ const stopCount = (stops ?? []).length;
       <ol class="tours-stops">
         {
           hasCustomStart && (
-            <li class="tours-stops__item tours-stops__item--endpoint" data-listing-id="custom-start">
+            <li
+              class="tours-stops__item tours-stops__item--endpoint"
+              data-listing-id="custom-start"
+              data-map-listing="custom-start"
+            >
               <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
                 {tourStartGlyph()}
               </span>
@@ -157,7 +167,11 @@ const stopCount = (stops ?? []).length;
               ? 'tour-stop-badge tour-stop-badge--stop'
               : 'tour-stop-badge tour-stop-badge--endpoint';
           return (
-            <li class="tours-stops__item" data-listing-id={stop.listing_id}>
+            <li
+              class="tours-stops__item"
+              data-listing-id={stop.listing_id}
+              data-map-listing={stop.listing_id}
+            >
               <span class={badgeClass} aria-hidden="true">
                 {glyph}
               </span>
@@ -179,6 +193,9 @@ const stopCount = (stops ?? []).length;
                     <span class="matrix-listing__name">{title}</span>
                     {listing?.address && listing?.name ? (
                       <span class="muted matrix-listing__address">{listing.address}</span>
+                    ) : null}
+                    {listing?.phone ? (
+                      <span class="muted matrix-listing__phone">{listing.phone}</span>
                     ) : null}
                     {stop.leg_duration_sec != null ? (
                       <span class="muted matrix-listing__address">
@@ -233,7 +250,11 @@ const stopCount = (stops ?? []).length;
         })}
         {
           hasCustomEnd && (
-            <li class="tours-stops__item tours-stops__item--endpoint" data-listing-id="custom-end">
+            <li
+              class="tours-stops__item tours-stops__item--endpoint"
+              data-listing-id="custom-end"
+              data-map-listing="custom-end"
+            >
               <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
                 {tourEndGlyph()}
               </span>
@@ -312,7 +333,7 @@ const stopCount = (stops ?? []).length;
     aria-labelledby="tour-plan-route-title"
   >
     <div class="compare-column-overlay__backdrop" data-tour-plan-route-close></div>
-    <div class="compare-column-overlay__panel glass glass--strong">
+    <div class="compare-column-overlay__panel glass">
       <header class="compare-column-overlay__header">
         <h2 id="tour-plan-route-title">Plan Route</h2>
         <button

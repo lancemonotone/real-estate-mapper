@@ -151,6 +151,34 @@ const compareRows = (criteria ?? []).map((c) => {
   };
 });
 
+/** Places to pin on the listing map (compare winners + listing-only places). */
+const mapPlaces = [
+  ...compareRows
+    .filter(
+      (row) =>
+        row.result?.status === 'ok' &&
+        row.result.place_lat != null &&
+        row.result.place_lng != null,
+    )
+    .map((row) => ({
+      id: `criterion:${row.criterionId}`,
+      name: row.result!.place_name || row.label,
+      label: row.label,
+      lat: row.result!.place_lat!,
+      lng: row.result!.place_lng!,
+      placeId: row.result!.place_id,
+    })),
+  ...(listingPlaces ?? []).map((p) => ({
+    id: `listing-place:${p.id}`,
+    name: p.name,
+    label: p.label || p.name,
+    lat: p.lat,
+    lng: p.lng,
+    placeId: p.place_id,
+  })),
+];
+
+const mapPlacesJson = JSON.stringify(mapPlaces);
 const attributeFacts: { label: string; value: string }[] = [
   listing.price_monthly != null && { label: 'Price / mo', value: formatMoney(listing.price_monthly) },
   listing.beds != null && { label: 'Beds', value: formatNumber(listing.beds) },
@@ -185,59 +213,79 @@ const attributeFacts: { label: string; value: string }[] = [
       <h1 class="locale-hero__name">{listingTitle}</h1>
       <FavoriteHeart listingId={listing.id} favorited={Boolean(listing.is_favorite)} />
     </div>
-    {
-      listing.source_url && (
-        <a
+    <div class="locale-hero__trailing">
+      <p class="listing-hero__tour locale-hero__tour-status">
+        {
+          assignment ? (
+            <>
+              On tour{' '}
+              <a href={`${base}/tours/${assignment.tourDayId}`}>
+                {formatTourDate(assignment.tourDate)}
+              </a>
+            </>
+          ) : (
+            <span class="muted">Not on a tour</span>
+          )
+        }
+      </p>
+      <div class="locale-hero__actions">
+        <button
+          type="button"
           class="secondary icon-btn"
-          href={listing.source_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Open listing source"
-          aria-label="Open listing source"
+          data-listing-overlay-open="tour"
+          title="Tour"
+          aria-label="Tour"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M14 4h6v6"></path>
-            <path d="M10 14L20 4"></path>
-            <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
+            <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+            <path d="M3 10h18"></path>
+            <path d="M8 3v4"></path>
+            <path d="M16 3v4"></path>
           </svg>
-        </a>
-      )
-    }
-    <div class="locale-hero__actions">
-      <button
-        type="button"
-        class="secondary icon-btn"
-        data-listing-overlay-open="tour"
-        title="Tour"
-        aria-label="Tour"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-          <path d="M3 10h18"></path>
-          <path d="M8 3v4"></path>
-          <path d="M16 3v4"></path>
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="secondary icon-btn"
-        data-listing-overlay-open="edit"
-        title="Edit listing"
-        aria-label="Edit listing"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M12 20h9"></path>
-          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-        </svg>
-      </button>
+        </button>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-listing-overlay-open="edit"
+          title="Edit listing"
+          aria-label="Edit listing"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 
   <section class="listing-hero">
     <div class="listing-hero__meta stack">
       {
-        listing.address ? (
-          <p class="listing-hero__address">{listing.address}</p>
+        listing.address || listing.source_url ? (
+          <div class="listing-hero__address-row">
+            {listing.address ? (
+              <p class="listing-hero__address">{listing.address}</p>
+            ) : (
+              <p class="muted">No address yet.</p>
+            )}
+            {listing.source_url ? (
+              <a
+                class="secondary icon-btn"
+                href={listing.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open listing source"
+                aria-label="Open listing source"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M14 4h6v6"></path>
+                  <path d="M10 14L20 4"></path>
+                  <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
+                </svg>
+              </a>
+            ) : null}
+          </div>
         ) : (
           <p class="muted">No address yet.</p>
         )
@@ -278,7 +326,31 @@ const attributeFacts: { label: string; value: string }[] = [
               None yet — add a place.
             </p>
           ) : (
-            <div class="matrix-scroll matrix-scroll--fit">
+            <>
+              <ul class="matrix-type-legend" aria-label="Place scope">
+                <li>
+                  <span class="matrix-type__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M4 6h16"></path>
+                      <path d="M4 12h16"></path>
+                      <path d="M4 18h10"></path>
+                      <path d="M16 16l2 2 4-4"></path>
+                    </svg>
+                  </span>
+                  On Travel Times
+                </li>
+                <li>
+                  <span class="matrix-type__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                      <path d="M3 10.5L12 3l9 7.5"></path>
+                      <path d="M5 9.5V21h14V9.5"></path>
+                      <path d="M10 21v-6h4v6"></path>
+                    </svg>
+                  </span>
+                  Listing only
+                </li>
+              </ul>
+              <div class="matrix-scroll">
               <table class="data matrix-table matrix-table--fit" aria-label="Travel Times">
                 <tbody id="listing-places-list">
                   {compareRows.map((row) => {
@@ -298,9 +370,11 @@ const attributeFacts: { label: string; value: string }[] = [
                       <tr
                         class="prox-saved-item prox-saved-item--compare"
                         data-listing-prox-cell
+                        data-map-listing={`criterion:${row.criterionId}`}
                         data-column-label={row.label}
                         data-listing-id={listing.id}
                         data-criterion-id={row.criterionId}
+                        data-place-type-key={row.kind === 'place_type' ? row.placeTypeKey ?? '' : ''}
                         data-listing-lat={listing.lat != null ? String(listing.lat) : ''}
                         data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
                         data-travel-mode={row.travelMode}
@@ -339,8 +413,8 @@ const attributeFacts: { label: string; value: string }[] = [
                         <td class="matrix-type">
                           <span
                             class="matrix-type__icon"
-                            title="Travel Times"
-                            aria-label="Travel Times"
+                            title="On Travel Times"
+                            aria-label="On Travel Times"
                           >
                             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                               <path d="M4 6h16"></path>
@@ -357,6 +431,7 @@ const attributeFacts: { label: string; value: string }[] = [
                   {(listingPlaces ?? []).map((p) => (
                     <tr
                       class="prox-saved-item prox-saved-item--listing"
+                      data-map-listing={`listing-place:${p.id}`}
                       data-place-row-id={p.id}
                       data-place-lat={String(p.lat)}
                       data-place-lng={String(p.lng)}
@@ -416,24 +491,11 @@ const attributeFacts: { label: string; value: string }[] = [
                 </tbody>
               </table>
             </div>
+            </>
           )
         }
       </div>
 
-      <p class="listing-hero__tour">
-        {
-          assignment ? (
-            <>
-              On tour{' '}
-              <a href={`${base}/tours/${assignment.tourDayId}`}>
-                {formatTourDate(assignment.tourDate)}
-              </a>
-            </>
-          ) : (
-            <span class="muted">Not on a tour</span>
-          )
-        }
-      </p>
     </div>
 
     <div class="listing-hero__visual stack">
@@ -451,11 +513,13 @@ const attributeFacts: { label: string; value: string }[] = [
             class="listing-map map-well listing-hero__map"
             data-key={browserKey}
             data-map-id={mapId}
+            data-listing-id={listing.id}
             data-lat={String(listing.lat)}
             data-lng={String(listing.lng)}
             data-title={listing.name || listing.address || 'Listing'}
             data-address={listing.address || ''}
             data-photo-url={photoUrl}
+            data-places={mapPlacesJson}
           ></div>
         ) : (
           <p class="listing-map-missing muted">No map yet — add an address in Edit.</p>
@@ -475,7 +539,7 @@ const attributeFacts: { label: string; value: string }[] = [
     data-listing-overlay="edit"
   >
     <div class="compare-column-overlay__backdrop" data-listing-overlay-close></div>
-    <div class="compare-column-overlay__panel glass glass--strong listing-overlay__panel">
+    <div class="compare-column-overlay__panel glass listing-overlay__panel">
       <header class="compare-column-overlay__header">
         <h2 id="listing-overlay-edit-title">Edit listing</h2>
         <button
@@ -516,7 +580,7 @@ const attributeFacts: { label: string; value: string }[] = [
     data-listing-overlay="tour"
   >
     <div class="compare-column-overlay__backdrop" data-listing-overlay-close></div>
-    <div class="compare-column-overlay__panel glass glass--strong">
+    <div class="compare-column-overlay__panel glass">
       <header class="compare-column-overlay__header">
         <h2 id="listing-overlay-tour-title">Tour</h2>
         <button
@@ -606,7 +670,7 @@ const attributeFacts: { label: string; value: string }[] = [
   >
     <div class="compare-column-overlay__backdrop" data-listing-overlay-close></div>
     <div
-      class="compare-column-overlay__panel glass glass--strong listing-overlay__panel listing-overlay__panel--place"
+      class="compare-column-overlay__panel glass listing-overlay__panel listing-overlay__panel--place"
     >
       <header class="compare-column-overlay__header">
         <h2 id="listing-overlay-place-title">Add place</h2>

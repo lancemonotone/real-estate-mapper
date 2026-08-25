@@ -1,6 +1,7 @@
 /**
  * Listing page “add to tour” week calendar — always merge, no conflict dialog.
  */
+import { bindTourWeekJumpPopover } from './tour-week-jump-popover.js';
 function seed() {
   return window.__WAYHOME_LISTING_TOUR_CAL__ ?? null;
 }
@@ -102,23 +103,14 @@ function boot() {
     { signal },
   );
 
-  const jumpBtn = root.querySelector('[data-tour-week-jump]');
   const jumpInput = root.querySelector('[data-tour-week-jump-input]');
-  jumpBtn?.addEventListener(
-    'click',
-    (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!(jumpInput instanceof HTMLInputElement)) return;
-      if (typeof jumpInput.showPicker === 'function') {
-        jumpInput.showPicker();
-      } else {
-        jumpInput.focus();
-        jumpInput.click();
-      }
-    },
-    { signal },
-  );
+  const weekRoot = root.querySelector('[data-tour-week]');
+  if (weekRoot) {
+    bindTourWeekJumpPopover(weekRoot, {
+      signal,
+      onSelectDate: (day) => reloadWithDay(day),
+    });
+  }
   jumpInput?.addEventListener(
     'change',
     () => {

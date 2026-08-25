@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { buildOptimizePlan } from '../../../lib/google/optimize-request';
 import { computeOptimizedRoute } from '../../../lib/google/routes';
 import { geocodeAddress } from '../../../lib/google/geocode';
+import { routeSignatureForListingIds } from '../../../lib/tours/route-signature';
 
 type LatLng = { lat: number; lng: number };
 
@@ -151,7 +152,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         .from('tour_days')
         .update({
           encoded_polyline: result.encodedPolyline ?? null,
-          route_signature: result.orderedIds.join(','),
+          // Match page freshness check: all stop listing ids, not visit order.
+          route_signature: routeSignatureForListingIds(listingIds),
         })
         .eq('id', tourDayId);
     }

@@ -64,10 +64,6 @@ h2 {
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
 }
 
-.glass--strong {
-  background: var(--glass-wash-strong);
-}
-
 .app-shell {
   --shell-pad: var(--space-page);
 
@@ -154,7 +150,8 @@ h2 {
 }
 
 .app-main {
-  --main-pad: var(--space-page);
+  /* 10px inset past the header margins so content edges sit inside the chrome. */
+  --main-pad: calc(var(--space-page) + 0.625rem);
 
   flex: 1;
   margin-inline: var(--main-pad);
@@ -315,10 +312,6 @@ table.compare {
   & tbody tr {
     block-size: auto;
   }
-
-  & tbody td {
-    vertical-align: middle;
-  }
 }
 
 .compare-header {
@@ -388,100 +381,6 @@ table.compare {
 
 .compare-empty-hint {
   margin-block: 0 0.85rem;
-}
-
-.compare-scroll {
-  overflow-x: auto;
-  margin-block-end: 1rem;
-}
-
-.compare-listing {
-  --listing-min: 14rem;
-  --thumb-w: 5.5rem;
-  --thumb-inset: 0.4rem;
-
-  position: relative;
-  min-inline-size: var(--listing-min);
-  padding: 0;
-  vertical-align: top;
-
-  @media (min-width: 768px) {
-    --listing-min: 18rem;
-    --thumb-w: 7.5rem;
-    --thumb-inset: 0.45rem;
-  }
-}
-
-.compare-listing__link {
-  --link-gap: 0.65rem;
-  --link-pad: 0.55rem;
-
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-columns: var(--thumb-w) minmax(0, 1fr);
-  align-items: stretch;
-  gap: var(--link-gap);
-  padding-block: var(--thumb-inset);
-  padding-inline: var(--thumb-inset) var(--link-pad);
-  text-decoration: none;
-  color: inherit;
-
-  &:hover {
-    filter: none;
-
-    & .compare-listing__name {
-      color: var(--primary);
-    }
-  }
-}
-
-.compare-listing__media {
-  display: block;
-  block-size: 100%;
-  inline-size: var(--thumb-w);
-  min-block-size: calc(var(--thumb-w) - 2 * var(--thumb-inset));
-}
-
-.compare-listing__thumb {
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
-  border: 1px solid var(--border-accent);
-  background: var(--bg-1);
-  border-radius: var(--radius-sm);
-}
-
-.compare-listing__thumb--empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.compare-listing__text {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.2rem;
-  min-inline-size: 0;
-  padding-block: 0.15rem;
-}
-
-.compare-listing__name {
-  font-weight: 600;
-  color: var(--primary);
-  line-height: 1.3;
-}
-
-.compare-listing__address {
-  font-size: 0.85rem;
-  line-height: 1.3;
 }
 
 .linkish {
@@ -763,7 +662,8 @@ button.tour-stop-set-start {
   line-height: 1.35;
 }
 
-.pin-fields[hidden] {
+.pin-fields[hidden],
+#type-fields[hidden] {
   display: none;
 }
 
@@ -925,6 +825,23 @@ button.tour-stop-set-start {
   margin-inline-start: auto;
 }
 
+.locale-hero__trailing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.85rem;
+  margin-inline-start: auto;
+}
+
+.locale-hero__trailing .locale-hero__actions {
+  margin-inline-start: 0;
+}
+
+.locale-hero__tour-status {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .locale-hero__actions .listings-sort {
   margin: 0;
 }
@@ -955,53 +872,177 @@ button.tour-stop-set-start {
   cursor: pointer;
   box-shadow: 0 0 0 2px
     color-mix(in srgb, var(--primary-contrast) 70%, transparent);
+  transition:
+    filter 120ms ease,
+    transform 120ms ease;
 
-  &:hover {
+  &:hover,
+  &.is-map-pin-hover {
     filter: brightness(1.08);
+    transform: scale(1.18);
   }
 }
 
-.map-pin-info {
-  --info-max: 16rem;
+/* Google InfoWindow — pin card width = photo; all text wraps to that. */
+.gm-style-iw-a:has(.map-pin-info),
+.gm-style-iw-t:has(.map-pin-info) {
+  max-inline-size: calc(100px + 16px) !important;
+}
 
-  max-inline-size: var(--info-max);
+.gm-style-iw-c:has(.map-pin-info) {
+  --info-photo: 100px;
+
+  padding: 8px !important;
+  inline-size: calc(var(--info-photo) + 16px) !important;
+  max-inline-size: calc(var(--info-photo) + 16px) !important;
+  min-inline-size: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.gm-style-iw-c:has(.map-pin-info) .gm-style-iw-ch,
+.gm-style-iw-c:has(.map-pin-info) .gm-style-iw-chr {
+  display: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  min-block-size: 0 !important;
+}
+
+.gm-style-iw-d:has(.map-pin-info) {
+  overflow: hidden !important;
+  inline-size: 100% !important;
+  max-inline-size: 100% !important;
+  white-space: normal !important;
+}
+
+.map-pin-info {
+  --info-photo: 100px;
+
+  box-sizing: border-box;
+  inline-size: var(--info-photo);
+  max-inline-size: var(--info-photo);
   font:
-    0.875rem/1.4 system-ui,
+    0.8125rem/1.35 system-ui,
     sans-serif;
   color: #202124;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+
+  & .map-pin-info__stop {
+    color: var(--primary);
+    font-weight: 650;
+    font-size: 0.75rem;
+    line-height: 1.25;
+    margin: 0;
+    margin-block-end: 0.3rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
   & .map-pin-info__photo {
     display: block;
-    inline-size: 100%;
-    block-size: auto;
-    max-block-size: 10rem;
+    inline-size: var(--info-photo);
+    max-inline-size: 100%;
+    block-size: var(--info-photo);
+    max-block-size: var(--info-photo);
     object-fit: cover;
     border-radius: 0.375rem;
-    margin-block-end: 0.5rem;
+    margin-block-end: 0.35rem;
+  }
+
+  & .map-pin-info__title,
+  & .map-pin-info__address {
+    margin: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   & .map-pin-info__title {
     font-weight: 600;
-    margin-block-end: 0.25rem;
+    margin-block-end: 0.2rem;
   }
 
   & .map-pin-info__address {
     color: #5f6368;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
   }
 }
 
 #listings-list tr.is-map-hover,
+.tours-stops__item.is-map-hover,
+[data-map-listing].is-map-hover {
+  --map-hover-bg: color-mix(in srgb, var(--primary) 14%, var(--glass-wash-strong));
+  --map-hover-border: color-mix(in srgb, var(--primary) 45%, var(--border-accent));
+
+  background: var(--map-hover-bg);
+}
+
+/* Tours list items keep a full outline (not a table row). */
 .tours-stops__item.is-map-hover {
-  background: color-mix(in srgb, var(--primary) 14%, var(--glass-wash-strong));
-  outline: 1px solid
-    color-mix(in srgb, var(--primary) 45%, var(--border-accent));
+  outline: 1px solid var(--map-hover-border);
   outline-offset: -1px;
 }
 
+/*
+  Table rows: inset shadows — collapsed borders let the previous row's
+  bottom edge win, so border-block-start on the hover row never shows.
+*/
 #listings-list tr.is-map-hover > th,
-#listings-list tr.is-map-hover > td {
-  background: color-mix(in srgb, var(--primary) 14%, var(--glass-wash-strong));
+#listings-list tr.is-map-hover > td,
+tr[data-map-listing].is-map-hover > th,
+tr[data-map-listing].is-map-hover > td {
+  background: var(--map-hover-bg);
+  box-shadow:
+    inset 0 1px 0 0 var(--map-hover-border),
+    inset 0 -1px 0 0 var(--map-hover-border);
+}
+
+#listings-list tr.is-map-hover > :first-child,
+tr[data-map-listing].is-map-hover > :first-child {
+  box-shadow:
+    inset 1px 0 0 0 var(--map-hover-border),
+    inset 0 1px 0 0 var(--map-hover-border),
+    inset 0 -1px 0 0 var(--map-hover-border);
+}
+
+#listings-list tr.is-map-hover > :last-child,
+tr[data-map-listing].is-map-hover > :last-child {
+  box-shadow:
+    inset -1px 0 0 0 var(--map-hover-border),
+    inset 0 1px 0 0 var(--map-hover-border),
+    inset 0 -1px 0 0 var(--map-hover-border);
+}
+
+#listings-list tr.is-map-hover > :first-child:last-child,
+tr[data-map-listing].is-map-hover > :first-child:last-child {
+  box-shadow:
+    inset 1px 0 0 0 var(--map-hover-border),
+    inset -1px 0 0 0 var(--map-hover-border),
+    inset 0 1px 0 0 var(--map-hover-border),
+    inset 0 -1px 0 0 var(--map-hover-border);
+}
+
+/* Sticky listing divider + ring (listing is first-child). */
+#listings-list tr.is-map-hover > .matrix-table__listing,
+tr[data-map-listing].is-map-hover > .matrix-table__listing {
+  box-shadow:
+    inset 1px 0 0 0 var(--map-hover-border),
+    inset 0 1px 0 0 var(--map-hover-border),
+    inset 0 -1px 0 0 var(--map-hover-border),
+    1px 0 0 0 var(--map-hover-border);
+}
+
+/* Tour / listing AdvancedMarker pin content when row or pin is active */
+.is-map-pin-hover {
+  filter: brightness(1.08);
+  transform: scale(1.12);
+  transform-origin: center bottom;
+  transition:
+    filter 120ms ease,
+    transform 120ms ease;
 }
 
 .locale-nav-wrap {
@@ -1713,45 +1754,62 @@ body.directions-overlay-open {
 .matrix-scroll {
   overflow-x: auto;
   margin-block-end: 1rem;
-
-  &.matrix-scroll--fit,
-  &.matrix-scroll--wrap {
-    overflow-x: hidden;
-  }
 }
 
 .matrix-table {
   --sticky-bg: var(--glass-strong);
+  /* Listing stays this wide; never shares proportional stretch with data cols. */
+  --listing-col: 21.875rem; /* 350px */
+  --data-col-min: 8rem;
+  --data-cols: 1;
+
+  /*
+    100% of the scrollport, but at least listing + (data-cols × min)
+    so many columns scroll instead of crushing.
+  */
+  inline-size: 100%;
+  min-inline-size: calc(var(--listing-col) + var(--data-cols) * var(--data-col-min));
+  table-layout: fixed;
 
   & .matrix-table__listing {
-    --listing-min: 12rem;
-
     position: sticky;
     inset-inline-start: 0;
     z-index: 1;
-    min-inline-size: var(--listing-min);
+    box-sizing: border-box;
+    /* Absolute width under fixed layout — do not set widths on sibling cols. */
+    inline-size: var(--listing-col);
+    min-inline-size: var(--listing-col);
+    max-inline-size: var(--listing-col);
+    width: var(--listing-col);
+    overflow: hidden;
     background: var(--sticky-bg);
     box-shadow: 1px 0 0 var(--border);
-    vertical-align: middle;
-
-    @media (min-width: 768px) {
-      --listing-min: 15rem;
-    }
+    vertical-align: top;
   }
 
   & thead .matrix-table__listing {
     z-index: 2;
   }
 
-  & td {
+  & .matrix-listing {
+    inline-size: 100%;
+  }
+
+  /*
+    No inline-size on data cols — fixed layout gives them equal shares of
+    (table width − listing). min keeps them usable; table min-inline-size scrolls.
+  */
+  & thead th:not(.matrix-table__listing),
+  & tbody td {
+    min-inline-size: var(--data-col-min);
     font-size: 0.85rem;
-    white-space: nowrap;
-    vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: break-word;
+    vertical-align: top;
   }
 
   & thead th {
     font-size: 0.85rem;
-    white-space: nowrap;
   }
 
   & td .listing-row__badge {
@@ -1760,6 +1818,7 @@ body.directions-overlay-open {
 
   & .matrix-criterion-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.35rem;
@@ -1768,6 +1827,11 @@ body.directions-overlay-open {
 
   & .matrix-criterion-head__label {
     font-weight: 600;
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    text-align: start;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
 
   & .matrix-criterion-head .icon-btn {
@@ -1779,37 +1843,33 @@ body.directions-overlay-open {
     padding: 0.2rem;
   }
 
+  & .cell-actions {
+    flex-wrap: wrap;
+  }
+
   &.matrix-table--fit {
-    --listing-min: 0;
     --type-col: 2.5rem;
     --actions-col: 9.75rem;
-
-    inline-size: 100%;
-    table-layout: fixed;
+    --actions-icon-size: 1.05rem;
+    --actions-btn-min: 1.85rem;
+    --actions-btn-pad: 0.25rem;
+    --data-cols: 3;
 
     & .matrix-table__listing {
       position: static;
       z-index: auto;
-      min-inline-size: 0;
       box-shadow: none;
-      inline-size: 32%;
-      vertical-align: middle;
-    }
-
-    & th,
-    & td {
-      vertical-align: middle;
     }
 
     & .prox-cell-meta {
-      white-space: normal;
       overflow-wrap: anywhere;
-      inline-size: auto;
     }
 
     & .matrix-type {
       inline-size: var(--type-col);
+      min-inline-size: var(--type-col);
       max-inline-size: var(--type-col);
+      width: var(--type-col);
       padding-inline: 0.25rem;
       text-align: center;
       white-space: nowrap;
@@ -1817,31 +1877,28 @@ body.directions-overlay-open {
     }
 
     & .listing-matrix-actions {
+      --icon-size: var(--actions-icon-size);
+
       inline-size: var(--actions-col);
       min-inline-size: var(--actions-col);
       max-inline-size: var(--actions-col);
+      width: var(--actions-col);
       padding-inline: 0.35rem;
       text-align: end;
       white-space: nowrap;
       border-inline-start: 0;
       overflow: visible;
+
+      & .icon-btn {
+        min-inline-size: var(--actions-btn-min);
+        min-block-size: var(--actions-btn-min);
+        padding: var(--actions-btn-pad);
+      }
     }
 
     & .matrix-listing {
       --thumb-size: 2.25rem;
-      --link-gap: 0.5rem;
-      min-inline-size: 0;
-    }
-
-    & .matrix-listing__text {
-      min-inline-size: 0;
-    }
-
-    & .matrix-listing__name {
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      --link-gap: 1rem;
     }
 
     @media (min-width: 768px) {
@@ -1853,81 +1910,49 @@ body.directions-overlay-open {
     }
   }
 
+  /* Compare (attributes) only — listing stays shared contract. */
   &.matrix-table--wrap {
-    --listing-min: 0;
+    --compact-col-max: 5rem;
     --compact-pad-inline: 0.4rem;
 
-    inline-size: 100%;
-    table-layout: auto;
+    /* Floor: listing + attribute cols (exclude amenities from the × max). */
+    min-inline-size: calc(
+      var(--listing-col) + (var(--data-cols) - 1) * var(--compact-col-max)
+    );
 
-    & .matrix-table__listing {
-      min-inline-size: max-content;
-      inline-size: auto;
-      max-inline-size: none;
-      white-space: nowrap;
+    & .matrix-listing {
+      --link-gap: 0.8rem;
     }
 
     & .matrix-table__compact {
-      inline-size: 1%;
-      max-inline-size: max-content;
-      white-space: nowrap;
-      vertical-align: middle;
+      box-sizing: border-box;
+      inline-size: var(--compact-col-max);
+      width: var(--compact-col-max);
+      min-inline-size: 0;
+      max-inline-size: var(--compact-col-max);
       padding-inline: var(--compact-pad-inline);
+      white-space: nowrap;
+      text-align: end;
+
+      & .matrix-sort {
+        text-align: end;
+        justify-content: flex-end;
+      }
     }
 
     & .matrix-table__wide {
-      inline-size: 100%;
+      /* Remaining width after listing + compact cols. */
       min-inline-size: 0;
       white-space: normal;
       overflow-wrap: anywhere;
-      vertical-align: top;
-    }
-
-    & th,
-    & td {
-      vertical-align: middle;
-    }
-
-    & thead th {
-      white-space: nowrap;
-    }
-
-    & thead .matrix-table__wide {
-      white-space: normal;
     }
 
     & .matrix-sort {
       white-space: inherit;
-      text-align: start;
-    }
-
-    & .matrix-listing {
-      --thumb-size: 2.25rem;
-      --link-gap: 0.4rem;
-      align-items: center;
-      min-inline-size: 0;
-      max-inline-size: none;
-    }
-
-    & .matrix-listing__text {
-      min-inline-size: 0;
-      overflow: visible;
-    }
-
-    & .matrix-listing__name,
-    & .matrix-listing__address {
-      display: block;
-      overflow: visible;
-      text-overflow: unset;
-      white-space: nowrap;
     }
 
     @media (min-width: 768px) {
       --compact-pad-inline: 0.5rem;
-
-      & .matrix-listing {
-        --thumb-size: 2.5rem;
-      }
     }
   }
 }
@@ -1951,44 +1976,70 @@ body.directions-overlay-open {
   }
 }
 
-.matrix-listing-wrap {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 0.35rem;
-  min-inline-size: 0;
+.matrix-type-legend {
+  --legend-gap: 0.75rem 1.25rem;
 
-  & .matrix-listing {
-    flex: 1 1 auto;
-    min-inline-size: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--legend-gap);
+  margin: 0;
+  margin-block-end: 0.65rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+
+  & li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 
-  & .listing-favorite {
-    flex: 0 0 auto;
-    align-self: flex-start;
+  & .matrix-type__icon {
+    flex-shrink: 0;
   }
 }
 
 .matrix-listing {
-  --link-gap: 0.65rem;
-  --thumb-size: 2.75rem;
+  --link-gap: 1.3rem;
+  /* Shared listing thumb size app-wide (listing detail --fit may override). */
+  --thumb-size: 3.25rem;
 
-  display: flex;
-  align-items: center;
-  gap: var(--link-gap);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--link-gap);
+  align-items: start;
+  min-inline-size: 0;
   color: inherit;
   text-decoration: none;
 
-  &:hover {
-    filter: none;
-
-    & .matrix-listing__name {
-      color: var(--primary);
-    }
+  &:has(> .listing-favorite) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  @media (min-width: 768px) {
-    --thumb-size: 3.25rem;
+  &:hover .matrix-listing__name,
+  &:has(.matrix-listing__media:hover) .matrix-listing__name,
+  &:has(.matrix-listing__text:hover) .matrix-listing__name {
+    color: var(--primary);
+  }
+
+  & > .listing-favorite {
+    position: relative;
+    z-index: 2;
+    align-self: start;
+  }
+}
+
+.matrix-listing__media {
+  display: block;
+  line-height: 0;
+  color: inherit;
+  text-decoration: none;
+  flex-shrink: 0;
+
+  &:hover {
+    filter: none;
   }
 }
 
@@ -2000,7 +2051,6 @@ body.directions-overlay-open {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-accent);
   background: var(--bg-1);
-  flex-shrink: 0;
 }
 
 .matrix-listing__thumb--empty {
@@ -2012,6 +2062,7 @@ body.directions-overlay-open {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--text-muted);
+  line-height: 1.1;
 }
 
 .matrix-listing__text {
@@ -2019,17 +2070,31 @@ body.directions-overlay-open {
   flex-direction: column;
   gap: 0.15rem;
   min-inline-size: 0;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    filter: none;
+  }
 }
 
 .matrix-listing__name {
+  display: block;
   font-weight: 600;
   color: var(--primary);
   line-height: 1.3;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
-.matrix-listing__address {
+.matrix-listing__address,
+.matrix-listing__phone {
+  display: block;
   font-size: 0.85rem;
   line-height: 1.3;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .matrix-sort {
@@ -2043,6 +2108,7 @@ body.directions-overlay-open {
   color: inherit;
   cursor: pointer;
   text-align: start;
+  justify-content: flex-start;
 
   &::after {
     content: "";
@@ -2140,16 +2206,6 @@ body.directions-overlay-open {
   & .icon-btn + .icon-btn--spacer,
   & .icon-btn--spacer + .icon-btn {
     margin-inline-start: 0.35rem;
-  }
-}
-
-.matrix-table--fit .listing-matrix-actions {
-  --icon-size: 1.05rem;
-
-  & .icon-btn {
-    min-inline-size: 1.85rem;
-    min-block-size: 1.85rem;
-    padding: 0.25rem;
   }
 }
 
@@ -2316,6 +2372,13 @@ body.directions-overlay-open {
 .listing-section__subtitle {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.listing-hero__address-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
 }
 
 .listing-hero__address {
@@ -2587,14 +2650,35 @@ body.directions-overlay-open {
 }
 
 .tours-workspace__rail {
+  --tours-rail-pad: 0.75rem;
+  --tours-rail-border: 1px;
+  /* Expanded panel chrome insets the toggle; nudge up so it lines up with week-nav. */
+  --tours-rail-nudge: calc(-1 * (var(--tours-rail-pad) + var(--tours-rail-border)));
+
   min-inline-size: 0;
-  border: 1px solid color-mix(in oklab, var(--fg) 12%, transparent);
+  margin-block-start: var(--tours-rail-nudge);
+  border: var(--tours-rail-border) solid color-mix(in oklab, var(--fg) 12%, transparent);
   border-radius: 0.75rem;
-  padding: 0.75rem;
+  padding: var(--tours-rail-pad);
   background: color-mix(in oklab, var(--bg-1, var(--bg-0)) 80%, transparent);
 
   &.is-collapsed {
-    padding: 0.5rem;
+    /* Match week-nav icon-btn top: no panel chrome when icon-only */
+    --tours-rail-pad: 0;
+    --tours-rail-border: 0;
+    --tours-rail-nudge: 0;
+
+    border-radius: 0;
+    background: transparent;
+    inline-size: max-content;
+
+    & .tours-workspace__rail-head {
+      justify-content: center;
+    }
+
+    & .tours-workspace__rail-title {
+      display: none;
+    }
 
     & .tours-workspace__rail-body {
       display: none;
@@ -2774,6 +2858,117 @@ body.directions-overlay-open {
   block-size: 1px;
   opacity: 0;
   pointer-events: none;
+}
+
+.tour-week__jump-popover {
+  --jump-pad: 0.65rem;
+  --jump-gap: 0.35rem;
+  --jump-day-min: 2rem;
+
+  position: absolute;
+  inset-block-start: calc(100% + 0.35rem);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  z-index: 20;
+  display: grid;
+  gap: var(--jump-gap);
+  padding: var(--jump-pad);
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--fg) 14%, transparent);
+  min-inline-size: min(18rem, calc(100vw - 2rem));
+  box-shadow: 0 0.5rem 1.5rem color-mix(in oklab, #000 28%, transparent);
+
+  &[hidden] {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    --jump-pad: 0.75rem;
+    --jump-day-min: 2.15rem;
+  }
+}
+
+.tour-week__jump-popover-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.tour-week__jump-month-label {
+  flex: 1 1 auto;
+  text-align: center;
+  font-weight: 650;
+  font-size: 0.95rem;
+}
+
+.tour-week__jump-popover-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.2rem;
+}
+
+.tour-week__jump-dow {
+  text-align: center;
+  font-size: 0.7rem;
+  opacity: 0.65;
+  padding-block: 0.15rem;
+}
+
+.tour-week__jump-day {
+  --control-pad-block: 0.2rem;
+
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.1rem;
+  min-block-size: var(--jump-day-min);
+  margin: 0;
+  padding-block: var(--control-pad-block) 0.15rem;
+  padding-inline: 0.1rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent, #2563eb);
+    outline-offset: 1px;
+  }
+
+  &.is-today .tour-week__jump-daynum {
+    font-weight: 700;
+    color: var(--accent, #2563eb);
+  }
+
+  &.tour-week__jump-day--pad {
+    pointer-events: none;
+    visibility: hidden;
+  }
+}
+
+.tour-week__jump-daynum {
+  line-height: 1.2;
+  font-size: 0.85rem;
+}
+
+.tour-week__jump-dot {
+  inline-size: 0.35rem;
+  block-size: 0.35rem;
+  border-radius: 999px;
+  background: var(--accent, #2563eb);
+
+  &.tour-week__jump-dot--empty {
+    background: transparent;
+  }
 }
 
 .tour-week__grid {

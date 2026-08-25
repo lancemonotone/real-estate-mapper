@@ -23,6 +23,28 @@ function parseDurationSec(duration: string | { seconds?: string } | undefined): 
   return Number(duration.seconds ?? 0);
 }
 
+/**
+ * Apply Routes API optimizedIntermediateWaypointIndex.
+ * Falls back to input order when the index is missing, mismatched, or out of range
+ * (a bad index previously dropped stops from orderedIds and broke route_signature).
+ */
+export function orderIntermediateIds(
+  intermediateIds: string[],
+  optimizedIndex: number[] | undefined,
+): string[] {
+  if (!optimizedIndex || optimizedIndex.length === 0) {
+    return [...intermediateIds];
+  }
+  if (optimizedIndex.length !== intermediateIds.length) {
+    return [...intermediateIds];
+  }
+  const ordered = optimizedIndex.map((i) => intermediateIds[i]);
+  if (ordered.some((id) => id == null)) {
+    return [...intermediateIds];
+  }
+  return ordered as string[];
+}
+
 export async function computeOptimizedRoute(
   plan: OptimizePlan,
 ): Promise<OptimizedRoute> {
@@ -56,11 +78,10 @@ export async function computeOptimizedRoute(
     throw new Error('Routes API returned no route');
   }
 
-  const intermediateOrder = route.optimizedIntermediateWaypointIndex ?? [];
-  const orderedIntermediateIds =
-    intermediateOrder.length > 0
-      ? intermediateOrder.map((i) => plan.intermediateIds[i]!)
-      : [...plan.intermediateIds];
+  const orderedIntermediateIds = orderIntermediateIds(
+    plan.intermediateIds,
+    route.optimizedIntermediateWaypointIndex,
+  );
 
   const fullPathIds: Array<string | null> = [
     plan.originId,

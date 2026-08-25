@@ -12,6 +12,10 @@ import {
   tourStartGlyph,
 } from '../../../../../lib/tours/stop-glyph';
 import { parseDateKey, weekDateKeys } from '../../../../../lib/tours/week';
+import {
+  routeSignatureForListingIds,
+  sameRouteSignature,
+} from '../../../../../lib/tours/route-signature';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -26,11 +30,8 @@ const hasCenter = !localeNeedsSetup(locale);
 const radiusMiles = nearestAllowedRadiusMiles(locale.radius_m);
 
 const dayParam = Astro.url.searchParams.get('day');
-const selectedDate =
+const dayParamValid =
   dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : null;
-const weekAnchor = selectedDate ? parseDateKey(selectedDate) : new Date();
-const weekKeys = weekDateKeys(weekAnchor);
-const weekLabel = `${formatShortTourDate(weekKeys[0]!)} → ${formatShortTourDate(weekKeys[6]!)}`;
 
 const { data: tours } = await supabase
   .from('tour_days')
@@ -63,11 +64,19 @@ for (const tour of tours ?? []) {
   };
 }
 
+const firstScheduledDate =
+  (tours ?? []).find((t) => (stopsByDay.get(t.id) ?? []).length > 0)?.tour_date ??
+  null;
+const selectedDate = dayParamValid ?? firstScheduledDate;
+const weekAnchor = selectedDate ? parseDateKey(selectedDate) : new Date();
+const weekKeys = weekDateKeys(weekAnchor);
+const weekLabel = `${formatShortTourDate(weekKeys[0]!)} → ${formatShortTourDate(weekKeys[6]!)}`;
+
 const assignedIds = new Set((allStops ?? []).map((s) => s.listing_id));
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, lat, lng, photo_path, photo_url, is_favorite')
+  .select('id, name, address, phone, lat, lng, photo_path, photo_url, is_favorite')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -114,27 +123,20 @@ const mapListings = (listings ?? [])
   .map((l) => ({
     id: l.id,
     name: l.name || l.address || 'Listing',
+    address: l.address || '',
     lat: l.lat!,
     lng: l.lng!,
     photoUrl: l.photo_url,
   }));
 
-const routeSignatureCurrent = selectedStops.map((s) => s.listing_id).join(',');
+const routeSignatureCurrent = routeSignatureForListingIds(
+  selectedStops.map((s) => s.listing_id),
+);
 const routeSignatureStored = selectedTour?.route_signature ?? '';
-const sameStopSet = (a: string, b: string) => {
-  const norm = (s: string) =>
-    s
-      .split(',')
-      .map((x) => x.trim())
-      .filter(Boolean)
-      .sort()
-      .join(',');
-  return norm(a) === norm(b);
-};
 const routeFresh = Boolean(
   selectedTour?.encoded_polyline &&
     routeSignatureStored &&
-    sameStopSet(routeSignatureStored, routeSignatureCurrent),
+    sameRouteSignature(routeSignatureStored, routeSignatureCurrent),
 );
 const mapPolyline = routeFresh ? (selectedTour?.encoded_polyline ?? '') : '';
 
@@ -221,6 +223,7 @@ const seed = {
                   class="tours-stops__item"
                   draggable="true"
                   data-listing-id={listing.id}
+                  data-map-listing={listing.id}
                   data-drag-kind="listing"
                 >
                   <a class="matrix-listing tours-stops__link" href={href}>
@@ -245,6 +248,9 @@ const seed = {
                       <span class="matrix-listing__name">{title}</span>
                       {listing.address && listing.name ? (
                         <span class="muted matrix-listing__address">{listing.address}</span>
+                      ) : null}
+                      {listing.phone ? (
+                        <span class="muted matrix-listing__phone">{listing.phone}</span>
                       ) : null}
                     </span>
                   </a>
@@ -313,6 +319,7 @@ const seed = {
                   <li
                     class="tours-stops__item tours-stops__item--endpoint"
                     data-listing-id="custom-start"
+                    data-map-listing="custom-start"
                   >
                     <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
                       {tourStartGlyph()}
@@ -348,6 +355,7 @@ const seed = {
                       class="tours-stops__item"
                       draggable="true"
                       data-listing-id={stop.listing_id}
+                      data-map-listing={stop.listing_id}
                       data-drag-kind="listing"
                     >
                       <span class={badgeClass} aria-hidden="true">
@@ -374,6 +382,12 @@ const seed = {
                           </span>
                           <span class="matrix-listing__text">
                             <span class="matrix-listing__name">{title}</span>
+                            {listing?.address && listing?.name ? (
+                              <span class="muted matrix-listing__address">{listing.address}</span>
+                            ) : null}
+                            {listing?.phone ? (
+                              <span class="muted matrix-listing__phone">{listing.phone}</span>
+                            ) : null}
                           </span>
                         </a>
                       ) : (
@@ -420,6 +434,7 @@ const seed = {
                   <li
                     class="tours-stops__item tours-stops__item--endpoint"
                     data-listing-id="custom-end"
+                    data-map-listing="custom-end"
                   >
                     <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
                       {tourEndGlyph()}
@@ -513,7 +528,7 @@ const seed = {
     aria-labelledby="tours-conflict-title"
   >
     <div class="compare-column-overlay__backdrop" data-tours-conflict-close></div>
-    <div class="compare-column-overlay__panel glass glass--strong">
+    <div class="compare-column-overlay__panel glass">
       <header class="compare-column-overlay__header">
         <h2 id="tours-conflict-title">That day already has stops</h2>
         <button
@@ -551,7 +566,7 @@ const seed = {
     aria-labelledby="tours-info-title"
   >
     <div class="compare-column-overlay__backdrop" data-tours-info-close></div>
-    <div class="compare-column-overlay__panel glass glass--strong">
+    <div class="compare-column-overlay__panel glass">
       <header class="compare-column-overlay__header">
         <h2 id="tours-info-title">Scheduling tips</h2>
         <button type="button" class="secondary icon-btn" data-tours-info-close aria-label="Close">
@@ -582,7 +597,7 @@ const seed = {
         aria-labelledby="tours-se-title"
       >
         <div class="compare-column-overlay__backdrop" data-tours-se-close></div>
-        <div class="compare-column-overlay__panel glass glass--strong">
+        <div class="compare-column-overlay__panel glass">
           <header class="compare-column-overlay__header">
             <h2 id="tours-se-title">Custom start / end</h2>
             <button

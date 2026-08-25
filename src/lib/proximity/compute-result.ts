@@ -5,6 +5,7 @@ import {
   evaluateCriterionProximity,
   type ProximityOutcome,
 } from './compute-core';
+import { isLocalePoiExcluded, pairsToRecomputeAfterExclude } from './exclusions';
 import { googleMapsDirectionsUrl } from './maps-url';
 
 type Client = SupabaseClient<Database>;
@@ -198,6 +199,7 @@ export async function computeProximityResult(
   supabase: Client,
   listingId: string,
   criterionId: string,
+  opts?: { force?: boolean; unlock?: boolean },
 ): Promise<ProximityResultRow & { candidates?: ProximityOutcome['candidates'] }> {
   const { data: criterion, error: criterionError } = await supabase
     .from('proximity_criteria')
@@ -217,19 +219,126 @@ export async function computeProximityResult(
     .maybeSingle();
 
   // Prefer DB cache — do not re-hit Google on every compute when we already have a place.
-  if (existing && isCachedOkProximityResult(existing)) {
-    return existing;
+  // Locked rows keep their place even if it was later excluded.
+  // Unlocked rows with an excluded place must recompute.
+  if (existing && isCachedOkProximityResult(existing) && !opts?.force) {
+    const keepCache =
+      existing.locked === true ||
+      criterion.kind !== 'place_type' ||
+      !criterion.place_type_key ||
+      !existing.place_id ||
+      !(await isLocalePoiExcluded(
+        supabase,
+        criterion.locale_id,
+        criterion.place_type_key,
+        existing.place_id,
+      ));
+    if (keepCache) {
+      return existing;
+    }
   }
 
   const outcome = await evaluateCriterionProximity(supabase, listingId, criterion);
+  const locked = opts?.unlock === true ? false : (existing?.locked ?? false);
   const row = await upsertResult(
     supabase,
     listingId,
     criterionId,
     outcome,
-    existing?.locked ?? false,
+    locked,
   );
   return { ...row, candidates: outcome.candidates };
+}
+
+/**
+ * Persist a locale + place-type exclusion, then force-recompute unlocked
+ * proximity_results that currently use that place for matching criteria.
+ * When `source` is set (the cell the user banned from), that pair is always
+ * unlocked and recomputed even if it was locked.
+ */
+export async function excludeLocalePoiAndRecompute(
+  supabase: Client,
+  input: {
+    localeId: string;
+    placeTypeKey: string;
+    placeId: string;
+    sourceListingId?: string;
+    sourceCriterionId?: string;
+  },
+): Promise<{ results: ProximityResultRow[] }> {
+  const localeId = input.localeId.trim();
+  const placeTypeKey = input.placeTypeKey.trim();
+  const placeId = input.placeId.trim();
+  const sourceListingId = input.sourceListingId?.trim() || '';
+  const sourceCriterionId = input.sourceCriterionId?.trim() || '';
+
+  if (!localeId || !placeTypeKey || !placeId) {
+    throw new Error('locale_id, place_type_key, and place_id required');
+  }
+
+  const { error: upsertError } = await supabase
+    .from('locale_poi_exclusions')
+    .upsert(
+      {
+        locale_id: localeId,
+        place_type_key: placeTypeKey,
+        place_id: placeId,
+      },
+      { onConflict: 'locale_id,place_type_key,place_id' },
+    );
+
+  if (upsertError) {
+    throw new Error(upsertError.message);
+  }
+
+  const { data: criteria, error: criteriaError } = await supabase
+    .from('proximity_criteria')
+    .select('id')
+    .eq('locale_id', localeId)
+    .eq('kind', 'place_type')
+    .eq('place_type_key', placeTypeKey);
+
+  if (criteriaError) {
+    throw new Error(criteriaError.message);
+  }
+
+  const criterionIds = (criteria ?? []).map((c) => c.id);
+  if (criterionIds.length === 0) {
+    return { results: [] };
+  }
+
+  const { data: affected, error: resultsError } = await supabase
+    .from('proximity_results')
+    .select('listing_id, criterion_id')
+    .in('criterion_id', criterionIds)
+    .eq('place_id', placeId)
+    .eq('locked', false);
+
+  if (resultsError) {
+    throw new Error(resultsError.message);
+  }
+
+  const source =
+    sourceListingId && sourceCriterionId
+      ? { listing_id: sourceListingId, criterion_id: sourceCriterionId }
+      : null;
+
+  const pairs = pairsToRecomputeAfterExclude(affected ?? [], source);
+  const results: ProximityResultRow[] = [];
+  for (const row of pairs) {
+    const unlock =
+      source != null &&
+      row.listing_id === source.listing_id &&
+      row.criterion_id === source.criterion_id;
+    results.push(
+      await computeProximityResult(supabase, row.listing_id, row.criterion_id, {
+        force: true,
+        unlock,
+      }),
+    );
+  }
+
+  return { results };
 }
 
 export async function setProximityResultLock(

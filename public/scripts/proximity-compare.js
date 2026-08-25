@@ -1,5 +1,5 @@
 import { mountPlaceSearch } from './place-search.js';
-import { iconBtn, iconMapPin, iconPencil, iconRoute } from './ui-icons.js';
+import { iconBan, iconBtn, iconMapPin, iconPencil, iconRoute } from './ui-icons.js';
 
 function formatDuration(sec) {
   if (sec == null || !Number.isFinite(sec)) return '';
@@ -106,8 +106,94 @@ function columnLabelForTd(td) {
   return th?.textContent?.trim() || 'Travel column';
 }
 
+function placeTypeKeyForTd(td) {
+  const criterionId = td.dataset.criterionId;
+  if (!criterionId) return '';
+  const th = document.querySelector(
+    `#compare-table thead th[data-criterion-id="${criterionId}"]`,
+  );
+  return th instanceof HTMLElement ? th.dataset.placeTypeKey || '' : '';
+}
+
+function localeIdFromPage() {
+  return (
+    window.__WAYHOME_COMPARE__?.localeId ||
+    window.__WAYHOME_LOCALE_ID__ ||
+    ''
+  );
+}
+
+function applyExcludeResults(results) {
+  if (!Array.isArray(results)) return;
+  for (const result of results) {
+    if (!result?.listing_id || !result?.criterion_id) continue;
+    const td = document.querySelector(
+      `td[data-listing-id="${result.listing_id}"][data-criterion-id="${result.criterion_id}"]`,
+    );
+    if (td) renderCell(td, result);
+  }
+  equalizeCompareRows();
+}
+
+async function excludePlaceFromCell(td, result) {
+  const localeId = localeIdFromPage();
+  const placeTypeKey = placeTypeKeyForTd(td);
+  const placeId = result?.place_id;
+  if (!localeId || !placeTypeKey || !placeId) return;
+
+  const name = result.place_name || 'this place';
+  const ok = window.confirm(
+    `Exclude “${name}” for all nearest ${placeTypeKey} columns? Unlocked listings (and this cell) will pick the next closest match. Other locked cells stay as they are.`,
+  );
+  if (!ok) return;
+
+  renderCell(td, null);
+  try {
+    const res = await fetch('/api/proximity/exclude-place', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        locale_id: localeId,
+        place_type_key: placeTypeKey,
+        place_id: placeId,
+        listing_id: td.dataset.listingId,
+        criterion_id: td.dataset.criterionId,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Could not exclude place');
+      renderCell(td, result);
+      return;
+    }
+    applyExcludeResults(data.results);
+    const listingId = td.dataset.listingId;
+    const criterionId = td.dataset.criterionId;
+    const updated = Array.isArray(data.results)
+      ? data.results.find(
+          (r) => r.listing_id === listingId && r.criterion_id === criterionId,
+        )
+      : null;
+    if (!updated) {
+      await computeCell(td);
+    }
+  } catch (e) {
+    alert(e instanceof Error ? e.message : 'Could not exclude place');
+    renderCell(td, result);
+  }
+}
+
+function setCellSortValue(td, result) {
+  if (result?.status === 'ok' && result.duration_sec != null) {
+    td.setAttribute('data-sort-value', String(result.duration_sec));
+  } else {
+    td.removeAttribute('data-sort-value');
+  }
+}
+
 function renderCell(td, result) {
   td.replaceChildren();
+  setCellSortValue(td, result);
   if (!result) {
     const pending = document.createElement('span');
     pending.className = 'cell-pending';
@@ -147,6 +233,16 @@ function renderCell(td, result) {
         onClick: () => openCellPlacePicker(td, result),
       }),
     );
+
+    if (placeTypeKeyForTd(td) && result.place_id) {
+      actions.appendChild(
+        iconBtn({
+          label: `Exclude ${result.place_name || 'this place'} for this place type`,
+          icon: iconBan,
+          onClick: () => void excludePlaceFromCell(td, result),
+        }),
+      );
+    }
 
     if (canOverlay) {
       actions.appendChild(
@@ -872,20 +968,26 @@ function initCellPlacePicker(signal) {
   );
 }
 
-async function hydrateAndCompute() {
+async function hydrateAndCompute(signal) {
   const cells = [...document.querySelectorAll('td[data-listing-id][data-criterion-id]')];
   for (const td of cells) {
+    if (signal?.aborted) return;
+    // Already painted from a prior boot on this DOM (e.g. module + astro:page-load).
+    if (td.dataset.hydrated === '1') continue;
+
     const seeded = td.querySelector('.seeded');
     if (seeded) {
       try {
         const row = JSON.parse(seeded.textContent || '');
         // Use DB cache on page load — only compute when we have no usable result.
-        if (row?.status === 'ok' && row.place_id) {
+        if (row?.status === 'ok') {
           renderCell(td, row);
+          td.dataset.hydrated = '1';
           continue;
         }
         if (row && row.status !== 'error') {
           renderCell(td, row);
+          td.dataset.hydrated = '1';
           continue;
         }
       } catch {
@@ -893,6 +995,8 @@ async function hydrateAndCompute() {
       }
     }
     await computeCell(td);
+    if (signal?.aborted) return;
+    td.dataset.hydrated = '1';
   }
   equalizeCompareRows();
 }
@@ -937,9 +1041,8 @@ function bootComparePage() {
   initDeleteButtons(signal);
   initCellPlacePicker(signal);
   equalizeCompareRows();
-  hydrateAndCompute();
+  void hydrateAndCompute(signal);
 }
 
-bootComparePage();
-window.addEventListener('resize', equalizeCompareRows);
 document.addEventListener('astro:page-load', bootComparePage);
+window.addEventListener('resize', equalizeCompareRows);

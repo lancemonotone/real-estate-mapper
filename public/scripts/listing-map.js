@@ -1,4 +1,38 @@
 import { createPinHoverController } from './map-pin-hover.js';
+import { fitMapForPinTooltips } from './map-fit.js';
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function themePinPalette() {
+  const primary = cssVar('--primary') || '#0d9488';
+  const primaryContrast = cssVar('--primary-contrast') || '#ffffff';
+  const accent = cssVar('--accent') || '#2563eb';
+  const placeGlyph = cssVar('--bg-0') || '#0b1220';
+  return {
+    listing: {
+      background: primary,
+      borderColor: primary,
+      glyphColor: primaryContrast,
+    },
+    place: {
+      background: accent,
+      borderColor: accent,
+      glyphColor: placeGlyph,
+    },
+  };
+}
+
+function parsePlaces(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 async function loadGoogleMaps(key) {
   if (window.google?.maps?.importLibrary) return;
@@ -13,8 +47,13 @@ async function loadGoogleMaps(key) {
 }
 
 async function initListingMap() {
-  const el = document.getElementById('listing-map');
-  if (!el || el.dataset.mapReady === '1') return;
+  let el = document.getElementById('listing-map');
+  if (!el) return;
+
+  // Soft-nav can reuse a host that already had a Map instance.
+  const fresh = el.cloneNode(false);
+  el.replaceWith(fresh);
+  el = fresh;
 
   const key = el.dataset.key;
   const mapId = el.dataset.mapId;
@@ -23,6 +62,7 @@ async function initListingMap() {
   const title = el.dataset.title || 'Listing';
   const address = el.dataset.address || '';
   const photoUrl = el.dataset.photoUrl || '';
+  const places = parsePlaces(el.dataset.places);
 
   if (!key || !mapId) {
     el.textContent = 'Missing PUBLIC_GOOGLE_MAPS_BROWSER_KEY or PUBLIC_GOOGLE_MAPS_MAP_ID';
@@ -39,7 +79,6 @@ async function initListingMap() {
   const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary('marker');
 
   el.replaceChildren();
-  el.dataset.mapReady = '1';
 
   const position = { lat, lng };
   const map = new Map(el, {
@@ -48,25 +87,62 @@ async function initListingMap() {
     mapId,
   });
 
-  const pin = new PinElement({
-    background: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#0d9488',
-    borderColor: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d97706',
-    glyphColor: getComputedStyle(document.documentElement).getPropertyValue('--primary-contrast').trim() || '#ffffff',
-  });
-
-  const marker = new AdvancedMarkerElement({
-    map,
-    position,
-    title,
-    content: pin.element,
-  });
-
   const pinHover = createPinHoverController(map, InfoWindow);
-  pinHover.bind(marker, pin.element, {
-    name: title,
-    address,
-    photoUrl: photoUrl || null,
-  });
+  const bounds = new google.maps.LatLngBounds();
+  const palette = themePinPalette();
+
+  function addPin(pos, colors, listing, header) {
+    bounds.extend(pos);
+    const pin = new PinElement({
+      background: colors.background,
+      borderColor: colors.borderColor,
+      glyphColor: colors.glyphColor,
+      scale: 1.1,
+    });
+    const marker = new AdvancedMarkerElement({
+      map,
+      position: pos,
+      title: listing.name || header || 'Place',
+      content: pin.element,
+    });
+    pinHover.bind(marker, pin.element, listing, header);
+  }
+
+  addPin(
+    position,
+    palette.listing,
+    {
+      id: el.dataset.listingId || null,
+      name: title,
+      address,
+      photoUrl: photoUrl || null,
+    },
+    'Listing',
+  );
+
+  for (const place of places) {
+    const plat = Number(place.lat);
+    const plng = Number(place.lng);
+    if (!Number.isFinite(plat) || !Number.isFinite(plng)) continue;
+    const photo =
+      place.photoUrl ||
+      (place.placeId
+        ? `/api/places/photo?place_id=${encodeURIComponent(place.placeId)}&max=160`
+        : null);
+    addPin(
+      { lat: plat, lng: plng },
+      palette.place,
+      {
+        id: place.id || null,
+        name: place.name || 'Place',
+        address: place.address || '',
+        photoUrl: photo,
+      },
+      place.label || place.name || 'Place',
+    );
+  }
+
+  fitMapForPinTooltips(map, bounds);
 }
 
 function bootListingMap() {

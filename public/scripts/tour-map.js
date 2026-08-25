@@ -1,4 +1,5 @@
 import { createPinHoverController } from './map-pin-hover.js';
+import { fitMapForPinTooltips } from './map-fit.js';
 
 function parseJsonAttr(raw) {
   if (!raw) return null;
@@ -32,18 +33,9 @@ function themePinPalette() {
   };
 }
 
-/** Single-point fitBounds leaves a blank / max-zoom map — use center + zoom instead. */
+/** Single-point and multi-pin fit with room above for InfoWindow tooltips. */
 function fitMapToMarkers(map, bounds) {
-  if (bounds.isEmpty()) return;
-  const ne = bounds.getNorthEast();
-  const sw = bounds.getSouthWest();
-  const samePoint = ne.lat() === sw.lat() && ne.lng() === sw.lng();
-  if (samePoint) {
-    map.setCenter(ne);
-    map.setZoom(14);
-    return;
-  }
-  map.fitBounds(bounds, 48);
+  fitMapForPinTooltips(map, bounds);
 }
 
 let tourMapBootId = 0;

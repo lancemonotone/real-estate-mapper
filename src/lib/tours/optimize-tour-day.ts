@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildOptimizePlan } from '../google/optimize-request';
 import { computeOptimizedRoute } from '../google/routes';
+import { routeSignatureForListingIds } from './route-signature';
 
 type OptimizeOk = { ok: true };
 type OptimizeErr = { ok: false; error: string; status: number };
@@ -96,7 +97,7 @@ export async function optimizeTourDay(
       .from('tour_days')
       .update({
         encoded_polyline: result.encodedPolyline ?? null,
-        route_signature: result.orderedIds.join(','),
+        route_signature: routeSignatureForListingIds(listingIds),
       })
       .eq('id', tourDayId);
 

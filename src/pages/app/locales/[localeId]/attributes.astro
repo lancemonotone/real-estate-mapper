@@ -20,7 +20,7 @@ const base = `/app/locales/${locale.id}`;
 const { data: listings } = await supabase
   .from('listings')
   .select(
-    'id, name, address, photo_url, price_monthly, deposit, fees_monthly, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite',
+    'id, name, address, phone, photo_url, price_monthly, deposit, fees_monthly, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite',
   )
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
@@ -30,6 +30,7 @@ const rows = (listings ?? []) as Pick<
   | 'id'
   | 'name'
   | 'address'
+  | 'phone'
   | 'photo_url'
   | 'price_monthly'
   | 'deposit'
@@ -132,8 +133,12 @@ const columns: {
     rows.length === 0 ? (
       <p class="muted">No listings in this Locale yet.</p>
     ) : (
-      <div class="matrix-scroll matrix-scroll--wrap">
-        <table class="data matrix-table matrix-table--wrap" data-sortable>
+      <div class="matrix-scroll">
+        <table
+          class="data matrix-table matrix-table--wrap"
+          data-sortable
+          style={`--data-cols: ${columns.length}`}
+        >
           <thead>
             <tr>
               <th class="matrix-table__listing" data-sort-type="text">
@@ -164,9 +169,8 @@ const columns: {
                     class="matrix-table__listing"
                     data-sort-value={title}
                   >
-                    <div class="matrix-listing-wrap">
-                      <a class="matrix-listing" href={`${base}/listings/${listing.id}`}>
-                      <span class="matrix-listing__media">
+                    <div class="matrix-listing">
+                      <a class="matrix-listing__media" href={`${base}/listings/${listing.id}`}>
                         {photo ? (
                           <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
                         ) : (
@@ -174,13 +178,15 @@ const columns: {
                             No photo
                           </span>
                         )}
-                      </span>
-                      <span class="matrix-listing__text">
+                      </a>
+                      <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
                         <span class="matrix-listing__name">{title}</span>
                         {listing.address && listing.name ? (
                           <span class="muted matrix-listing__address">{listing.address}</span>
                         ) : null}
-                      </span>
+                        {listing.phone ? (
+                          <span class="muted matrix-listing__phone">{listing.phone}</span>
+                        ) : null}
                       </a>
                       <FavoriteHeart
                         listingId={listing.id}

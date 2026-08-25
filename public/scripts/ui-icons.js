@@ -40,6 +40,14 @@ export function iconPencil() {
   ]);
 }
 
+/** Circle with a slash — exclude / ban this place. */
+export function iconBan() {
+  return svgIcon([
+    'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
+    'M4.9 4.9l14.2 14.2',
+  ]);
+}
+
 /** Invisible slot so trailing icons stay aligned when a leading action is missing. */
 export function iconBtnSpacer() {
   const el = document.createElement('span');

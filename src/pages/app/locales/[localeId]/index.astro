@@ -117,7 +117,11 @@ const mapListings = rows
           </div>
         ) : (
           <div class="matrix-scroll">
-            <table class="data matrix-table" id="listings-table">
+            <table
+              class="data matrix-table"
+              id="listings-table"
+              style="--data-cols: 2"
+            >
               <thead>
                 <tr>
                   <th class="matrix-table__listing">Listing</th>
@@ -138,14 +142,14 @@ const mapListings = rows
                   return (
                     <tr
                       data-listing-id={listing.id}
+                      data-map-listing={listing.id}
                       data-sort-recent={String(Number.isFinite(created) ? created : 0)}
                       data-sort-distance={distanceM != null ? String(distanceM) : ''}
                       data-sort-price={price != null ? String(price) : ''}
                     >
                       <th scope="row" class="matrix-table__listing">
-                        <div class="matrix-listing-wrap">
-                          <a class="matrix-listing" href={`${base}/listings/${listing.id}`}>
-                          <span class="matrix-listing__media">
+                        <div class="matrix-listing">
+                          <a class="matrix-listing__media" href={`${base}/listings/${listing.id}`}>
                             {photo ? (
                               <img
                                 class="matrix-listing__thumb"
@@ -161,13 +165,15 @@ const mapListings = rows
                                 No photo
                               </span>
                             )}
-                          </span>
-                          <span class="matrix-listing__text">
+                          </a>
+                          <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
                             <span class="matrix-listing__name">{title}</span>
                             {listing.address && listing.name ? (
                               <span class="muted matrix-listing__address">{listing.address}</span>
                             ) : null}
-                          </span>
+                            {listing.phone ? (
+                              <span class="muted matrix-listing__phone">{listing.phone}</span>
+                            ) : null}
                           </a>
                           <FavoriteHeart
                             listingId={listing.id}

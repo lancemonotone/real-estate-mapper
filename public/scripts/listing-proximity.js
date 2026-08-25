@@ -1,5 +1,6 @@
 import { mountPlaceSearch } from './place-search.js';
 import {
+  iconBan,
   iconBtn,
   iconMapPin,
   iconPencil,
@@ -621,6 +622,16 @@ function fillCompareCellActions(li, result) {
     }),
   );
 
+  if (li.dataset.placeTypeKey && result?.status === 'ok' && result.place_id) {
+    actions.appendChild(
+      iconBtn({
+        label: `Exclude ${result.place_name || 'this place'} for this place type`,
+        icon: iconBan,
+        onClick: () => void excludePlaceFromListingCell(li, result),
+      }),
+    );
+  }
+
   if (canOverlay) {
     actions.appendChild(
       iconBtn({
@@ -652,6 +663,74 @@ function fillCompareCellActions(li, result) {
         href,
       }),
     );
+  }
+}
+
+async function excludePlaceFromListingCell(li, result) {
+  const localeId =
+    window.__WAYHOME_LISTING_PROX__?.localeId ||
+    window.__WAYHOME_LOCALE_ID__ ||
+    '';
+  const placeTypeKey = li.dataset.placeTypeKey || '';
+  const placeId = result?.place_id;
+  if (!localeId || !placeTypeKey || !placeId) return;
+
+  const name = result.place_name || 'this place';
+  const ok = window.confirm(
+    `Exclude “${name}” for all nearest ${placeTypeKey} columns? Unlocked listings (and this cell) will pick the next closest match. Other locked cells stay as they are.`,
+  );
+  if (!ok) return;
+
+  fillCompareCellActions(li, null);
+  try {
+    const res = await fetch('/api/proximity/exclude-place', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        locale_id: localeId,
+        place_type_key: placeTypeKey,
+        place_id: placeId,
+        listing_id: li.dataset.listingId,
+        criterion_id: li.dataset.criterionId,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Could not exclude place');
+      fillCompareCellActions(li, result);
+      return;
+    }
+
+    const listingId = li.dataset.listingId;
+    const criterionId = li.dataset.criterionId;
+    const updated = Array.isArray(data.results)
+      ? data.results.find(
+          (r) => r.listing_id === listingId && r.criterion_id === criterionId,
+        )
+      : null;
+
+    if (updated) {
+      fillCompareCellActions(li, updated);
+      return;
+    }
+
+    // This listing may not have used the excluded place; refresh from compute.
+    if (listingId && criterionId) {
+      const computeRes = await fetch('/api/proximity/compute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listing_id: listingId, criterion_id: criterionId }),
+      });
+      const computeData = await computeRes.json();
+      if (computeRes.ok) {
+        fillCompareCellActions(li, computeData.result);
+      } else {
+        fillCompareCellActions(li, result);
+      }
+    }
+  } catch (e) {
+    alert(e instanceof Error ? e.message : 'Could not exclude place');
+    fillCompareCellActions(li, result);
   }
 }
 

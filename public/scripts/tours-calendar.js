@@ -2,6 +2,7 @@
  * Locale Tours calendar workspace: select week days, drag assign, conflict overlay, S/E.
  */
 import { mountPlaceSearch } from './place-search.js';
+import { bindTourWeekJumpPopover } from './tour-week-jump-popover.js';
 
 function seed() {
   return window.__WAYHOME_TOURS_CALENDAR__ ?? null;
@@ -463,13 +464,13 @@ async function boot() {
   if (!cfg || !root) return;
 
   if (cfg.needsAutoroute && cfg.selectedTourId) {
-    const arKey = `wayhome:tours-ar:${cfg.selectedTourId}`;
+    // v2: prior guard was set before optimize succeeded, leaving days stuck when
+    // route_signature mismatched the stop set.
+    const arKey = `wayhome:tours-ar:v2:${cfg.selectedTourId}`;
     const stopSig = cfg.routeStopSignature ?? '';
-    // One attempt per stop-set — avoids refresh loops when optimize can't mark the route fresh.
     if (sessionStorage.getItem(arKey) === stopSig) {
       showStatus('Could not build a route for this day', true);
     } else {
-      sessionStorage.setItem(arKey, stopSig);
       try {
         const res = await fetch('/api/tours/optimize', {
           method: 'POST',
@@ -477,14 +478,15 @@ async function boot() {
           body: JSON.stringify({ tourDayId: cfg.selectedTourId }),
         });
         if (res.ok) {
+          sessionStorage.removeItem(arKey);
           window.location.reload();
           return;
         }
-        sessionStorage.removeItem(arKey);
+        sessionStorage.setItem(arKey, stopSig);
         const data = await res.json().catch(() => ({}));
         showStatus(data.error || 'Could not auto-route this day', true);
       } catch (e) {
-        sessionStorage.removeItem(arKey);
+        sessionStorage.setItem(arKey, stopSig);
         showStatus(e instanceof Error ? e.message : 'Auto-route failed', true);
       }
     }
@@ -504,21 +506,14 @@ async function boot() {
     { signal },
   );
 
-  const jumpBtn = root.querySelector('[data-tour-week-jump]');
   const jumpInput = root.querySelector('[data-tour-week-jump-input]');
-  jumpBtn?.addEventListener(
-    'click',
-    () => {
-      if (!(jumpInput instanceof HTMLInputElement)) return;
-      if (typeof jumpInput.showPicker === 'function') {
-        jumpInput.showPicker();
-      } else {
-        jumpInput.focus();
-        jumpInput.click();
-      }
-    },
-    { signal },
-  );
+  const weekRoot = root.querySelector('[data-tour-week]');
+  if (weekRoot) {
+    bindTourWeekJumpPopover(weekRoot, {
+      signal,
+      onSelectDate: (day) => reloadForDay(day),
+    });
+  }
   jumpInput?.addEventListener(
     'change',
     () => {

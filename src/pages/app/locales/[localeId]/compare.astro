@@ -16,7 +16,7 @@ const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, lat, lng, photo_url, is_favorite')
+  .select('id, name, address, phone, lat, lng, photo_url, is_favorite')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -86,18 +86,28 @@ const criterionRows = criteria ?? [];
           </p>
         ) : null}
         <div class="matrix-scroll">
-          <table class="data matrix-table" id="compare-table">
+          <table
+            class="data matrix-table"
+            id="compare-table"
+            data-sortable
+            style={`--data-cols: ${Math.max(criterionRows.length, 1)}`}
+          >
             <thead>
               <tr>
-                <th class="matrix-table__listing">Listing</th>
+                <th class="matrix-table__listing" data-sort-type="text">
+                  <button type="button" class="matrix-sort">Listing</button>
+                </th>
                 {criterionRows.map((c) => (
                   <th
                     data-criterion-id={c.id}
                     data-place-type-key={c.kind === 'place_type' ? c.place_type_key ?? '' : ''}
                     data-travel-mode={c.travel_mode}
+                    data-sort-type="number"
                   >
                     <div class="matrix-criterion-head">
-                      <span class="matrix-criterion-head__label">{c.label}</span>
+                      <button type="button" class="matrix-sort matrix-criterion-head__label">
+                        {c.label}
+                      </button>
                       <button
                         type="button"
                         class="secondary icon-btn delete-criterion"
@@ -125,10 +135,13 @@ const criterionRows = criteria ?? [];
                 const photo = listing.photo_url;
                 return (
                   <tr>
-                    <th scope="row" class="matrix-table__listing">
-                      <div class="matrix-listing-wrap">
-                        <a class="matrix-listing" href={`${base}/listings/${listing.id}`}>
-                        <span class="matrix-listing__media">
+                    <th
+                      scope="row"
+                      class="matrix-table__listing"
+                      data-sort-value={title}
+                    >
+                      <div class="matrix-listing">
+                        <a class="matrix-listing__media" href={`${base}/listings/${listing.id}`}>
                           {photo ? (
                             <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
                           ) : (
@@ -136,13 +149,15 @@ const criterionRows = criteria ?? [];
                               No photo
                             </span>
                           )}
-                        </span>
-                        <span class="matrix-listing__text">
+                        </a>
+                        <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
                           <span class="matrix-listing__name">{title}</span>
                           {listing.address && listing.name ? (
                             <span class="muted matrix-listing__address">{listing.address}</span>
                           ) : null}
-                        </span>
+                          {listing.phone ? (
+                            <span class="muted matrix-listing__phone">{listing.phone}</span>
+                          ) : null}
                         </a>
                         <FavoriteHeart
                           listingId={listing.id}
@@ -152,6 +167,10 @@ const criterionRows = criteria ?? [];
                     </th>
                     {criterionRows.map((c) => {
                       const row = resultMap.get(`${listing.id}:${c.id}`);
+                      const sortValue =
+                        row?.status === 'ok' && row.duration_sec != null
+                          ? String(row.duration_sec)
+                          : '';
                       return (
                         <td
                           data-listing-id={listing.id}
@@ -160,6 +179,7 @@ const criterionRows = criteria ?? [];
                           data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
                           data-travel-mode={c.travel_mode}
                           data-status={row?.status ?? ''}
+                          data-sort-value={sortValue}
                         >
                           {row ? (
                             <span class="seeded" data-seeded="1" hidden>
@@ -188,7 +208,7 @@ const criterionRows = criteria ?? [];
     aria-labelledby="compare-column-title"
   >
     <div class="compare-column-overlay__backdrop" data-compare-column-close></div>
-    <div class="compare-column-overlay__panel glass glass--strong">
+    <div class="compare-column-overlay__panel glass">
       <header class="compare-column-overlay__header">
         <h2 id="compare-column-title">Add travel column</h2>
         <button
@@ -261,7 +281,7 @@ const criterionRows = criteria ?? [];
   >
     <div class="compare-column-overlay__backdrop" data-compare-place-close></div>
     <div
-      class="compare-column-overlay__panel glass glass--strong listing-overlay__panel listing-overlay__panel--place"
+      class="compare-column-overlay__panel glass listing-overlay__panel listing-overlay__panel--place"
     >
       <header class="compare-column-overlay__header">
         <h2 id="compare-place-overlay-title">Change location</h2>
@@ -379,5 +399,6 @@ const criterionRows = criteria ?? [];
   </script>
   <DirectionsOverlay />
   <script src="/scripts/directions-overlay.js" type="module"></script>
+  <script src="/scripts/matrix-sort.js" type="module"></script>
   <script src="/scripts/proximity-compare.js" type="module"></script>
 </AppLayout>

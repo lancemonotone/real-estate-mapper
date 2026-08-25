@@ -6,6 +6,10 @@ import type {
   ProximityCriterion,
   ProximityResultStatus,
 } from '../types/database';
+import {
+  loadExcludedPlaceIds,
+  withoutExcludedPois,
+} from './exclusions';
 import { fillLocalePoisForType } from './fill-pois';
 import { googleMapsDirectionsUrl } from './maps-url';
 import { pickWinnerByDuration, rankByDuration } from './pick-winner';
@@ -212,6 +216,9 @@ async function evaluatePlaceType(
     }
     pois = await loadLocalePois(supabase, locale.id, key);
   }
+
+  const excludedIds = await loadExcludedPlaceIds(supabase, locale.id, key);
+  pois = withoutExcludedPois(pois, excludedIds);
 
   if (pois.length === 0) {
     return outcome({ status: 'no_place' });

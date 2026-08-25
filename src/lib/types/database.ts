@@ -123,6 +123,14 @@ export type LocalePoi = {
   fetched_at: string;
 };
 
+export type LocalePoiExclusion = {
+  id: string;
+  locale_id: string;
+  place_type_key: string;
+  place_id: string;
+  created_at: string;
+};
+
 export type ProximityResult = {
   id: string;
   listing_id: string;
@@ -221,6 +229,15 @@ export type Database = {
           lng: number;
         };
         Update: Partial<LocalePoi>;
+      };
+      locale_poi_exclusions: {
+        Row: LocalePoiExclusion;
+        Insert: Partial<LocalePoiExclusion> & {
+          locale_id: string;
+          place_type_key: string;
+          place_id: string;
+        };
+        Update: Partial<LocalePoiExclusion>;
       };
       proximity_results: {
         Row: ProximityResult;

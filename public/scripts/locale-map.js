@@ -1,4 +1,5 @@
 import { createPinHoverController } from './map-pin-hover.js';
+import { fitMapForPinTooltips } from './map-fit.js';
 
 async function loadGoogleMaps(key) {
   if (window.google?.maps?.importLibrary) return;
@@ -26,9 +27,18 @@ function parseListings(raw) {
   }
 }
 
+let localeMapBootId = 0;
+
 async function initLocaleMap() {
-  const el = document.getElementById('locale-map');
+  let el = document.getElementById('locale-map');
   if (!el) return;
+
+  // Soft-nav can reuse a host that already had a Map instance; replace the node.
+  const fresh = el.cloneNode(false);
+  el.replaceWith(fresh);
+  el = fresh;
+
+  const bootId = ++localeMapBootId;
 
   const key = el.dataset.key;
   const mapId = el.dataset.mapId;
@@ -40,7 +50,6 @@ async function initLocaleMap() {
 
   let map = null;
   let circle = null;
-  let listingMarkers = [];
   let pinHover = null;
   let title = el.dataset.title || 'Locale';
   const listings = parseListings(el.dataset.listings);
@@ -48,9 +57,13 @@ async function initLocaleMap() {
   const ensureMap = async (lat, lng, radiusM) => {
     if (map) return;
     await loadGoogleMaps(key);
-    el.textContent = '';
+    if (bootId !== localeMapBootId || !document.getElementById('locale-map')) return;
+
+    el.replaceChildren();
     const { Map, InfoWindow } = await google.maps.importLibrary('maps');
     const { AdvancedMarkerElement } = await google.maps.importLibrary('marker');
+    if (bootId !== localeMapBootId) return;
+
     const position = { lat, lng };
     map = new Map(el, {
       center: position,
@@ -70,7 +83,6 @@ async function initLocaleMap() {
 
     pinHover = createPinHoverController(map, InfoWindow);
 
-    listingMarkers = [];
     for (const listing of listings) {
       if (typeof listing.lat !== 'number' || typeof listing.lng !== 'number') continue;
       const pin = document.createElement('button');
@@ -91,23 +103,33 @@ async function initLocaleMap() {
         content: pin,
       });
       pinHover.bind(marker, pin, listing);
-      listingMarkers.push(marker);
     }
   };
 
+  /** Frame the locale radius. Do not expand to out-of-radius pins (that shrinks the circle). */
   const fit = () => {
     if (!map) return;
-    const bounds = new google.maps.LatLngBounds();
     if (circle) {
       const circleBounds = circle.getBounds();
-      if (circleBounds) bounds.union(circleBounds);
+      if (circleBounds && !circleBounds.isEmpty()) {
+        const div = map.getDiv?.();
+        const h = Math.max(div?.clientHeight || 0, 240);
+        map.fitBounds(circleBounds, {
+          top: Math.round(h * 0.1),
+          right: 40,
+          bottom: Math.round(h * 0.08),
+          left: 40,
+        });
+        return;
+      }
     }
+    const bounds = new google.maps.LatLngBounds();
     for (const listing of listings) {
       if (typeof listing.lat === 'number' && typeof listing.lng === 'number') {
         bounds.extend({ lat: listing.lat, lng: listing.lng });
       }
     }
-    if (!bounds.isEmpty()) map.fitBounds(bounds, 48);
+    if (!bounds.isEmpty()) fitMapForPinTooltips(map, bounds);
   };
 
   const setView = async ({ lat, lng, radiusM, title: nextTitle }) => {
@@ -120,6 +142,7 @@ async function initLocaleMap() {
 
     if (hasCenter) {
       await ensureMap(lat, lng, nextRadius);
+      if (bootId !== localeMapBootId || !map || !circle) return;
       const pos = { lat, lng };
       map.setCenter(pos);
       circle.setCenter(pos);
@@ -128,7 +151,7 @@ async function initLocaleMap() {
       return;
     }
 
-    if (map && typeof radiusM === 'number' && radiusM > 0) {
+    if (map && circle && typeof radiusM === 'number' && radiusM > 0) {
       circle.setRadius(radiusM);
       fit();
     }
@@ -161,7 +184,11 @@ async function initLocaleMap() {
   }
 }
 
-initLocaleMap().catch((err) => {
-  const el = document.getElementById('locale-map');
-  if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
-});
+function bootLocaleMap() {
+  initLocaleMap().catch((err) => {
+    const el = document.getElementById('locale-map');
+    if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
+  });
+}
+
+document.addEventListener('astro:page-load', bootLocaleMap);

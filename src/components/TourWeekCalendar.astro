@@ -24,13 +24,22 @@ const {
 } = Astro.props;
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const markedDates = Object.entries(daysByDate)
+  .filter(([, meta]) => meta.stopCount > 0)
+  .map(([key]) => key)
+  .join(',');
 
 function dayNum(key: string): string {
   const parts = key.split('-');
   return String(Number(parts[2] ?? '0'));
 }
 ---
-<div class="tour-week" data-tour-week id={idPrefix}>
+<div
+  class="tour-week"
+  data-tour-week
+  id={idPrefix}
+  data-tour-marked-dates={markedDates}
+>
   <div class="tour-week__nav">
     <button type="button" class="secondary icon-btn" data-tour-week-prev aria-label="Previous week">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -43,9 +52,45 @@ function dayNum(key: string): string {
       data-tour-week-jump
       title="Jump to a date"
       aria-label={`Week of ${weekLabel}. Click to jump to a date.`}
+      aria-expanded="false"
+      aria-haspopup="dialog"
+      aria-controls={`${idPrefix}-jump-popover`}
     >
       {weekLabel}
     </button>
+    <div
+      id={`${idPrefix}-jump-popover`}
+      class="tour-week__jump-popover glass"
+      data-tour-week-jump-popover
+      hidden
+      role="dialog"
+      aria-label="Jump to date"
+    >
+      <div class="tour-week__jump-popover-nav">
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-jump-month-prev
+          aria-label="Previous month"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 6l-6 6 6 6"></path>
+          </svg>
+        </button>
+        <span class="tour-week__jump-month-label" data-jump-month-label></span>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-jump-month-next
+          aria-label="Next month"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 6l6 6-6 6"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="tour-week__jump-popover-grid" data-jump-month-grid></div>
+    </div>
     <input
       type="date"
       class="tour-week__jump-input"
