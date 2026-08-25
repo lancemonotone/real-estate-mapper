@@ -2,6 +2,7 @@
 import '../styles/tokens.css';
 import '../styles/chrome.css';
 import { ClientRouter } from 'astro:transitions';
+import SpeedInsights from '@vercel/speed-insights/astro';
 import { resolveUiThemeId } from '../lib/ui/themes';
 import LocaleNav from '../components/LocaleNav.astro';
 import type { LocaleNavSection } from '../lib/ui/locale-nav';
@@ -108,5 +109,6 @@ if (user && supabase) {
     </main>
     {locale && <script src="/scripts/locale-nav.js" type="module"></script>}
     <script src="/scripts/listing-favorite.js" type="module"></script>
+    <SpeedInsights />
   </body>
 </html>

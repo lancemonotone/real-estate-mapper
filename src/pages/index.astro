@@ -1,6 +1,7 @@
 ---
 import '../styles/tokens.css';
 import '../styles/chrome.css';
+import SpeedInsights from '@vercel/speed-insights/astro';
 import { DEFAULT_UI_THEME_ID } from '../lib/ui/themes';
 
 const supabaseConfigured = Boolean(
@@ -77,5 +78,6 @@ const supabaseConfigured = Boolean(
         </svg>
       </div>
     </main>
+    <SpeedInsights />
   </body>
 </html>
