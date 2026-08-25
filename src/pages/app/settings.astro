@@ -48,81 +48,174 @@ const swatchVars: Record<string, { primary: string; accent: string }> = {
   steel: { primary: '#3b82f6', accent: '#7c3aed' },
   sand: { primary: '#d97706', accent: '#c2410c' },
 };
+
+const defaultTab: 'theme' | 'members' | 'invite' = inviteUrl || notice ? 'invite' : 'theme';
 ---
 <AppLayout title="Settings" crumbs={[{ href: '/app', label: 'Home' }, { label: 'Settings' }]}>
   <h1>Settings</h1>
   {errorMessage && <p class="alert" role="alert">{errorMessage}</p>}
-  {notice && <p class="muted">{notice}</p>}
 
-  <section class="stack theme-section" style="margin-block-end:1.5rem">
-    <h2>Accent theme</h2>
-    <div class="theme-swatches" id="theme-swatches" role="radiogroup" aria-label="Accent theme">
+  <div class="nest-tabs" data-nest-tabs>
+    <nav
+      class="locale-nav nest-tabs__bar"
+      aria-label="Settings sections"
+      data-nest-tabs-bar
+      role="tablist"
+    >
+      <span class="locale-nav__pill" aria-hidden="true" data-nest-tabs-pill></span>
+      <button
+        type="button"
+        class:list={[
+          'button secondary locale-nav__link',
+          defaultTab === 'theme' && 'locale-nav__link--active',
+        ]}
+        id="settings-tab-theme"
+        role="tab"
+        aria-selected={defaultTab === 'theme' ? 'true' : 'false'}
+        aria-controls="settings-panel-theme"
+        tabindex={defaultTab === 'theme' ? 0 : -1}
+        data-nest-tab="theme"
+      >
+        Theme
+      </button>
+      <button
+        type="button"
+        class:list={[
+          'button secondary locale-nav__link',
+          defaultTab === 'members' && 'locale-nav__link--active',
+        ]}
+        id="settings-tab-members"
+        role="tab"
+        aria-selected={defaultTab === 'members' ? 'true' : 'false'}
+        aria-controls="settings-panel-members"
+        tabindex={defaultTab === 'members' ? 0 : -1}
+        data-nest-tab="members"
+      >
+        Members
+      </button>
+      <button
+        type="button"
+        class:list={[
+          'button secondary locale-nav__link',
+          defaultTab === 'invite' && 'locale-nav__link--active',
+        ]}
+        id="settings-tab-invite"
+        role="tab"
+        aria-selected={defaultTab === 'invite' ? 'true' : 'false'}
+        aria-controls="settings-panel-invite"
+        tabindex={defaultTab === 'invite' ? 0 : -1}
+        data-nest-tab="invite"
+      >
+        Invite
+      </button>
+    </nav>
+
+    <div
+      id="settings-panel-theme"
+      class="nest-tabs__panel"
+      role="tabpanel"
+      aria-labelledby="settings-tab-theme"
+      data-nest-tab-panel="theme"
+      hidden={defaultTab !== 'theme' ? true : undefined}
+    >
+      <section class="stack theme-section">
+        <h2 class="visually-hidden">Accent theme</h2>
+        <div class="theme-swatches" id="theme-swatches" role="radiogroup" aria-label="Accent theme">
+          {
+            themes.map((theme) => {
+              const swatch = swatchVars[theme.id] ?? {
+                primary: 'var(--primary)',
+                accent: 'var(--accent)',
+              };
+              return (
+                <label
+                  class="theme-swatch"
+                  style={`--swatch-primary:${swatch.primary};--swatch-accent:${swatch.accent}`}
+                >
+                  <input
+                    type="radio"
+                    name="ui_theme_id"
+                    value={theme.id}
+                    checked={theme.id === currentThemeId}
+                  />
+                  <span class="theme-swatch__dots" aria-hidden="true">
+                    <span class="theme-swatch__dot" title="Primary"></span>
+                    <span class="theme-swatch__dot theme-swatch__dot--accent" title="Accent"></span>
+                  </span>
+                  {theme.label}
+                </label>
+              );
+            })
+          }
+        </div>
+        <p id="theme-status" class="theme-status muted" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <div
+      id="settings-panel-members"
+      class="nest-tabs__panel"
+      role="tabpanel"
+      aria-labelledby="settings-tab-members"
+      data-nest-tab-panel="members"
+      hidden={defaultTab !== 'members' ? true : undefined}
+    >
       {
-        themes.map((theme) => {
-          const swatch = swatchVars[theme.id] ?? {
-            primary: 'var(--primary)',
-            accent: 'var(--accent)',
-          };
-          return (
-            <label
-              class="theme-swatch"
-              style={`--swatch-primary:${swatch.primary};--swatch-accent:${swatch.accent}`}
-            >
-              <input
-                type="radio"
-                name="ui_theme_id"
-                value={theme.id}
-                checked={theme.id === currentThemeId}
-              />
-              <span class="theme-swatch__dots" aria-hidden="true">
-                <span class="theme-swatch__dot" title="Primary"></span>
-                <span class="theme-swatch__dot theme-swatch__dot--accent" title="Accent"></span>
-              </span>
-              {theme.label}
-            </label>
-          );
-        })
+        nestId ? (
+          <NestMemberList members={nestMembers} currentUserId={user.id} showHeading={false} />
+        ) : (
+          <p class="muted">No Nest found.</p>
+        )
       }
     </div>
-    <p id="theme-status" class="theme-status muted" aria-live="polite"></p>
-  </section>
 
-  {
-    nestId && (
-      <NestMemberList members={nestMembers} currentUserId={user.id} heading="Nest members" />
-    )
-  }
+    <div
+      id="settings-panel-invite"
+      class="nest-tabs__panel"
+      role="tabpanel"
+      aria-labelledby="settings-tab-invite"
+      data-nest-tab-panel="invite"
+      hidden={defaultTab !== 'invite' ? true : undefined}
+    >
+      <section class="stack invite-section">
+        {notice && <p class="muted">{notice}</p>}
+        {
+          inviteUrl && (
+            <div id="invite-copy" class="invite-copy stack">
+              <label class="invite-copy__label" for="invite-url">
+                Invite link <span class="muted">(click to copy)</span>
+              </label>
+              <div class="invite-copy__row">
+                <input
+                  id="invite-url"
+                  class="invite-copy__input"
+                  type="text"
+                  readonly
+                  value={inviteUrl}
+                  data-invite-url
+                />
+                <button type="button" class="button secondary" data-copy-invite>
+                  Copy
+                </button>
+              </div>
+              <p id="invite-copy-status" class="invite-copy__status muted" aria-live="polite"></p>
+            </div>
+          )
+        }
+        {
+          nestId ? (
+            <form method="post">
+              <button type="submit">Generate invite link</button>
+            </form>
+          ) : (
+            <p class="muted">No Nest found.</p>
+          )
+        }
+      </section>
+    </div>
+  </div>
 
-  <section class="stack invite-section">
-    <h2>Nest invite</h2>
-    {
-      inviteUrl && (
-        <div id="invite-copy" class="invite-copy stack">
-          <label class="invite-copy__label" for="invite-url">
-            Invite link <span class="muted">(click to copy)</span>
-          </label>
-          <div class="invite-copy__row">
-            <input
-              id="invite-url"
-              class="invite-copy__input"
-              type="text"
-              readonly
-              value={inviteUrl}
-              data-invite-url
-            />
-            <button type="button" class="button secondary" data-copy-invite>
-              Copy
-            </button>
-          </div>
-          <p id="invite-copy-status" class="invite-copy__status muted" aria-live="polite"></p>
-        </div>
-      )
-    }
-    <form method="post">
-      <button type="submit">Generate invite link</button>
-    </form>
-  </section>
-
+  <script src="/scripts/nest-tabs.js" type="module"></script>
   <script src="/scripts/settings-invite.js" type="module"></script>
   <script>
     const status = document.getElementById('theme-status');
