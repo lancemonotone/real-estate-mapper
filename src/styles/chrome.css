@@ -452,6 +452,16 @@ a.secondary {
   border-color: var(--border);
 }
 
+.button.danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+
+  &:hover {
+    filter: brightness(1.08);
+  }
+}
+
 /* Text badges/chips — same descender optical center as buttons; not icon-only controls. */
 .badge {
   --control-pad-block: 0.28rem;
@@ -1277,6 +1287,23 @@ button.tour-stop-set-start {
   margin: 0;
 }
 
+.locale-form-danger {
+  --danger-gap: 0.65rem;
+
+  gap: var(--danger-gap);
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--border);
+}
+
+.locale-form-danger__title {
+  margin: 0;
+  font-size: clamp(1rem, 0.95rem + 0.2vw, 1.1rem);
+}
+
+.locale-form-danger__copy {
+  margin: 0;
+}
+
 .locale-map__listing-pin {
   appearance: none;
   display: block;
@@ -1656,6 +1683,14 @@ tr[data-map-listing].is-map-hover > .matrix-table__listing {
   margin-block: 0;
 }
 
+.locale-browse__map .locale-map-missing {
+  margin-block: 0;
+}
+
+.locale-browse__list .locale-form-danger {
+  margin-block-start: 0.5rem;
+}
+
 .listing-row--static {
   cursor: default;
 
@@ -1713,6 +1748,7 @@ tr[data-map-listing].is-map-hover > .matrix-table__listing {
 .nest-tabs__panel-head {
   display: flex;
   justify-content: flex-end;
+  margin-block-end: 1rem;
 }
 
 .nest-tabs .nest-members {

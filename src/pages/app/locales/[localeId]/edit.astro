@@ -37,51 +37,68 @@ const hasCenter = !localeNeedsSetup(locale);
       </p>
     )
   }
-  <form id="locale-form" class="stack">
-    <label>
-      Name
-      <input name="name" id="locale-name" required value={locale.name} />
-    </label>
-    <label>
-      Center place
-      <input
-        name="place"
-        id="locale-place"
-        placeholder="City, neighborhood, or address"
-        value={locale.center_label ?? ''}
-      />
-    </label>
-    <label>
-      Radius
-      <select name="radius_miles" id="locale-radius" required>
-        {
-          LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
-            <option value={m} selected={m === selectedMiles}>
-              {m} miles
-            </option>
-          ))
-        }
-      </select>
-    </label>
-    <button type="submit">Save</button>
-  </form>
-  <div
-    id="locale-map"
-    class="locale-map map-well"
-    data-key={browserKey}
-    data-map-id={mapId}
-    data-lat={hasCenter ? String(locale.center_lat) : ''}
-    data-lng={hasCenter ? String(locale.center_lng) : ''}
-    data-radius-m={String(milesToMeters(selectedMiles))}
-    data-title={locale.name}
-  ></div>
-  <p id="map-hint" class="locale-map-missing muted">
-    {locale.center_label ?? (hasCenter ? '' : 'Enter a place name to preview the map.')}
-  </p>
-  <p id="error" class="alert" hidden></p>
+
+  <section class="locale-browse">
+    <div class="locale-browse__list stack">
+      <form id="locale-form" class="stack">
+        <label>
+          Name
+          <input name="name" id="locale-name" required value={locale.name} />
+        </label>
+        <label>
+          Center place
+          <input
+            name="place"
+            id="locale-place"
+            placeholder="City, neighborhood, or address"
+            value={locale.center_label ?? ''}
+          />
+        </label>
+        <label>
+          Radius
+          <select name="radius_miles" id="locale-radius" required>
+            {
+              LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
+                <option value={m} selected={m === selectedMiles}>
+                  {m} miles
+                </option>
+              ))
+            }
+          </select>
+        </label>
+        <button type="submit">Save</button>
+      </form>
+      <p id="error" class="alert" hidden></p>
+      <section class="locale-form-danger stack">
+        <h2 class="locale-form-danger__title">Delete Locale</h2>
+        <p class="muted locale-form-danger__copy">
+          Permanently removes this Locale and all its listings, tours, and travel data.
+        </p>
+        <button type="button" class="button danger" id="locale-delete">Delete Locale</button>
+      </section>
+    </div>
+
+    <div class="locale-browse__map stack">
+      <div
+        id="locale-map"
+        class="locale-map map-well locale-browse__map-well"
+        data-key={browserKey}
+        data-map-id={mapId}
+        data-lat={hasCenter ? String(locale.center_lat) : ''}
+        data-lng={hasCenter ? String(locale.center_lng) : ''}
+        data-radius-m={String(milesToMeters(selectedMiles))}
+        data-title={locale.name}
+      ></div>
+      <p id="map-hint" class="locale-map-missing muted">
+        {locale.center_label ?? (hasCenter ? '' : 'Enter a place name to preview the map.')}
+      </p>
+    </div>
+  </section>
+
   <script
     define:vars={{
       localeId: locale.id,
+      localeName: locale.name,
       base,
       initialHasCenter: hasCenter,
     }}
@@ -89,6 +106,7 @@ const hasCenter = !localeNeedsSetup(locale);
     window.__WAYHOME_LOCALE_FORM__ = {
       mode: 'edit',
       localeId,
+      localeName,
       base,
       initialHasCenter,
     };

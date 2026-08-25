@@ -136,7 +136,7 @@ async function initLocaleMap() {
     if (typeof nextTitle === 'string' && nextTitle) {
       title = nextTitle;
     }
-    const hasCenter = typeof lat === 'number' && typeof lng === 'number';
+    const hasCenter = Number.isFinite(lat) && Number.isFinite(lng);
     const nextRadius =
       typeof radiusM === 'number' && radiusM > 0 ? radiusM : milesToMeters(10);
 
@@ -165,12 +165,24 @@ async function initLocaleMap() {
     });
   });
 
-  const initialLat = Number(el.dataset.lat);
-  const initialLng = Number(el.dataset.lng);
+  const parseCoord = (raw) => {
+    if (raw == null || raw === '') return NaN;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  const initialLat = parseCoord(el.dataset.lat);
+  const initialLng = parseCoord(el.dataset.lng);
   let initialRadius = Number(el.dataset.radiusM);
   if (!Number.isFinite(initialRadius) || initialRadius <= 0) {
     initialRadius = milesToMeters(10);
   }
+
+  const nudgeMapLayout = () => {
+    if (!map) return;
+    google.maps.event.trigger(map, 'resize');
+    fit();
+  };
 
   if (Number.isFinite(initialLat) && Number.isFinite(initialLng)) {
     await setView({
@@ -178,6 +190,9 @@ async function initLocaleMap() {
       lng: initialLng,
       radiusM: initialRadius,
       title,
+    });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(nudgeMapLayout);
     });
   } else {
     el.textContent = 'Enter a place name to preview the map.';
@@ -192,3 +207,4 @@ function bootLocaleMap() {
 }
 
 document.addEventListener('astro:page-load', bootLocaleMap);
+bootLocaleMap();

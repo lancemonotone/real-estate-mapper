@@ -10,6 +10,8 @@ function milesToMeters(m) {
 function bootLocaleForm() {
   const form = document.getElementById('locale-form');
   if (!(form instanceof HTMLFormElement)) return;
+  if (form.dataset.localeFormBound === 'true') return;
+  form.dataset.localeFormBound = 'true';
 
   const errorEl = document.getElementById('error');
   const placeEl = document.getElementById('locale-place');
@@ -36,7 +38,8 @@ function bootLocaleForm() {
   }
 
   function pushMapUpdate(detail) {
-    mapEl?.dispatchEvent(new CustomEvent('locale-map:update', { detail }));
+    const mapHost = document.getElementById('locale-map');
+    mapHost?.dispatchEvent(new CustomEvent('locale-map:update', { detail }));
   }
 
   async function previewPlace() {
@@ -139,6 +142,34 @@ function bootLocaleForm() {
       window.location.href = `/app/locales/${data.id}`;
     }
   });
+
+  const deleteBtn = document.getElementById('locale-delete');
+  if (cfg.mode === 'edit' && deleteBtn instanceof HTMLButtonElement && cfg.localeId) {
+    deleteBtn.addEventListener('click', async () => {
+      const name = cfg.localeName || 'this Locale';
+      const ok = window.confirm(
+        `Delete "${name}"? This permanently removes all listings, tours, and travel data in this Locale.`,
+      );
+      if (!ok) return;
+
+      deleteBtn.disabled = true;
+      const res = await fetch(
+        `/api/locales/delete?id=${encodeURIComponent(cfg.localeId)}`,
+        { method: 'DELETE' },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        deleteBtn.disabled = false;
+        if (errorEl) {
+          errorEl.hidden = false;
+          errorEl.textContent = data.error ?? 'Delete failed';
+        }
+        return;
+      }
+      window.location.href = '/app';
+    });
+  }
 }
 
 document.addEventListener('astro:page-load', bootLocaleForm);
+bootLocaleForm();

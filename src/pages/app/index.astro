@@ -74,18 +74,6 @@ const localeRows = locales.map((locale) => {
       <span class="locale-nav__pill" aria-hidden="true" data-nest-tabs-pill></span>
       <button
         type="button"
-        class="button secondary locale-nav__link"
-        id="nest-tab-members"
-        role="tab"
-        aria-selected="false"
-        aria-controls="nest-panel-members"
-        tabindex="-1"
-        data-nest-tab="members"
-      >
-        Members
-      </button>
-      <button
-        type="button"
         class="button secondary locale-nav__link locale-nav__link--active"
         id="nest-tab-locales"
         role="tab"
@@ -95,6 +83,18 @@ const localeRows = locales.map((locale) => {
         data-nest-tab="locales"
       >
         Locales
+      </button>
+      <button
+        type="button"
+        class="button secondary locale-nav__link"
+        id="nest-tab-members"
+        role="tab"
+        aria-selected="false"
+        aria-controls="nest-panel-members"
+        tabindex="-1"
+        data-nest-tab="members"
+      >
+        Members
       </button>
     </nav>
 

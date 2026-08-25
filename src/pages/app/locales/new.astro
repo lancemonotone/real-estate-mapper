@@ -9,44 +9,53 @@ import {
 ---
 <AppLayout title="New Locale" crumbs={[{ href: '/app', label: 'Home' }, { label: 'New Locale' }]}>
   <h1>New Locale</h1>
-  <form id="locale-form" class="stack">
-    <label>
-      Name
-      <input name="name" id="locale-name" required placeholder="e.g. Tampa Bay" />
-    </label>
-    <label>
-      Center place
-      <input
-        name="place"
-        id="locale-place"
-        required
-        placeholder="City, neighborhood, or address"
-      />
-    </label>
-    <label>
-      Radius
-      <select name="radius_miles" id="locale-radius" required>
-        {
-          LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
-            <option value={m} selected={m === DEFAULT_LOCALE_RADIUS_MILES}>
-              {m} miles
-            </option>
-          ))
-        }
-      </select>
-    </label>
-    <button type="submit">Create Locale</button>
-  </form>
-  <div
-    id="locale-map"
-    class="locale-map map-well"
-    data-key={import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? ''}
-    data-map-id={import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? ''}
-    data-radius-m={String(milesToMeters(DEFAULT_LOCALE_RADIUS_MILES))}
-    data-title="New Locale"
-  ></div>
-  <p id="map-hint" class="locale-map-missing muted">Enter a place name to preview the map.</p>
-  <p id="error" class="alert" hidden></p>
+
+  <section class="locale-browse">
+    <div class="locale-browse__list stack">
+      <form id="locale-form" class="stack">
+        <label>
+          Name
+          <input name="name" id="locale-name" required placeholder="e.g. Tampa Bay" />
+        </label>
+        <label>
+          Center place
+          <input
+            name="place"
+            id="locale-place"
+            required
+            placeholder="City, neighborhood, or address"
+          />
+        </label>
+        <label>
+          Radius
+          <select name="radius_miles" id="locale-radius" required>
+            {
+              LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
+                <option value={m} selected={m === DEFAULT_LOCALE_RADIUS_MILES}>
+                  {m} miles
+                </option>
+              ))
+            }
+          </select>
+        </label>
+        <button type="submit">Create Locale</button>
+      </form>
+      <p id="error" class="alert" hidden></p>
+    </div>
+
+    <div class="locale-browse__map stack">
+      <div
+        id="locale-map"
+        class="locale-map map-well locale-browse__map-well"
+        data-key={import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? ''}
+        data-map-id={import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? ''}
+        data-radius-m={String(milesToMeters(DEFAULT_LOCALE_RADIUS_MILES))}
+        data-title="New Locale"
+      ></div>
+      <p id="map-hint" class="locale-map-missing muted">Enter a place name to preview the map.</p>
+    </div>
+  </section>
+
   <script>
     window.__WAYHOME_LOCALE_FORM__ = { mode: 'create', initialHasCenter: false };
   </script>
