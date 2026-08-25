@@ -60,8 +60,8 @@ h2 {
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-sat);
+  -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-sat);
 }
 
 .app-shell {

@@ -26,10 +26,13 @@
   --text-muted: #475569;
   --border: rgba(15, 23, 42, 0.12);
   --border-accent: var(--accent);
-  --glass: rgba(255, 255, 255, 0.55);
-  --glass-strong: rgba(255, 255, 255, 0.72);
-  --glass-wash: color-mix(in srgb, var(--accent) 7%, var(--glass));
-  --glass-wash-strong: color-mix(in srgb, var(--accent) 9%, var(--glass-strong));
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-strong: rgba(255, 255, 255, 0.9);
+  --glass-wash: color-mix(in srgb, var(--accent) 8%, var(--glass));
+  --glass-wash-strong: color-mix(in srgb, var(--accent) 10%, var(--glass-strong));
+  /* Split across vars so CSS minifiers cannot glue blur()saturate() into one invalid token. */
+  --glass-backdrop-blur: blur(18px);
+  --glass-backdrop-sat: saturate(1.25);
   --shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
   --danger: #b91c1c;
   --ok: #15803d;
@@ -48,10 +51,10 @@
     --text-muted: #94a3b8;
     --border: rgba(226, 232, 240, 0.14);
     --border-accent: var(--accent);
-    --glass: rgba(17, 24, 39, 0.55);
-    --glass-strong: rgba(17, 24, 39, 0.78);
-    --glass-wash: color-mix(in srgb, var(--accent) 9%, var(--glass));
-    --glass-wash-strong: color-mix(in srgb, var(--accent) 11%, var(--glass-strong));
+    --glass: rgba(17, 24, 39, 0.78);
+    --glass-strong: rgba(17, 24, 39, 0.92);
+    --glass-wash: color-mix(in srgb, var(--accent) 10%, var(--glass));
+    --glass-wash-strong: color-mix(in srgb, var(--accent) 12%, var(--glass-strong));
     --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
     --danger: #f87171;
     --ok: #4ade80;
