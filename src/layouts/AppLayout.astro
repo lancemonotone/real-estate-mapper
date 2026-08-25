@@ -5,6 +5,7 @@ import { ClientRouter } from 'astro:transitions';
 import SpeedInsights from '@vercel/speed-insights/astro';
 import { resolveUiThemeId } from '../lib/ui/themes';
 import LocaleNav from '../components/LocaleNav.astro';
+import SiteFavicon from '../components/SiteFavicon.astro';
 import type { LocaleNavSection } from '../lib/ui/locale-nav';
 
 type Crumb = { href?: string; label: string };
@@ -36,6 +37,7 @@ if (user && supabase) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
+    <SiteFavicon />
     <title>{title} — Wayhome</title>
     <ClientRouter />
   </head>

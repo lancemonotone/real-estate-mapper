@@ -36,10 +36,7 @@ function roleLabel(role: NestMemberProfile['role']): string {
                     <span class="nest-member-row__name">{memberLabel(member, isSelf)}</span>
                   </span>
                   <span
-                    class:list={[
-                      'nest-member-row__role',
-                      member.role === 'owner' && 'nest-member-row__role--owner',
-                    ]}
+                    class:list={['badge', member.role === 'owner' && 'badge--primary']}
                   >
                     {roleLabel(member.role)}
                   </span>

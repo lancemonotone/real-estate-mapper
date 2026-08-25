@@ -38,8 +38,7 @@ if (!nestId) {
   if (error) {
     errorMessage = error.message;
   } else {
-    const site = import.meta.env.PUBLIC_SITE_URL || Astro.url.origin;
-    inviteUrl = `${site.replace(/\/$/, '')}/invite/${raw}`;
+    inviteUrl = `${Astro.url.origin}/invite/${raw}`;
     notice = 'Invite link rotated. Copy it now — the raw token is not stored.';
   }
 }
@@ -94,21 +93,37 @@ const swatchVars: Record<string, { primary: string; accent: string }> = {
     )
   }
 
-  <section class="stack">
+  <section class="stack invite-section">
     <h2>Nest invite</h2>
     {
       inviteUrl && (
-        <p>
-          Invite link:
-          <input type="text" readonly value={inviteUrl} style="inline-size:100%" />
-        </p>
+        <div id="invite-copy" class="invite-copy stack">
+          <label class="invite-copy__label" for="invite-url">
+            Invite link <span class="muted">(click to copy)</span>
+          </label>
+          <div class="invite-copy__row">
+            <input
+              id="invite-url"
+              class="invite-copy__input"
+              type="text"
+              readonly
+              value={inviteUrl}
+              data-invite-url
+            />
+            <button type="button" class="button secondary" data-copy-invite>
+              Copy
+            </button>
+          </div>
+          <p id="invite-copy-status" class="invite-copy__status muted" aria-live="polite"></p>
+        </div>
       )
     }
     <form method="post">
-      <button type="submit">Generate Invite Link</button>
+      <button type="submit">Generate invite link</button>
     </form>
   </section>
 
+  <script src="/scripts/settings-invite.js" type="module"></script>
   <script>
     const status = document.getElementById('theme-status');
     const group = document.getElementById('theme-swatches');

@@ -2,6 +2,7 @@
 import '../styles/tokens.css';
 import '../styles/chrome.css';
 import SpeedInsights from '@vercel/speed-insights/astro';
+import SiteFavicon from '../components/SiteFavicon.astro';
 import { DEFAULT_UI_THEME_ID } from '../lib/ui/themes';
 
 const supabaseConfigured = Boolean(
@@ -14,6 +15,7 @@ const supabaseConfigured = Boolean(
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
+    <SiteFavicon />
     <title>Wayhome</title>
   </head>
   <body class="marketing-shell">

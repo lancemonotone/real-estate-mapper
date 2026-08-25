@@ -12,8 +12,9 @@ Flex `align-items: center` centers the **line box**, which reserves space for **
 ## Scope
 
 - **Do** apply to every new text control via the shared `button` / `.button` / `a.button` / `a.secondary` base — never invent a parallel button style.
+- **Do** apply the same descender padding to text **badges/chips** via `.badge` (Owner, Needs setup, listing status pills).
 - Extend the base (override `--control-pad-*` only). Do not redefine display/padding/font/border chrome.
-- **Do not** apply this padding nudge to `.icon-btn` / icon-only controls.
+- **Do not** apply this padding nudge to `.icon-btn` / icon-only controls or fixed-size circular glyph badges (tour stop numbers use a smaller `--control-descender` nudge instead).
 
 ## Required pattern (text only)
 

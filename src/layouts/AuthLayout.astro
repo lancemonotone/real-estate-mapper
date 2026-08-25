@@ -2,6 +2,7 @@
 import '../styles/tokens.css';
 import '../styles/chrome.css';
 import SpeedInsights from '@vercel/speed-insights/astro';
+import SiteFavicon from '../components/SiteFavicon.astro';
 import { DEFAULT_UI_THEME_ID } from '../lib/ui/themes';
 
 interface Props {
@@ -15,6 +16,7 @@ const { title } = Astro.props;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
+    <SiteFavicon />
     <title>{title} — Wayhome</title>
   </head>
   <body class="app-shell">
