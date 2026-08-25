@@ -452,9 +452,13 @@ a.secondary {
   border-color: var(--border);
 }
 
+/* Icon-only: equal block pad — do not inherit text descender optical nudge from `button`. */
+button.icon-btn,
+.button.icon-btn,
 a.secondary.icon-btn {
   --control-pad-block: 0.35rem;
   --control-pad-inline: 0.35rem;
+  --control-descender: 0;
 
   padding-block: var(--control-pad-block);
   padding-inline: var(--control-pad-inline);
@@ -1999,12 +2003,16 @@ body.directions-overlay-open {
 
 .icon-btn {
   --icon-size: 1.15rem;
+  --control-pad-block: 0.35rem;
+  --control-pad-inline: 0.35rem;
+  --control-descender: 0;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.35rem;
+  padding-block: var(--control-pad-block);
+  padding-inline: var(--control-pad-inline);
   line-height: 0;
   min-inline-size: 2rem;
   min-block-size: 2rem;
@@ -2019,6 +2027,8 @@ body.directions-overlay-open {
     stroke-width: 1.75;
     stroke-linecap: round;
     stroke-linejoin: round;
+    /* Stroke icons often read a hair high; nudge down without text descender math. */
+    transform: translateY(0.06em);
   }
 
   &.icon-btn--spacer {
