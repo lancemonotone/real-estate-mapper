@@ -96,7 +96,7 @@ Omit or `null` when unknown. Do not write "Unlisted" into numeric fields.
 
 ## Amenities filter (normative)
 
-Keep **property / lifestyle** highlights only (pool, clubhouse, fitness, courtyard, deck, balcony/patio, playground, tennis, bark park, outdoor kitchens, notable parking like surface lot, in-unit W/D when it's a selling point, shared laundry when relevant, smoke-free, pets allowed, etc.).
+Keep **property / lifestyle** highlights only (pool, hot tub, jacuzzi, spa, sauna, clubhouse, fitness, courtyard, deck, balcony/patio, playground, tennis, pickleball, bark park, outdoor kitchens, fire pit, splash pad, lazy river, movie theater, notable parking like surface lot, in-unit W/D when it's a selling point, shared laundry when relevant, smoke-free, pets allowed, etc.).
 
 **Drop** baseline or vague items, including: Refrigerator, Window Coverings, Linen Closet, Cable Satellite, Garbage Disposal, Ceiling Fan, "Other Community Rooms", "Other Unit Features", and similar.
 

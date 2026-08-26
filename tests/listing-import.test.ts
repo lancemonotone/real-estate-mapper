@@ -38,9 +38,28 @@ describe('filterAmenities', () => {
       'In Unit: Washer And Dryer',
     ]);
     expect(out).toContain('Clubhouse');
-    expect(out).toContain('Swimming Pools');
+    expect(out).toContain('Swimming Pool');
     expect(out).toContain('In-Unit Washer/Dryer');
     expect(out.some((a) => /refrigerator/i.test(a))).toBe(false);
+  });
+
+  it('keeps pool, spa, and leisure amenities', () => {
+    const out = filterAmenities([
+      'Swimming Pool: Heated Pool and Spa',
+      'Hot Tub',
+      'Jacuzzi',
+      'Sauna',
+      'Fire Pit',
+      'Pickleball Court',
+      'Lazy River',
+    ]);
+    expect(out).toContain('Swimming Pool');
+    expect(out).toContain('Hot Tub');
+    expect(out).toContain('Jacuzzi');
+    expect(out).toContain('Sauna');
+    expect(out).toContain('Fire Pit');
+    expect(out).toContain('Pickleball');
+    expect(out).toContain('Lazy River');
   });
 });
 
