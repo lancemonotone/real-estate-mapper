@@ -94,6 +94,9 @@ function selectOption(root, opt) {
   const label = opt.dataset.label || opt.textContent || value;
   valueInput.value = value;
   if (triggerLabel) triggerLabel.textContent = label;
+  if (trigger instanceof HTMLElement) {
+    trigger.classList.toggle('place-type-picker__trigger--empty', !value);
+  }
   if (list) {
     for (const other of list.querySelectorAll('[data-place-type-option]')) {
       if (other instanceof HTMLElement) {
@@ -169,15 +172,22 @@ export function setPlaceTypeValue(valueInput, nextValue) {
     valueInput.value = nextValue;
     return;
   }
-  const opt = root.querySelector(
-    `[data-place-type-option][data-value="${CSS.escape(nextValue)}"]`,
-  );
+  const emptyLabel = root.dataset.emptyLabel || 'Choose a place type…';
+  const opt = nextValue
+    ? root.querySelector(
+        `[data-place-type-option][data-value="${CSS.escape(nextValue)}"]`,
+      )
+    : null;
   const label =
     (opt instanceof HTMLElement && (opt.dataset.label || opt.textContent)) ||
-    nextValue;
+    (nextValue ? nextValue : emptyLabel);
   valueInput.value = nextValue;
   const triggerLabel = root.querySelector('[data-place-type-trigger-label]');
   if (triggerLabel) triggerLabel.textContent = label;
+  const trigger = root.querySelector('[data-place-type-trigger]');
+  if (trigger instanceof HTMLElement) {
+    trigger.classList.toggle('place-type-picker__trigger--empty', !nextValue);
+  }
   for (const other of root.querySelectorAll('[data-place-type-option]')) {
     if (other instanceof HTMLElement) {
       other.setAttribute(
@@ -186,4 +196,5 @@ export function setPlaceTypeValue(valueInput, nextValue) {
       );
     }
   }
+  valueInput.dispatchEvent(new Event('change', { bubbles: true }));
 }

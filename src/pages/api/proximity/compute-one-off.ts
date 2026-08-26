@@ -74,6 +74,20 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       travel_mode: travelMode,
       locale_id: localeId,
     };
+  } else if (kind === 'text_query') {
+    const textQuery =
+      typeof body.text_query === 'string' ? body.text_query.trim() : '';
+    if (!textQuery) {
+      return new Response(JSON.stringify({ error: 'text_query required' }), {
+        status: 400,
+      });
+    }
+    input = {
+      kind: 'text_query',
+      text_query: textQuery,
+      travel_mode: travelMode,
+      locale_id: localeId,
+    };
   } else if (kind === 'fixed_pin') {
     if (typeof body.pin_lat !== 'number' || typeof body.pin_lng !== 'number') {
       return new Response(
@@ -92,7 +106,9 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     };
   } else {
     return new Response(
-      JSON.stringify({ error: 'kind must be place_type or fixed_pin' }),
+      JSON.stringify({
+        error: 'kind must be place_type, fixed_pin, or text_query',
+      }),
       { status: 400 },
     );
   }

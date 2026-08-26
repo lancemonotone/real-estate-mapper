@@ -2,6 +2,7 @@ import { mountPlaceSearch } from './place-search.js';
 import {
   mountAllPlaceTypePickers,
   readPlaceTypeValue,
+  setPlaceTypeValue,
 } from './place-type-picker.js';
 import {
   iconBan,
@@ -1013,6 +1014,31 @@ function initProximityPanel() {
 
   mountAllPlaceTypePickers(document);
 
+  {
+    const typeEl = document.getElementById('prox-place-type');
+    const phraseEl = document.getElementById('prox-text-query');
+    if (phraseEl instanceof HTMLInputElement) {
+      phraseEl.addEventListener(
+        'input',
+        () => {
+          if (phraseEl.value.trim() && typeEl instanceof HTMLInputElement) {
+            setPlaceTypeValue(typeEl, '');
+          }
+        },
+        { signal },
+      );
+    }
+    if (typeEl instanceof HTMLInputElement && phraseEl instanceof HTMLInputElement) {
+      typeEl.addEventListener(
+        'change',
+        () => {
+          if (typeEl.value) phraseEl.value = '';
+        },
+        { signal },
+      );
+    }
+  }
+
   window.addEventListener(
     'listing-place-picker',
     (event) => {
@@ -1077,17 +1103,37 @@ function initProximityPanel() {
         await presentProximityResult(data.result, origin);
       } else {
         const typeEl = document.getElementById('prox-place-type');
+        const phraseEl = document.getElementById('prox-text-query');
+        const text_query =
+          phraseEl instanceof HTMLInputElement ? phraseEl.value.trim() : '';
         const place_type_key = readPlaceTypeValue(typeEl);
-        const res = await fetch('/api/proximity/compute-one-off', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        let body;
+        if (text_query) {
+          body = {
+            listing_id: cfg.listingId,
+            locale_id: cfg.localeId,
+            kind: 'text_query',
+            text_query,
+            travel_mode,
+          };
+        } else if (place_type_key) {
+          body = {
             listing_id: cfg.listingId,
             locale_id: cfg.localeId,
             kind: 'place_type',
             place_type_key,
             travel_mode,
-          }),
+          };
+        } else {
+          setProxResultStatus('Choose a place type or enter a search phrase', {
+            error: true,
+          });
+          return;
+        }
+        const res = await fetch('/api/proximity/compute-one-off', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
         });
         const data = await res.json();
         if (!res.ok) {

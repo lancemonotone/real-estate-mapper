@@ -6,14 +6,26 @@ type Props = {
   name?: string;
   /** Element id for the value input (JS readers). */
   id?: string;
+  /** Selected Table A key, or empty for no selection. */
   value?: string;
+  /** Trigger label when value is empty. */
+  emptyLabel?: string;
 };
 
-const { name, id, value = 'beach' } = Astro.props;
-const selectedLabel = placeTypeLabel(value);
+const {
+  name,
+  id,
+  value = '',
+  emptyLabel = 'Choose a place type…',
+} = Astro.props;
+const selectedLabel = value ? placeTypeLabel(value) : emptyLabel;
 ---
 
-<div class="place-type-picker" data-place-type-picker>
+<div
+  class="place-type-picker"
+  data-place-type-picker
+  data-empty-label={emptyLabel}
+>
   <input
     type="hidden"
     data-place-type-value
@@ -23,7 +35,10 @@ const selectedLabel = placeTypeLabel(value);
   />
   <button
     type="button"
-    class="place-type-picker__trigger"
+    class:list={[
+      'place-type-picker__trigger',
+      { 'place-type-picker__trigger--empty': !value },
+    ]}
     data-place-type-trigger
     aria-expanded="false"
     aria-haspopup="listbox"

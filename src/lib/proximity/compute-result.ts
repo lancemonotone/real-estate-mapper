@@ -7,6 +7,11 @@ import {
 } from './compute-core';
 import { isLocalePoiExcluded, pairsToRecomputeAfterExclude } from './exclusions';
 import { googleMapsDirectionsUrl } from './maps-url';
+import {
+  isTextQueryCacheKey,
+  textQueryCacheKey,
+  textQueryFromCacheKey,
+} from './text-query';
 
 type Client = SupabaseClient<Database>;
 
@@ -222,15 +227,20 @@ export async function computeProximityResult(
   // Locked rows keep their place even if it was later excluded.
   // Unlocked rows with an excluded place must recompute.
   if (existing && isCachedOkProximityResult(existing) && !opts?.force) {
+    let exclusionKey: string | null = null;
+    if (criterion.kind === 'place_type') {
+      exclusionKey = criterion.place_type_key;
+    } else if (criterion.kind === 'text_query' && criterion.text_query) {
+      exclusionKey = textQueryCacheKey(criterion.text_query);
+    }
     const keepCache =
       existing.locked === true ||
-      criterion.kind !== 'place_type' ||
-      !criterion.place_type_key ||
+      !exclusionKey ||
       !existing.place_id ||
       !(await isLocalePoiExcluded(
         supabase,
         criterion.locale_id,
-        criterion.place_type_key,
+        exclusionKey,
         existing.place_id,
       ));
     if (keepCache) {
@@ -291,26 +301,46 @@ export async function excludeLocalePoiAndRecompute(
     throw new Error(upsertError.message);
   }
 
-  const { data: criteria, error: criteriaError } = await supabase
+  const { data: typeCriteria, error: typeError } = await supabase
     .from('proximity_criteria')
     .select('id')
     .eq('locale_id', localeId)
     .eq('kind', 'place_type')
     .eq('place_type_key', placeTypeKey);
 
-  if (criteriaError) {
-    throw new Error(criteriaError.message);
+  if (typeError) {
+    throw new Error(typeError.message);
   }
 
-  const criterionIds = (criteria ?? []).map((c) => c.id);
-  if (criterionIds.length === 0) {
+  const criterionIds = new Set((typeCriteria ?? []).map((c) => c.id));
+
+  if (isTextQueryCacheKey(placeTypeKey)) {
+    const phrase = textQueryFromCacheKey(placeTypeKey);
+    const { data: textCriteria, error: textError } = await supabase
+      .from('proximity_criteria')
+      .select('id, text_query')
+      .eq('locale_id', localeId)
+      .eq('kind', 'text_query');
+    if (textError) {
+      throw new Error(textError.message);
+    }
+    for (const row of textCriteria ?? []) {
+      if (row.text_query && textQueryCacheKey(row.text_query) === placeTypeKey) {
+        criterionIds.add(row.id);
+      } else if (row.text_query === phrase) {
+        criterionIds.add(row.id);
+      }
+    }
+  }
+
+  if (criterionIds.size === 0) {
     return { results: [] };
   }
 
   const { data: affected, error: resultsError } = await supabase
     .from('proximity_results')
     .select('listing_id, criterion_id')
-    .in('criterion_id', criterionIds)
+    .in('criterion_id', [...criterionIds])
     .eq('place_id', placeId)
     .eq('locked', false);
 

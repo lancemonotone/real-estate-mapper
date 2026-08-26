@@ -4,6 +4,7 @@ import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
 import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
 import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
 import { placeTypeLabel } from '../../../../lib/proximity/place-types';
+import { textQueryCacheKey } from '../../../../lib/proximity/text-query';
 import { getLocaleForNestMember } from '../../../../lib/supabase/nest';
 
 const { localeId } = Astro.params;
@@ -96,7 +97,13 @@ const criterionRows = criteria ?? [];
                 {criterionRows.map((c) => (
                   <th
                     data-criterion-id={c.id}
-                    data-place-type-key={c.kind === 'place_type' ? c.place_type_key ?? '' : ''}
+                    data-place-type-key={
+                      c.kind === 'place_type'
+                        ? c.place_type_key ?? ''
+                        : c.kind === 'text_query' && c.text_query
+                          ? textQueryCacheKey(c.text_query)
+                          : ''
+                    }
                     data-travel-mode={c.travel_mode}
                     data-sort-type="number"
                   >
@@ -121,7 +128,9 @@ const criterionRows = criteria ?? [];
                       <small class="muted matrix-criterion-head__meta">
                         {c.kind === 'place_type'
                           ? `Nearest · ${placeTypeLabel(c.place_type_key ?? '')}`
-                          : 'Shared place'} ·{' '}
+                          : c.kind === 'text_query'
+                            ? `Nearest · ${c.text_query ?? c.label}`
+                            : 'Shared place'} ·{' '}
                         {c.travel_mode}
                       </small>
                     </div>
@@ -233,19 +242,37 @@ const criterionRows = criteria ?? [];
         <label>
           Kind
           <select name="kind" id="criterion-kind">
-            <option value="place_type">Nearest place type</option>
+            <option value="nearest">Nearest</option>
             <option value="fixed_pin">Shared place</option>
           </select>
         </label>
-        <label id="type-fields">
-          Place type
-          <PlaceTypePicker name="place_type_key" value="beach" />
-        </label>
+        <div id="nearest-fields" class="stack">
+          <label>
+            Place type
+            <PlaceTypePicker name="place_type_key" value="" />
+          </label>
+          <p class="muted nearest-fields__or">or</p>
+          <label>
+            Search phrase
+            <input
+              type="text"
+              name="text_query"
+              id="criterion-text-query"
+              placeholder="e.g. coffee shop"
+              autocomplete="off"
+            />
+          </label>
+        </div>
         <div id="pin-fields" class="pin-fields stack" hidden>
           <div class="place-search" id="compare-place-search">
             <label>
               Place or address
-              <input type="search" data-place-search-input placeholder="Start typing…" autocomplete="off" />
+              <input
+                type="search"
+                data-place-search-input
+                placeholder="Place, address, or search phrase…"
+                autocomplete="off"
+              />
             </label>
             <ul class="place-search__results stack" data-place-search-results hidden></ul>
             <p class="alert" data-place-search-error hidden></p>
@@ -303,14 +330,24 @@ const criterionRows = criteria ?? [];
             <label>
               Mode
               <select id="compare-prox-mode-kind">
-                <option value="nearest">Nearest type</option>
+                <option value="nearest">Nearest</option>
                 <option value="search">Search place</option>
               </select>
             </label>
             <div id="compare-prox-nearest-fields" class="stack">
               <label>
                 Place type
-                <PlaceTypePicker id="compare-prox-place-type" value="beach" />
+                <PlaceTypePicker id="compare-prox-place-type" value="" />
+              </label>
+              <p class="muted nearest-fields__or">or</p>
+              <label>
+                Search phrase
+                <input
+                  type="text"
+                  id="compare-prox-text-query"
+                  placeholder="e.g. coffee shop"
+                  autocomplete="off"
+                />
               </label>
             </div>
             <div id="compare-prox-search-fields" class="stack" hidden>
@@ -320,7 +357,7 @@ const criterionRows = criteria ?? [];
                   <input
                     type="search"
                     data-place-search-input
-                    placeholder="Start typing…"
+                    placeholder="Place, address, or search phrase…"
                     autocomplete="off"
                   />
                 </label>

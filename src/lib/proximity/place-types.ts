@@ -632,4 +632,5 @@ export type PoiCandidate = {
   name: string;
   lat: number;
   lng: number;
+  formattedAddress?: string;
 };

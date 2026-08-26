@@ -1,6 +1,10 @@
 import type { APIRoute } from 'astro';
-import { fillLocalePoisForType } from '../../../lib/proximity/fill-pois';
+import {
+  fillLocalePoisForTextQuery,
+  fillLocalePoisForType,
+} from '../../../lib/proximity/fill-pois';
 import { PLACE_TYPE_CATALOG, type PlaceTypeKey } from '../../../lib/proximity/place-types';
+import { normalizeTextQuery } from '../../../lib/proximity/text-query';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 function isPlaceTypeKey(key: string): key is PlaceTypeKey {
@@ -42,29 +46,53 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     );
   }
 
-  const { data: criteria, error: criteriaError } = await supabase
+  const { data: typeCriteria, error: typeError } = await supabase
     .from('proximity_criteria')
     .select('place_type_key')
     .eq('locale_id', localeId)
     .eq('kind', 'place_type');
 
-  if (criteriaError) {
-    return new Response(JSON.stringify({ error: criteriaError.message }), { status: 500 });
+  if (typeError) {
+    return new Response(JSON.stringify({ error: typeError.message }), { status: 500 });
+  }
+
+  const { data: textCriteria, error: textError } = await supabase
+    .from('proximity_criteria')
+    .select('text_query')
+    .eq('locale_id', localeId)
+    .eq('kind', 'text_query');
+
+  if (textError) {
+    return new Response(JSON.stringify({ error: textError.message }), { status: 500 });
   }
 
   const keys = new Set<PlaceTypeKey>();
-  for (const row of criteria ?? []) {
+  for (const row of typeCriteria ?? []) {
     const key = row.place_type_key;
     if (key && isPlaceTypeKey(key)) {
       keys.add(key);
     }
   }
 
-  const filled: Array<{ place_type_key: PlaceTypeKey; upsert_count: number }> = [];
+  const textQueries = new Set<string>();
+  for (const row of textCriteria ?? []) {
+    const q = row.text_query ? normalizeTextQuery(row.text_query) : '';
+    if (q) textQueries.add(q);
+  }
+
+  const filled: Array<{
+    place_type_key?: PlaceTypeKey;
+    text_query?: string;
+    upsert_count: number;
+  }> = [];
   try {
     for (const key of keys) {
       const upsert_count = await fillLocalePoisForType(supabase, locale, key);
       filled.push({ place_type_key: key, upsert_count });
+    }
+    for (const query of textQueries) {
+      const upsert_count = await fillLocalePoisForTextQuery(supabase, locale, query);
+      filled.push({ text_query: query, upsert_count });
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Places fill failed';

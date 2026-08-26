@@ -32,9 +32,7 @@ describe('listUiThemes', () => {
   it('defines primary and accent colors for each theme', () => {
     for (const theme of listUiThemes()) {
       expect(theme.primary).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(theme.primaryDark).toMatch(/^#[0-9a-f]{6}$/i);
       expect(theme.accent).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(theme.accentDark).toMatch(/^#[0-9a-f]{6}$/i);
     }
   });
 });

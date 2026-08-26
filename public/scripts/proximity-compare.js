@@ -330,17 +330,45 @@ async function computeCell(td) {
 
 function initKindToggle(signal) {
   const kind = document.getElementById('criterion-kind');
-  const typeFields = document.getElementById('type-fields');
+  const nearestFields = document.getElementById('nearest-fields');
   const pinFields = document.getElementById('pin-fields');
-  if (!(kind instanceof HTMLSelectElement) || !typeFields || !pinFields) return;
+  if (!(kind instanceof HTMLSelectElement) || !nearestFields || !pinFields) {
+    return;
+  }
 
   const sync = () => {
     const isPin = kind.value === 'fixed_pin';
+    nearestFields.hidden = isPin;
     pinFields.hidden = !isPin;
-    typeFields.hidden = isPin;
   };
   kind.addEventListener('change', sync, { signal });
   sync();
+}
+
+function initNearestMutualExclusive(typeEl, phraseEl, signal) {
+  if (!(phraseEl instanceof HTMLInputElement)) return;
+
+  const clearType = () => {
+    if (typeEl instanceof HTMLInputElement) setPlaceTypeValue(typeEl, '');
+  };
+
+  phraseEl.addEventListener(
+    'input',
+    () => {
+      if (phraseEl.value.trim()) clearType();
+    },
+    { signal },
+  );
+
+  if (typeEl instanceof HTMLInputElement) {
+    typeEl.addEventListener(
+      'change',
+      () => {
+        if (typeEl.value) phraseEl.value = '';
+      },
+      { signal },
+    );
+  }
 }
 
 function initCompareColumnOverlay(signal) {
@@ -397,16 +425,30 @@ function initCriterionForm(signal) {
     async (e) => {
       e.preventDefault();
       const fd = new FormData(form);
-      const kind = String(fd.get('kind') || '');
+      const uiKind = String(fd.get('kind') || '');
       const body = {
         locale_id: String(fd.get('locale_id') || ''),
         label: String(fd.get('label') || '').trim(),
-        kind,
         travel_mode: String(fd.get('travel_mode') || 'DRIVE'),
       };
-      if (kind === 'place_type') {
-        body.place_type_key = String(fd.get('place_type_key') || '');
+      if (uiKind === 'nearest') {
+        const text_query = String(fd.get('text_query') || '').trim();
+        const place_type_key = String(fd.get('place_type_key') || '').trim();
+        if (text_query) {
+          body.kind = 'text_query';
+          body.text_query = text_query;
+          if (!body.label) body.label = text_query;
+        } else if (place_type_key) {
+          body.kind = 'place_type';
+          body.place_type_key = place_type_key;
+        } else {
+          if (status) {
+            status.textContent = 'Choose a place type or enter a search phrase';
+          }
+          return;
+        }
       } else {
+        body.kind = 'fixed_pin';
         const place = placeSearch?.getResolved?.();
         if (!place) {
           if (status) status.textContent = 'Choose a shared place from search first';
@@ -903,13 +945,32 @@ function initCellPlacePicker(signal) {
         };
       } else {
         const typeEl = document.getElementById('compare-prox-place-type');
-        body = {
-          listing_id: listingId,
-          locale_id: cfg.localeId,
-          kind: 'place_type',
-          place_type_key: readPlaceTypeValue(typeEl),
-          travel_mode,
-        };
+        const phraseEl = document.getElementById('compare-prox-text-query');
+        const text_query =
+          phraseEl instanceof HTMLInputElement ? phraseEl.value.trim() : '';
+        const place_type_key = readPlaceTypeValue(typeEl);
+        if (text_query) {
+          body = {
+            listing_id: listingId,
+            locale_id: cfg.localeId,
+            kind: 'text_query',
+            text_query,
+            travel_mode,
+          };
+        } else if (place_type_key) {
+          body = {
+            listing_id: listingId,
+            locale_id: cfg.localeId,
+            kind: 'place_type',
+            place_type_key,
+            travel_mode,
+          };
+        } else {
+          setCompareProxStatus('Choose a place type or enter a search phrase', {
+            error: true,
+          });
+          return;
+        }
       }
 
       const res = await fetch('/api/proximity/compute-one-off', {
@@ -1043,6 +1104,16 @@ function bootComparePage() {
   cellPickerTd = null;
 
   initKindToggle(signal);
+  initNearestMutualExclusive(
+    document.querySelector('#nearest-fields [data-place-type-value]'),
+    document.getElementById('criterion-text-query'),
+    signal,
+  );
+  initNearestMutualExclusive(
+    document.getElementById('compare-prox-place-type'),
+    document.getElementById('compare-prox-text-query'),
+    signal,
+  );
   initCompareColumnOverlay(signal);
   initCriterionForm(signal);
   initDeleteButtons(signal);

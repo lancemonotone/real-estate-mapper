@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { autocompletePlaces } from '../../../lib/google/places-autocomplete';
+import { searchTextPlaces } from '../../../lib/google/places-text';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
@@ -55,19 +56,41 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   }
 
   try {
-    const suggestions = await autocompletePlaces({
-      text: input,
+    // Text Search first: free-form phrases ("pizza near…", business names) land here.
+    // Autocomplete almost always returns prefix noise, so it must not block Text Search.
+    const places = await searchTextPlaces({
       lat: locale.center_lat,
       lng: locale.center_lng,
       radiusM: locale.radius_m,
-      sessionToken,
+      textQuery: input,
+      maxResultCount: 8,
     });
-    return new Response(JSON.stringify({ suggestions }), {
+    let suggestions = places.map((p) => ({
+      placeId: p.placeId,
+      primaryText: p.name,
+      secondaryText: p.formattedAddress ?? '',
+      lat: p.lat,
+      lng: p.lng,
+    }));
+    let source: 'autocomplete' | 'text' = 'text';
+
+    if (suggestions.length === 0) {
+      suggestions = await autocompletePlaces({
+        text: input,
+        lat: locale.center_lat,
+        lng: locale.center_lng,
+        radiusM: locale.radius_m,
+        sessionToken,
+      });
+      source = 'autocomplete';
+    }
+
+    return new Response(JSON.stringify({ suggestions, source }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Autocomplete failed';
+    const message = e instanceof Error ? e.message : 'Place search failed';
     return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 };

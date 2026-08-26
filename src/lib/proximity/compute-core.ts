@@ -10,7 +10,7 @@ import {
   loadExcludedPlaceIds,
   withoutExcludedPois,
 } from './exclusions';
-import { fillLocalePoisForType } from './fill-pois';
+import { fillLocalePoisForTextQuery, fillLocalePoisForType } from './fill-pois';
 import { googleMapsDirectionsUrl } from './maps-url';
 import { pickWinnerByDuration, rankByDuration } from './pick-winner';
 import {
@@ -21,6 +21,7 @@ import {
   type PoiCandidate,
 } from './place-types';
 import { shortlistPois } from './shortlist';
+import { normalizeTextQuery, textQueryCacheKey } from './text-query';
 
 type Client = SupabaseClient<Database>;
 
@@ -61,6 +62,12 @@ export type OneOffCriterionInput =
       pin_lng: number;
       pin_name?: string | null;
       pin_place_id?: string | null;
+      travel_mode: TravelMode;
+      locale_id: string;
+    }
+  | {
+      kind: 'text_query';
+      text_query: string;
       travel_mode: TravelMode;
       locale_id: string;
     };
@@ -179,41 +186,39 @@ async function evaluateFixedPin(
   }
 }
 
-async function evaluatePlaceType(
+async function evaluateNearestCached(
   supabase: Client,
   locale: Locale,
-  criterion: { place_type_key: string | null; travel_mode: string },
+  input: {
+    cacheKey: string;
+    travel_mode: string;
+    ensureFilled: () => Promise<void>;
+  },
   origin: { lat: number; lng: number },
 ): Promise<ProximityOutcome> {
-  const key = criterion.place_type_key;
-  if (!key || !isPlaceTypeKey(key)) {
+  if (!isTravelMode(input.travel_mode)) {
     return outcome({
       status: 'error',
-      error_message: key
-        ? `Unknown place type key: ${key}`
-        : 'place_type criterion missing place_type_key',
+      error_message: `Invalid travel mode: ${input.travel_mode}`,
     });
   }
 
-  if (!isTravelMode(criterion.travel_mode)) {
-    return outcome({
-      status: 'error',
-      error_message: `Invalid travel mode: ${criterion.travel_mode}`,
-    });
-  }
-
-  let pois = await loadLocalePois(supabase, locale.id, key);
+  let pois = await loadLocalePois(supabase, locale.id, input.cacheKey);
   if (pois.length === 0) {
     try {
-      await fillLocalePoisForType(supabase, locale, key);
+      await input.ensureFilled();
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Places fill failed';
       return outcome({ status: 'error', error_message: message });
     }
-    pois = await loadLocalePois(supabase, locale.id, key);
+    pois = await loadLocalePois(supabase, locale.id, input.cacheKey);
   }
 
-  const excludedIds = await loadExcludedPlaceIds(supabase, locale.id, key);
+  const excludedIds = await loadExcludedPlaceIds(
+    supabase,
+    locale.id,
+    input.cacheKey,
+  );
   pois = withoutExcludedPois(pois, excludedIds);
 
   if (pois.length === 0) {
@@ -229,7 +234,7 @@ async function evaluatePlaceType(
     const legs = await computeRouteMatrix({
       origin,
       destinations: shortlist.map((p) => ({ lat: p.lat, lng: p.lng })),
-      travelMode: criterion.travel_mode,
+      travelMode: input.travel_mode,
     });
     const ranked = rankByDuration(shortlist, legs, PROXIMITY_CHOICE_N);
     const winner = ranked[0] ?? pickWinnerByDuration(shortlist, legs);
@@ -265,7 +270,7 @@ async function evaluatePlaceType(
           placeId: winner.poi.placeId,
           name: winner.poi.name,
         },
-        travelMode: criterion.travel_mode,
+        travelMode: input.travel_mode,
       }),
       candidates,
     });
@@ -273,6 +278,63 @@ async function evaluatePlaceType(
     const message = e instanceof Error ? e.message : 'Route matrix failed';
     return outcome({ status: 'error', error_message: message });
   }
+}
+
+async function evaluatePlaceType(
+  supabase: Client,
+  locale: Locale,
+  criterion: { place_type_key: string | null; travel_mode: string },
+  origin: { lat: number; lng: number },
+): Promise<ProximityOutcome> {
+  const key = criterion.place_type_key;
+  if (!key || !isPlaceTypeKey(key)) {
+    return outcome({
+      status: 'error',
+      error_message: key
+        ? `Unknown place type key: ${key}`
+        : 'place_type criterion missing place_type_key',
+    });
+  }
+
+  return evaluateNearestCached(
+    supabase,
+    locale,
+    {
+      cacheKey: key,
+      travel_mode: criterion.travel_mode,
+      ensureFilled: () => fillLocalePoisForType(supabase, locale, key),
+    },
+    origin,
+  );
+}
+
+async function evaluateTextQuery(
+  supabase: Client,
+  locale: Locale,
+  criterion: { text_query: string | null; travel_mode: string },
+  origin: { lat: number; lng: number },
+): Promise<ProximityOutcome> {
+  const query = criterion.text_query
+    ? normalizeTextQuery(criterion.text_query)
+    : '';
+  if (!query) {
+    return outcome({
+      status: 'error',
+      error_message: 'text_query criterion missing text_query',
+    });
+  }
+
+  const cacheKey = textQueryCacheKey(query);
+  return evaluateNearestCached(
+    supabase,
+    locale,
+    {
+      cacheKey,
+      travel_mode: criterion.travel_mode,
+      ensureFilled: () => fillLocalePoisForTextQuery(supabase, locale, query),
+    },
+    origin,
+  );
 }
 
 async function loadListingOrigin(
@@ -339,6 +401,8 @@ export async function evaluateCriterionProximity(
       return evaluateFixedPin(criterion, origin);
     case 'place_type':
       return evaluatePlaceType(supabase, locale, criterion, origin);
+    case 'text_query':
+      return evaluateTextQuery(supabase, locale, criterion, origin);
     default: {
       const _exhaustive: never = criterion.kind;
       throw new Error(`Unknown criterion kind: ${String(_exhaustive)}`);
@@ -390,6 +454,16 @@ export async function evaluateOneOffProximity(
         locale,
         {
           place_type_key: input.place_type_key,
+          travel_mode: input.travel_mode,
+        },
+        origin,
+      );
+    case 'text_query':
+      return evaluateTextQuery(
+        supabase,
+        locale,
+        {
+          text_query: input.text_query,
           travel_mode: input.travel_mode,
         },
         origin,

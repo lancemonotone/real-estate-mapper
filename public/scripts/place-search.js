@@ -83,6 +83,26 @@ export function mountPlaceSearch(rootEl, options) {
             clearResults();
             input.value = s.primaryText || '';
             try {
+              if (
+                typeof s.lat === 'number' &&
+                typeof s.lng === 'number' &&
+                Number.isFinite(s.lat) &&
+                Number.isFinite(s.lng)
+              ) {
+                resolved = {
+                  placeId: s.placeId,
+                  name: s.primaryText || 'Place',
+                  lat: s.lat,
+                  lng: s.lng,
+                  formattedAddress: s.secondaryText || null,
+                };
+                input.value =
+                  [s.primaryText, s.secondaryText].filter(Boolean).join(', ') ||
+                  resolved.name;
+                options.onResolved?.(resolved);
+                return;
+              }
+
               const detailRes = await fetch('/api/places/details', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

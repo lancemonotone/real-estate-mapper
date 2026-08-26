@@ -9,6 +9,7 @@ import {
   type PlaceTypeKey,
   type PoiCandidate,
 } from './place-types';
+import { normalizeTextQuery, textQueryCacheKey } from './text-query';
 
 type Client = SupabaseClient<Database>;
 
@@ -139,6 +140,82 @@ export async function fillLocalePoisForType(
   const rows = [...byPlaceId.values()].map((poi) => ({
     locale_id: locale.id,
     place_type_key: placeTypeKey,
+    place_id: poi.placeId,
+    name: poi.name,
+    lat: poi.lat,
+    lng: poi.lng,
+    fetched_at: new Date().toISOString(),
+  }));
+
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  const { data, error } = await supabase
+    .from('locale_pois')
+    .upsert(rows, { onConflict: 'locale_id,place_type_key,place_id' })
+    .select('id');
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.length ?? rows.length;
+}
+
+/** Fill locale POI cache for a free-form Text Search phrase. */
+export async function fillLocalePoisForTextQuery(
+  supabase: Client,
+  locale: Locale,
+  textQuery: string,
+): Promise<number> {
+  const normalized = normalizeTextQuery(textQuery);
+  if (!normalized) {
+    throw new Error('text query required');
+  }
+  const cacheKey = textQueryCacheKey(normalized);
+
+  const centers = tileSearchCenters(
+    { lat: locale.center_lat, lng: locale.center_lng },
+    locale.radius_m,
+  );
+
+  const byPlaceId = new Map<string, PoiCandidate>();
+  for (const center of centers) {
+    const found = await searchTextPlaces({
+      lat: center.lat,
+      lng: center.lng,
+      radiusM: center.radiusM,
+      textQuery: normalized,
+    });
+    for (const poi of found) {
+      if (
+        haversineMeters(
+          { lat: locale.center_lat, lng: locale.center_lng },
+          poi,
+        ) > locale.radius_m
+      ) {
+        continue;
+      }
+      if (!byPlaceId.has(poi.placeId)) {
+        byPlaceId.set(poi.placeId, poi);
+      }
+    }
+  }
+
+  const { error: deleteError } = await supabase
+    .from('locale_pois')
+    .delete()
+    .eq('locale_id', locale.id)
+    .eq('place_type_key', cacheKey);
+
+  if (deleteError) {
+    throw new Error(deleteError.message);
+  }
+
+  const rows = [...byPlaceId.values()].map((poi) => ({
+    locale_id: locale.id,
+    place_type_key: cacheKey,
     place_id: poi.placeId,
     name: poi.name,
     lat: poi.lat,

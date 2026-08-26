@@ -5,40 +5,30 @@ export type UiThemeId = 'sea' | 'steel' | 'sand';
 export type UiTheme = {
   id: UiThemeId;
   label: string;
-  /** Filled controls (primary buttons) — light */
+  /** Filled controls (primary buttons) */
   primary: string;
-  /** Filled controls — dark */
-  primaryDark: string;
-  /** Outlines / links / selection — light */
+  /** Outlines / links / selection */
   accent: string;
-  /** Outlines / links / selection — dark */
-  accentDark: string;
 };
 
 export const UI_THEME_CATALOG: Record<UiThemeId, UiTheme> = {
   sea: {
     id: 'sea',
     label: 'Sea glass',
-    primary: '#0d9488',
-    primaryDark: '#2dd4bf',
-    accent: '#2563eb',
-    accentDark: '#93c5fd',
+    primary: '#2dd4bf',
+    accent: '#93c5fd',
   },
   steel: {
     id: 'steel',
     label: 'Cool steel',
-    primary: '#3b82f6',
-    primaryDark: '#60a5fa',
-    accent: '#7c3aed',
-    accentDark: '#c4b5fd',
+    primary: '#60a5fa',
+    accent: '#c4b5fd',
   },
   sand: {
     id: 'sand',
     label: 'Warm sand',
-    primary: '#d97706',
-    primaryDark: '#fbbf24',
-    accent: '#c2410c',
-    accentDark: '#fdba74',
+    primary: '#fbbf24',
+    accent: '#fdba74',
   },
 };
 

@@ -1,6 +1,10 @@
 import type { APIRoute } from 'astro';
-import { fillLocalePoisForType } from '../../../lib/proximity/fill-pois';
+import {
+  fillLocalePoisForTextQuery,
+  fillLocalePoisForType,
+} from '../../../lib/proximity/fill-pois';
 import { PLACE_TYPE_CATALOG, type PlaceTypeKey } from '../../../lib/proximity/place-types';
+import { normalizeTextQuery } from '../../../lib/proximity/text-query';
 import type { ProximityCriterionKind, TravelMode } from '../../../lib/types/database';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
@@ -18,7 +22,7 @@ function isTravelMode(mode: string): mode is TravelMode {
 }
 
 function isCriterionKind(kind: string): kind is ProximityCriterionKind {
-  return kind === 'place_type' || kind === 'fixed_pin';
+  return kind === 'place_type' || kind === 'fixed_pin' || kind === 'text_query';
 }
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
@@ -36,6 +40,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     label?: string;
     kind?: string;
     place_type_key?: string;
+    text_query?: string;
     pin_lat?: number;
     pin_lng?: number;
     pin_place_id?: string | null;
@@ -64,7 +69,9 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   }
   if (!kind || !isCriterionKind(kind)) {
     return new Response(
-      JSON.stringify({ error: 'kind must be place_type or fixed_pin' }),
+      JSON.stringify({
+        error: 'kind must be place_type, fixed_pin, or text_query',
+      }),
       { status: 400 },
     );
   }
@@ -76,6 +83,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   }
 
   let place_type_key: string | null = null;
+  let text_query: string | null = null;
   let pin_lat: number | null = null;
   let pin_lng: number | null = null;
   let pin_place_id: string | null = body.pin_place_id?.trim() || null;
@@ -90,6 +98,14 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       );
     }
     place_type_key = key;
+  } else if (kind === 'text_query') {
+    const query = normalizeTextQuery(body.text_query ?? '');
+    if (!query) {
+      return new Response(JSON.stringify({ error: 'text_query required' }), {
+        status: 400,
+      });
+    }
+    text_query = query;
   } else {
     if (typeof body.pin_lat !== 'number' || typeof body.pin_lng !== 'number') {
       return new Response(
@@ -111,6 +127,8 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
 
     if (kind === 'place_type') {
       existingQuery = existingQuery.eq('place_type_key', place_type_key!);
+    } else if (kind === 'text_query') {
+      existingQuery = existingQuery.eq('text_query', text_query!);
     } else {
       if (!pin_place_id) {
         return new Response(
@@ -139,7 +157,9 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     label ||
     (kind === 'place_type' && place_type_key
       ? PLACE_TYPE_CATALOG[place_type_key as PlaceTypeKey].label
-      : pin_name) ||
+      : kind === 'text_query'
+        ? text_query
+        : pin_name) ||
     'Travel column';
 
   const sort_order =
@@ -154,6 +174,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       label: resolvedLabel,
       kind,
       place_type_key,
+      text_query,
       pin_lat,
       pin_lng,
       pin_place_id,
@@ -194,6 +215,38 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
         locale,
         place_type_key as PlaceTypeKey,
       );
+      return new Response(
+        JSON.stringify({ criterion, poi_upsert_count: poiCount, reused: false }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Places fill failed';
+      return new Response(
+        JSON.stringify({ error: message, id: criterion.id }),
+        { status: 500 },
+      );
+    }
+  }
+
+  if (kind === 'text_query' && text_query) {
+    const { data: locale, error: localeError } = await supabase
+      .from('locales')
+      .select('*')
+      .eq('id', localeId)
+      .single();
+
+    if (localeError || !locale) {
+      return new Response(
+        JSON.stringify({
+          error: localeError?.message ?? 'Locale not found',
+          id: criterion.id,
+        }),
+        { status: 500 },
+      );
+    }
+
+    try {
+      const poiCount = await fillLocalePoisForTextQuery(supabase, locale, text_query);
       return new Response(
         JSON.stringify({ criterion, poi_upsert_count: poiCount, reused: false }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },

@@ -100,7 +100,7 @@ export type TourStop = {
   appointment_time: string | null;
 };
 
-export type ProximityCriterionKind = 'place_type' | 'fixed_pin';
+export type ProximityCriterionKind = 'place_type' | 'fixed_pin' | 'text_query';
 
 export type TravelMode = 'DRIVE' | 'WALK' | 'BICYCLE' | 'TRANSIT';
 
@@ -112,6 +112,7 @@ export type ProximityCriterion = {
   label: string;
   kind: ProximityCriterionKind;
   place_type_key: string | null;
+  text_query: string | null;
   pin_lat: number | null;
   pin_lng: number | null;
   pin_place_id: string | null;

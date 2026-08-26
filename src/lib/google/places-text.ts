@@ -6,11 +6,13 @@ type PlacesTextResponse = {
   places?: Array<{
     id?: string;
     displayName?: { text?: string };
+    formattedAddress?: string;
     location?: { latitude?: number; longitude?: number };
   }>;
 };
 
-const FIELD_MASK = 'places.id,places.displayName,places.location';
+const FIELD_MASK =
+  'places.id,places.displayName,places.formattedAddress,places.location';
 
 export async function searchTextPlaces(input: {
   lat: number;
@@ -65,7 +67,8 @@ function mapPlaces(
     if (!placeId || !name || lat == null || lng == null) {
       continue;
     }
-    out.push({ placeId, name, lat, lng });
+    const formattedAddress = place.formattedAddress?.trim() || undefined;
+    out.push({ placeId, name, lat, lng, formattedAddress });
   }
   return out;
 }

@@ -15,6 +15,7 @@ import {
   formatNumber,
   formatSqft,
 } from '../../../../../lib/listings/format-attributes';
+import { textQueryCacheKey } from '../../../../../lib/proximity/text-query';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -143,6 +144,7 @@ const compareRows = (criteria ?? []).map((c) => {
     travelMode: c.travel_mode,
     kind: c.kind,
     placeTypeKey: c.place_type_key,
+    textQuery: c.text_query,
     result: row ?? null,
   };
 });
@@ -370,7 +372,13 @@ const attributeFacts: { label: string; value: string }[] = [
                         data-column-label={row.label}
                         data-listing-id={listing.id}
                         data-criterion-id={row.criterionId}
-                        data-place-type-key={row.kind === 'place_type' ? row.placeTypeKey ?? '' : ''}
+                        data-place-type-key={
+                          row.kind === 'place_type'
+                            ? row.placeTypeKey ?? ''
+                            : row.kind === 'text_query' && row.textQuery
+                              ? textQueryCacheKey(row.textQuery)
+                              : ''
+                        }
                         data-listing-lat={listing.lat != null ? String(listing.lat) : ''}
                         data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
                         data-travel-mode={row.travelMode}
@@ -692,14 +700,24 @@ const attributeFacts: { label: string; value: string }[] = [
             <label>
               Mode
               <select id="prox-mode-kind">
-                <option value="nearest">Nearest type</option>
+                <option value="nearest">Nearest</option>
                 <option value="search">Search place</option>
               </select>
             </label>
             <div id="prox-nearest-fields" class="stack">
               <label>
                 Place type
-                <PlaceTypePicker id="prox-place-type" value="beach" />
+                <PlaceTypePicker id="prox-place-type" value="" />
+              </label>
+              <p class="muted nearest-fields__or">or</p>
+              <label>
+                Search phrase
+                <input
+                  type="text"
+                  id="prox-text-query"
+                  placeholder="e.g. coffee shop"
+                  autocomplete="off"
+                />
               </label>
             </div>
             <div id="prox-search-fields" class="stack" hidden>
@@ -709,7 +727,7 @@ const attributeFacts: { label: string; value: string }[] = [
                   <input
                     type="search"
                     data-place-search-input
-                    placeholder="Start typing…"
+                    placeholder="Place, address, or search phrase…"
                     autocomplete="off"
                   />
                 </label>

@@ -5,6 +5,9 @@ export type PlaceSuggestion = {
   placeId: string;
   primaryText: string;
   secondaryText: string;
+  /** Present when resolved via Text Search (skip Places Details). */
+  lat?: number;
+  lng?: number;
 };
 
 type AutocompleteResponse = {
