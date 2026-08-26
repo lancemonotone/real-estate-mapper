@@ -27,6 +27,7 @@ Thumbs.db
 
 # Scratch / local agent state
 .scratch/
+_listings/
 
 # Supabase CLI local link / temp (supabase/.gitignore covers .temp; keep root-safe too)
 supabase/.temp/

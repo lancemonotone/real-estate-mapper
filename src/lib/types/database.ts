@@ -28,6 +28,14 @@ export type NestMemberProfile = {
   createdAt: string;
 };
 
+export type ListingPrefs = {
+  target_beds: number;
+  pets: {
+    cats: number;
+    dogs: number;
+  };
+};
+
 export type Locale = {
   id: string;
   nest_id: string;
@@ -36,6 +44,7 @@ export type Locale = {
   center_lng: number;
   radius_m: number;
   center_label: string | null;
+  listing_prefs: ListingPrefs | null;
   created_at: string;
   updated_at: string;
 };

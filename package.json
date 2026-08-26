@@ -12,6 +12,7 @@
     "astro": "astro",
     "test": "vitest run",
     "test:watch": "vitest",
+    "listing:parse": "node --experimental-strip-types scripts/listing-import/parse.ts",
     "db:login": "supabase login",
     "db:link": "supabase link --project-ref bkudqalrrpybzwhgdyzr",
     "db:push": "supabase db push",
