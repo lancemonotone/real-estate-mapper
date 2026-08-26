@@ -58,9 +58,12 @@ When the user saves page HTML (portals block agent fetch):
    npm run listing:parse -- _listings/listing.txt --prefs '<listing_prefs JSON>'
    ```
 
-4. `GET` listings → duplicate name / different URL → **ask** before `PATCH`.
-5. Else `PUT` with parser output + `source_url`.
-6. Report id, `created`, money fields, amenities, parser warnings.
+   Writes `_listings/listing.json` by default; stdout is the output path.
+
+4. Read the JSON file; user may edit before upsert (e.g. pick another `photo_url` from `photo_candidates`).
+5. `GET` listings → duplicate name / different URL → **ask** before `PATCH`.
+6. Else `PUT` with parser `listing` + `source_url`.
+7. Report id, `created`, money fields, amenities, warnings.
 
 ## Agent workflow (live URL)
 

@@ -5,6 +5,7 @@ import {
   milesToMeters,
 } from '../../../lib/geo/locale-radius';
 import { geocodeAddress } from '../../../lib/google/geocode';
+import { parseListingPrefsInput } from '../../../lib/listings/listing-prefs';
 import { ensureNestForUser, getPrimaryNestId } from '../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
@@ -23,6 +24,10 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     place?: string;
     radius_miles?: number;
     center_label?: string | null;
+    listing_prefs?: {
+      target_beds?: unknown;
+      pets?: { cats?: unknown; dogs?: unknown };
+    };
   };
 
   if (!body.name?.trim()) {
@@ -63,6 +68,17 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   let nestId = await getPrimaryNestId(supabase, user.id);
   if (!nestId) nestId = await ensureNestForUser(supabase, user.id);
 
+  let listing_prefs = undefined;
+  if (body.listing_prefs !== undefined) {
+    const parsedPrefs = parseListingPrefsInput(body.listing_prefs);
+    if (!parsedPrefs.ok) {
+      return new Response(JSON.stringify({ error: parsedPrefs.error }), {
+        status: 400,
+      });
+    }
+    listing_prefs = parsedPrefs.prefs;
+  }
+
   const { data, error } = await supabase
     .from('locales')
     .insert({
@@ -72,6 +88,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       center_lng,
       radius_m: milesToMeters(radiusMiles),
       center_label,
+      ...(listing_prefs !== undefined ? { listing_prefs } : {}),
     })
     .select('id')
     .single();

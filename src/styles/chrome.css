@@ -1735,7 +1735,40 @@ tr[data-map-listing].is-map-hover > .matrix-table__listing {
 }
 
 .locale-browse__list .locale-form-danger {
-  margin-block-start: 0.5rem;
+  margin-block-start: 0.25rem;
+}
+
+.locale-listing-prefs {
+  padding-block-start: 0.25rem;
+  border-block-start: 1px solid var(--border);
+}
+
+.locale-listing-prefs--panel {
+  padding-block-start: 0;
+  border-block-start: none;
+}
+
+.locale-form-tabs__form {
+  gap: 1rem;
+}
+
+.locale-listing-prefs__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.locale-listing-prefs__copy {
+  margin: 0;
+}
+
+.locale-listing-prefs__pets {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .listing-row--static {
@@ -2556,11 +2589,13 @@ body.directions-overlay-open {
   /* Compare (attributes) only — listing stays shared contract. */
   &.matrix-table--wrap {
     --compact-col-max: 5rem;
+    --wide-col: 16rem;
+    --amenities-cell-max-block: 6rem;
     --compact-pad-inline: 0.4rem;
 
-    /* Floor: listing + attribute cols (exclude amenities from the × max). */
     min-inline-size: calc(
-      var(--listing-col) + (var(--data-cols) - 1) * var(--compact-col-max)
+      var(--listing-col) + (var(--data-cols) - 1) * var(--compact-col-max) +
+        var(--wide-col)
     );
 
     & .matrix-listing {
@@ -2571,7 +2606,7 @@ body.directions-overlay-open {
       box-sizing: border-box;
       inline-size: var(--compact-col-max);
       width: var(--compact-col-max);
-      min-inline-size: 0;
+      min-inline-size: var(--compact-col-max);
       max-inline-size: var(--compact-col-max);
       padding-inline: var(--compact-pad-inline);
       white-space: nowrap;
@@ -2584,10 +2619,22 @@ body.directions-overlay-open {
     }
 
     & .matrix-table__wide {
-      /* Remaining width after listing + compact cols. */
-      min-inline-size: 0;
+      box-sizing: border-box;
+      inline-size: var(--wide-col);
+      width: var(--wide-col);
+      min-inline-size: var(--wide-col);
+      max-inline-size: var(--wide-col);
+      padding-inline: 0.5rem;
       white-space: normal;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
+      vertical-align: top;
+    }
+
+    & .matrix-amenities-cell {
+      max-block-size: var(--amenities-cell-max-block);
+      overflow-block: auto;
+      overflow-wrap: break-word;
+      line-height: 1.35;
     }
 
     & .matrix-sort {
@@ -2596,6 +2643,8 @@ body.directions-overlay-open {
 
     @media (min-width: 768px) {
       --compact-pad-inline: 0.5rem;
+      --wide-col: 18rem;
+      --amenities-cell-max-block: 7rem;
     }
   }
 }
@@ -2828,6 +2877,10 @@ body.directions-overlay-open {
   & dd {
     margin: 0;
     font-size: 0.95rem;
+  }
+
+  & .listing-facts__value--prewrap {
+    white-space: pre-wrap;
   }
 }
 
@@ -3119,6 +3172,16 @@ body.directions-overlay-open {
   & .locale-hero__name {
     flex: 0 1 auto;
     min-inline-size: 0;
+  }
+
+  & .locale-hero__title-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.2rem;
+    flex: 0 0 auto;
+    /* Display cap height sits below flex line-box center — nudge icon cluster down. */
+    translate: 0 0.08em;
   }
 
   & .listing-favorite {

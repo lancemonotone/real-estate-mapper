@@ -8,6 +8,10 @@ import {
   parseOptionalInt,
   parseOptionalNumber,
 } from '../../../lib/listings/format-attributes';
+import {
+  parseListingTourFields,
+  syncListingTour,
+} from '../../../lib/tours/listing-tour-date';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -26,8 +30,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const source_url = String(form.get('source_url') ?? '').trim() || null;
   const photo_url = String(form.get('photo_url') ?? '').trim() || null;
   const notes = String(form.get('notes') ?? '').trim() || null;
-  const appointmentRaw = String(form.get('appointment_at') ?? '').trim();
-  const appointment_at = appointmentRaw ? new Date(appointmentRaw).toISOString() : null;
+  const tour = parseListingTourFields(form.get('tour_date'), form.get('tour_time'));
+  const appointment_at = tour.appointmentAt;
   const price_monthly = parseOptionalNumber(form.get('price_monthly'));
   const deposit = parseOptionalNumber(form.get('deposit'));
   const fees_monthly = parseOptionalNumber(form.get('fees_monthly'));
@@ -87,6 +91,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     .eq('id', id);
 
   if (error) return new Response(error.message, { status: 400 });
+
+  const tourSync = await syncListingTour(
+    supabase,
+    existing.locale_id,
+    id,
+    tour.tourDate,
+    tour.appointmentTime,
+  );
+  if (!tourSync.ok) return new Response(tourSync.error, { status: 400 });
 
   if (coordsChanged) {
     await invalidateListingProximityResults(supabase, id);

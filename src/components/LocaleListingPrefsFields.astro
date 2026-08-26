@@ -1,0 +1,56 @@
+---
+import type { ListingPrefs } from '../lib/types/database';
+import { LISTING_BED_OPTIONS } from '../lib/listings/listing-prefs';
+
+interface Props {
+  prefs: ListingPrefs | null;
+  showTitle?: boolean;
+}
+
+const { prefs, showTitle = true } = Astro.props;
+---
+<section class:list={['stack', 'locale-listing-prefs', !showTitle && 'locale-listing-prefs--panel']}>
+  {showTitle && <h2 class="locale-listing-prefs__title">Listing import</h2>}
+  <p class="muted locale-listing-prefs__copy">
+    Used when importing listings from saved portal HTML. Bedrooms filter unit pricing;
+    pet counts sum pet fees when listed.
+  </p>
+  <label>
+    Bedrooms
+    <select name="target_beds" required>
+      {
+        LISTING_BED_OPTIONS.map((beds) => (
+          <option value={beds} selected={(prefs?.target_beds ?? 2) === beds}>
+            {beds}
+          </option>
+        ))
+      }
+    </select>
+  </label>
+  <div class="locale-listing-prefs__pets">
+    <label>
+      Cats
+      <input
+        type="number"
+        name="pet_cats"
+        min="0"
+        max="9"
+        step="1"
+        required
+        value={prefs?.pets.cats ?? 0}
+      />
+    </label>
+    <label>
+      Dogs
+      <input
+        type="number"
+        name="pet_dogs"
+        min="0"
+        max="9"
+        step="1"
+        required
+        value={prefs?.pets.dogs ?? 0}
+      />
+    </label>
+  </div>
+</section>

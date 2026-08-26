@@ -7,6 +7,16 @@ function milesToMeters(m) {
   return m * 1609.344;
 }
 
+function readListingPrefs(formData) {
+  return {
+    target_beds: Number(formData.get('target_beds')),
+    pets: {
+      cats: Number(formData.get('pet_cats')),
+      dogs: Number(formData.get('pet_dogs')),
+    },
+  };
+}
+
 function bootLocaleForm() {
   const form = document.getElementById('locale-form');
   if (!(form instanceof HTMLFormElement)) return;
@@ -103,6 +113,7 @@ function bootLocaleForm() {
     e.preventDefault();
     const fd = new FormData(form);
     const mode = cfg.mode === 'edit' ? 'edit' : 'create';
+    const listing_prefs = readListingPrefs(fd);
     let body;
     let url;
     if (mode === 'edit') {
@@ -111,6 +122,7 @@ function bootLocaleForm() {
         id: cfg.localeId,
         name: String(fd.get('name') ?? ''),
         radius_miles: Number(fd.get('radius_miles')),
+        listing_prefs,
         ...(place ? { place } : {}),
       };
       url = '/api/locales/update';
@@ -119,6 +131,7 @@ function bootLocaleForm() {
         name: String(fd.get('name') ?? ''),
         place: String(fd.get('place') ?? ''),
         radius_miles: Number(fd.get('radius_miles')),
+        listing_prefs,
       };
       url = '/api/locales/create';
     }

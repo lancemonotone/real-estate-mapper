@@ -101,4 +101,20 @@ describe('extractZillow + rollup', () => {
     expect(listing.deposit).toBe(400);
     expect(listing.pet_deposit).toBe(700);
   });
+
+  it('extracts compact unit rows without Message/Take tour', () => {
+    const html = `
+      <h1 data-test-id="bdp-building-title">Chesapeake</h1>
+      2307 Cumberland Cir, Clearwater, FL 33763
+      One-time fees & charges Required Security deposit $200
+      2306-106 2 bd, 2 ba 911 Aug 29 $1,704
+      2269-2801 2 bd, 2 ba 911 Now $1,714
+    `;
+    const extract = extractZillow(html);
+    expect(extract.address).toContain('Cumberland Cir');
+    expect(extract.units).toHaveLength(2);
+    const { listing } = rollupZillowListing(extract, PREFS);
+    expect(listing.price_monthly).toBe(1709);
+    expect(listing.sqft).toBe(911);
+  });
 });

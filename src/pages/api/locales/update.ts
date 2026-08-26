@@ -5,6 +5,8 @@ import {
 } from '../../../lib/geo/locale-radius';
 import { geocodeAddress } from '../../../lib/google/geocode';
 import { invalidateLocaleProximityCache } from '../../../lib/proximity/invalidate';
+import type { ListingPrefs } from '../../../lib/types/database';
+import { parseListingPrefsInput } from '../../../lib/listings/listing-prefs';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
@@ -24,6 +26,10 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     place?: string;
     radius_miles?: number;
     center_label?: string | null;
+    listing_prefs?: {
+      target_beds?: unknown;
+      pets?: { cats?: unknown; dogs?: unknown };
+    };
   };
 
   if (!body.id) {
@@ -51,6 +57,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     center_lng?: number;
     center_label?: string | null;
     radius_m: number;
+    listing_prefs?: ListingPrefs;
     updated_at: string;
   } = {
     name: body.name.trim(),
@@ -60,6 +67,16 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
 
   if (body.center_label !== undefined) {
     patch.center_label = body.center_label?.trim() || null;
+  }
+
+  if (body.listing_prefs !== undefined) {
+    const parsedPrefs = parseListingPrefsInput(body.listing_prefs);
+    if (!parsedPrefs.ok) {
+      return new Response(JSON.stringify({ error: parsedPrefs.error }), {
+        status: 400,
+      });
+    }
+    patch.listing_prefs = parsedPrefs.prefs;
   }
 
   const place = body.place?.trim() ?? '';

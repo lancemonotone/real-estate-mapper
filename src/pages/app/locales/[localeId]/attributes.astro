@@ -199,7 +199,11 @@ const columns: {
                       class:list={[col.wide ? 'matrix-table__wide' : 'matrix-table__compact']}
                       data-sort-value={col.sortValue(listing)}
                     >
-                      {col.cell(listing)}
+                      {col.wide ? (
+                        <div class="matrix-amenities-cell">{col.cell(listing)}</div>
+                      ) : (
+                        col.cell(listing)
+                      )}
                     </td>
                   ))}
                 </tr>

@@ -1,8 +1,10 @@
 import { htmlToText, parseMoney } from './text.ts';
 import type { ZillowExtract, ZillowUnit } from './types.ts';
 
-const UNIT_PATTERN =
-  /(\d+-\d+)\s+(\d+)\s*bd,\s*([\d.]+)\s*ba(?:\s+Special offer)?(?:\s+\d+\s+photos)?\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+(?:Message|Take tour)\s+\$([\d,]+)/g;
+const UNIT_PATTERNS = [
+  /(\d+-\d+)\s+(\d+)\s*bd,\s*([\d.]+)\s*ba(?:\s+Special offer)?(?:\s+\d+\s+photos)?\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+(?:Message|Take tour)\s+\$([\d,]+)/g,
+  /(\d+-\d+)\s+(\d+)\s*bd,\s*([\d.]+)\s*ba\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+\$([\d,]+)/g,
+];
 
 export function isZillowDump(html: string, text: string): boolean {
   return (
@@ -22,9 +24,9 @@ export function extractZillow(html: string): ZillowExtract {
   const name = titleMatch?.[1]?.replace(/\s+/g, ' ').trim() ?? null;
 
   const addressMatch = text.match(
-    /\d+\s+[A-Za-z0-9.'\s-]+(?:Way|Ave|St|Rd|Dr|Blvd|Ln|Ct|Pl|Circle|Pkwy|Street|Road|Drive)[^,]*,\s*[A-Za-z\s]+,\s*[A-Z]{2}\s*\d{5}/i,
+    /\b(\d{3,6}\s+[A-Za-z0-9.'\s-]+(?:Way|Ave|St|Rd|Dr|Blvd|Ln|Ct|Pl|Cir|Circle|Pkwy|Street|Road|Drive)[^,]*,\s*[A-Za-z\s]+,\s*[A-Z]{2}\s*\d{5})/i,
   );
-  const address = addressMatch?.[0]?.trim() ?? null;
+  const address = addressMatch?.[1]?.trim() ?? null;
 
   const phoneMatch = text.match(/\(\d{3}\)\s*\d{3}-\d{4}/);
   const phone = phoneMatch?.[0] ?? null;
@@ -32,14 +34,20 @@ export function extractZillow(html: string): ZillowExtract {
   const photoCandidates = extractPhotoCandidates(html);
 
   const units: ZillowUnit[] = [];
-  for (const match of text.matchAll(UNIT_PATTERN)) {
-    units.push({
-      unit: match[1],
-      beds: Number(match[2]),
-      baths: Number(match[3]),
-      sqft: parseMoney(match[4]),
-      rent: parseMoney(match[5]),
-    });
+  const seenUnits = new Set<string>();
+  for (const pattern of UNIT_PATTERNS) {
+    for (const match of text.matchAll(pattern)) {
+      const unitId = match[1];
+      if (seenUnits.has(unitId)) continue;
+      seenUnits.add(unitId);
+      units.push({
+        unit: unitId,
+        beds: Number(match[2]),
+        baths: Number(match[3]),
+        sqft: parseMoney(match[4]),
+        rent: parseMoney(match[5]),
+      });
+    }
   }
 
   const truncatedMatch = text.match(/Show\s+(\d+)\s+more units/i);

@@ -74,18 +74,28 @@ const { data: localeTours } = await supabase
   .order('tour_date', { ascending: true });
 
 const tourIds = (localeTours ?? []).map((t) => t.id);
-let assignment: { tourDayId: string; tourDate: string } | null = null;
+let assignment: {
+  tourDayId: string;
+  tourDate: string;
+  appointmentTime: string | null;
+} | null = null;
 if (tourIds.length > 0) {
   const { data: stop } = await supabase
     .from('tour_stops')
-    .select('tour_day_id')
+    .select('tour_day_id, appointment_time')
     .eq('listing_id', listing.id)
     .in('tour_day_id', tourIds)
     .limit(1)
     .maybeSingle();
   if (stop) {
     const day = (localeTours ?? []).find((t) => t.id === stop.tour_day_id);
-    if (day) assignment = { tourDayId: day.id, tourDate: day.tour_date };
+    if (day) {
+      assignment = {
+        tourDayId: day.id,
+        tourDate: day.tour_date,
+        appointmentTime: (stop.appointment_time as string | null) ?? null,
+      };
+    }
   }
 }
 
@@ -177,7 +187,7 @@ const mapPlaces = [
 ];
 
 const mapPlacesJson = JSON.stringify(mapPlaces);
-const attributeFacts: { label: string; value: string }[] = [
+const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
   listing.price_monthly != null && { label: 'Price / mo', value: formatMoney(listing.price_monthly) },
   listing.beds != null && { label: 'Beds', value: formatNumber(listing.beds) },
   listing.baths != null && { label: 'Baths', value: formatNumber(listing.baths) },
@@ -193,7 +203,12 @@ const attributeFacts: { label: string; value: string }[] = [
     label: 'Amenities',
     value: formatAmenities(listing.amenities),
   },
-].filter(Boolean) as { label: string; value: string }[];
+  listing.notes?.trim() && {
+    label: 'Notes',
+    value: listing.notes.trim(),
+    prewrap: true,
+  },
+].filter(Boolean) as { label: string; value: string; prewrap?: boolean }[];
 ---
 <AppLayout
   title={listingTitle}
@@ -209,7 +224,21 @@ const attributeFacts: { label: string; value: string }[] = [
   <div class="locale-hero__heading">
     <div class="locale-hero__title">
       <h1 class="locale-hero__name">{listingTitle}</h1>
-      <FavoriteHeart listingId={listing.id} favorited={Boolean(listing.is_favorite)} />
+      <div class="locale-hero__title-actions">
+        <FavoriteHeart listingId={listing.id} favorited={Boolean(listing.is_favorite)} />
+        <button
+          type="button"
+          class="secondary icon-btn locale-hero__edit"
+          data-listing-overlay-open="edit"
+          title="Edit listing"
+          aria-label="Edit listing"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+        </button>
+      </div>
     </div>
     <div class="locale-hero__trailing">
       <p class="listing-hero__tour locale-hero__tour-status">
@@ -239,18 +268,6 @@ const attributeFacts: { label: string; value: string }[] = [
             <path d="M3 10h18"></path>
             <path d="M8 3v4"></path>
             <path d="M16 3v4"></path>
-          </svg>
-        </button>
-        <button
-          type="button"
-          class="secondary icon-btn"
-          data-listing-overlay-open="edit"
-          title="Edit listing"
-          aria-label="Edit listing"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 20h9"></path>
-            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
           </svg>
         </button>
       </div>
@@ -302,7 +319,9 @@ const attributeFacts: { label: string; value: string }[] = [
             {attributeFacts.map((fact) => (
               <div class="listing-facts__row">
                 <dt>{fact.label}</dt>
-                <dd>{fact.value}</dd>
+                <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                  {fact.value}
+                </dd>
               </div>
             ))}
           </dl>
@@ -561,6 +580,7 @@ const attributeFacts: { label: string; value: string }[] = [
       </header>
       <ListingForm
         listing={listing}
+        tourAssignment={assignment}
         action="/api/listings/update"
         submitLabel="Update listing"
         localeId={locale.id}

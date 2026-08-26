@@ -1,15 +1,28 @@
 ---
 import type { Listing } from '../lib/types/database';
 import { listingBadges } from '../lib/listings/badges';
+import {
+  resolveListingTourDateInput,
+  resolveListingTourTimeInput,
+} from '../lib/tours/listing-tour-date';
 
 interface Props {
   listing?: Partial<Listing>;
+  tourAssignment?: { tourDate: string; appointmentTime?: string | null } | null;
   action: string;
   submitLabel: string;
   localeId?: string;
 }
 
-const { listing = {}, action, submitLabel, localeId } = Astro.props;
+const { listing = {}, tourAssignment = null, action, submitLabel, localeId } = Astro.props;
+const tourDateValue = resolveListingTourDateInput(
+  tourAssignment,
+  listing.appointment_at ?? null,
+);
+const tourTimeValue = resolveListingTourTimeInput(
+  tourAssignment,
+  listing.appointment_at ?? null,
+);
 const badges = listing.id
   ? listingBadges(listing as Listing)
   : [];
@@ -30,14 +43,21 @@ const badges = listing.id
   <label>Source URL <input name="source_url" type="url" value={listing.source_url ?? ''} /></label>
   <label>Photo URL <input name="photo_url" type="url" value={listing.photo_url ?? ''} /></label>
   <label>Upload photo <input name="photo" type="file" accept="image/*" /></label>
-  <label>
-    Appointment
-    <input
-      name="appointment_at"
-      type="datetime-local"
-      value={listing.appointment_at ? listing.appointment_at.slice(0, 16) : ''}
-    />
-  </label>
+  <div class="listing-form__tour">
+    <label>
+      Tour date
+      <input name="tour_date" type="date" value={tourDateValue} />
+    </label>
+    <label class="listing-form__tour-time">
+      <span class="visually-hidden">Tour time</span>
+      <input
+        name="tour_time"
+        type="time"
+        class="tours-stops__time"
+        value={tourTimeValue}
+      />
+    </label>
+  </div>
   <label>Notes <textarea name="notes">{listing.notes ?? ''}</textarea></label>
 
   <fieldset class="listing-form__attrs">
@@ -48,7 +68,7 @@ const badges = listing.id
         name="price_monthly"
         type="number"
         inputmode="decimal"
-        step="1"
+        step="0.01"
         min="0"
         value={listing.price_monthly ?? ''}
       />
@@ -59,7 +79,7 @@ const badges = listing.id
         name="deposit"
         type="number"
         inputmode="decimal"
-        step="1"
+        step="0.01"
         min="0"
         value={listing.deposit ?? ''}
       />
@@ -70,7 +90,7 @@ const badges = listing.id
         name="fees_monthly"
         type="number"
         inputmode="decimal"
-        step="1"
+        step="0.01"
         min="0"
         value={listing.fees_monthly ?? ''}
       />
@@ -93,7 +113,7 @@ const badges = listing.id
         name="pet_rent_monthly"
         type="number"
         inputmode="decimal"
-        step="1"
+        step="0.01"
         min="0"
         value={listing.pet_rent_monthly ?? ''}
       />
@@ -104,7 +124,7 @@ const badges = listing.id
         name="pet_deposit"
         type="number"
         inputmode="decimal"
-        step="1"
+        step="0.01"
         min="0"
         value={listing.pet_deposit ?? ''}
       />
@@ -143,6 +163,26 @@ const badges = listing.id
     align-items: center;
     gap: var(--actions-gap);
     padding-block-start: 0.35rem;
+  }
+
+  .listing-form__tour {
+    --tour-gap: 0.75rem;
+    --tour-cols: 1fr;
+
+    display: grid;
+    grid-template-columns: var(--tour-cols);
+    gap: var(--tour-gap);
+    align-items: end;
+
+    @media (min-width: 768px) {
+      --tour-cols: 1fr auto;
+    }
+  }
+
+  .listing-form__tour-time {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
   }
 
   .listing-form__attrs {

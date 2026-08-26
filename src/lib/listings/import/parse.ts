@@ -52,7 +52,5 @@ export function parseListingDump(
   };
 }
 
-export {
-  splitDumpContent,
-  validateListingPrefs,
-} from './types.ts';
+export { splitDumpContent } from './types.ts';
+export { validateListingPrefs } from '../listing-prefs.ts';

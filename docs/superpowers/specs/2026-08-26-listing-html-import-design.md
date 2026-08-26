@@ -120,10 +120,12 @@ Then a blank line (optional) and the saved HTML/fragment.
 Agent runs something like:
 
 ```bash
-node scripts/listing-import/parse.mjs _listings/listing.txt --prefs '<json>'
+npm run listing:parse -- _listings/listing.txt --prefs '<json>' [--out _listings/listing.json]
 ```
 
-(or equivalent). Stdout: **one JSON object**. Stderr: human warnings. Non-zero exit on hard failure.
+**Output:** writes pretty-printed JSON to a file (default: same basename as dump, `.json` extension). Stdout prints the output path. Stderr: warnings. Non-zero exit on hard failure.
+
+The agent **reads the JSON file** — not raw HTML, not stdout payload. The user may inspect or edit the file before upsert (e.g. choose a different `photo_url` from `photo_candidates`).
 
 Prefs JSON is passed from the locale row (agent loads locale first); the script does not read the DB.
 
@@ -179,9 +181,10 @@ Omit or null unknown money fields; never invent.
 2. `GET /api/agent/locales/:localeId` — require `listing_prefs`; stop if missing.
 3. Ensure dump path has `source_url` header (or handle confirmed existing match).
 4. Run parser with `listing_prefs`; on failure, report stderr and stop.
-5. `GET /api/agent/locales/:localeId/listings` — same-name / different-URL → **ask** before `PATCH`.
-6. Else `PUT` with parser `listing` + `source_url`.
-7. Reply: id, `created`, key money fields, amenities, warnings.
+5. Read the parser output JSON file (default `_listings/listing.json`).
+6. `GET /api/agent/locales/:localeId/listings` — same-name / different-URL → **ask** before `PATCH`.
+7. Else `PUT` with parser `listing` + `source_url`.
+8. Reply: id, `created`, key money fields, amenities, warnings.
 
 Host remains a server that actually serves `/api/agent/…` (typically local Astro) with the user signed in.
 

@@ -38,13 +38,15 @@ Call the agent API on a host that **actually serves** `/api/agent/...` (often lo
    then the page HTML.
 
 2. `GET /api/agent/locales/:localeId` — require `listing_prefs`; stop if missing.
-3. Run the local parser via shell:
+3. Run the local parser via shell (writes JSON; **do not** read raw HTML):
 
    ```bash
    npm run listing:parse -- _listings/listing.txt --prefs '<JSON from listing_prefs>'
    ```
 
-4. Use stdout JSON only (listing fields + warnings). Stderr has warnings too.
+   Default output: `_listings/listing.json` (stdout prints the path). Override with `--out`.
+
+4. **Read** the JSON file (compact — safe for context). User may edit it first (e.g. swap `photo_url` from `photo_candidates`).
 5. Continue with duplicate check + `PUT` below.
 
 ## Workflow

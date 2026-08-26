@@ -1,5 +1,6 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
+import LocaleListingPrefsFields from '../../../../components/LocaleListingPrefsFields.astro';
 import '../../../../styles/locale-map.css';
 import {
   LOCALE_RADIUS_MILES_OPTIONS,
@@ -40,35 +41,92 @@ const hasCenter = !localeNeedsSetup(locale);
 
   <section class="locale-browse">
     <div class="locale-browse__list stack">
-      <form id="locale-form" class="stack">
-        <label>
-          Name
-          <input name="name" id="locale-name" required value={locale.name} />
-        </label>
-        <label>
-          Center place
-          <input
-            name="place"
-            id="locale-place"
-            placeholder="City, neighborhood, or address"
-            value={locale.center_label ?? ''}
-          />
-        </label>
-        <label>
-          Radius
-          <select name="radius_miles" id="locale-radius" required>
-            {
-              LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
-                <option value={m} selected={m === selectedMiles}>
-                  {m} miles
-                </option>
-              ))
-            }
-          </select>
-        </label>
-        <button type="submit">Save</button>
-      </form>
+      <div class="nest-tabs locale-form-tabs" data-nest-tabs>
+        <nav
+          class="locale-nav nest-tabs__bar"
+          aria-label="Locale settings"
+          data-nest-tabs-bar
+          role="tablist"
+        >
+          <span class="locale-nav__pill" aria-hidden="true" data-nest-tabs-pill></span>
+          <button
+            type="button"
+            class="button secondary locale-nav__link locale-nav__link--active"
+            id="locale-tab-general"
+            role="tab"
+            aria-selected="true"
+            aria-controls="locale-panel-general"
+            tabindex="0"
+            data-nest-tab="general"
+          >
+            General
+          </button>
+          <button
+            type="button"
+            class="button secondary locale-nav__link"
+            id="locale-tab-import"
+            role="tab"
+            aria-selected="false"
+            aria-controls="locale-panel-import"
+            tabindex="-1"
+            data-nest-tab="import"
+          >
+            Listing import
+          </button>
+        </nav>
+
+        <form id="locale-form" class="stack locale-form-tabs__form">
+          <div
+            class="nest-tabs__panel stack"
+            id="locale-panel-general"
+            role="tabpanel"
+            aria-labelledby="locale-tab-general"
+            data-nest-tab-panel="general"
+          >
+            <label>
+              Name
+              <input name="name" id="locale-name" required value={locale.name} />
+            </label>
+            <label>
+              Center place
+              <input
+                name="place"
+                id="locale-place"
+                placeholder="City, neighborhood, or address"
+                value={locale.center_label ?? ''}
+              />
+            </label>
+            <label>
+              Radius
+              <select name="radius_miles" id="locale-radius" required>
+                {
+                  LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
+                    <option value={m} selected={m === selectedMiles}>
+                      {m} miles
+                    </option>
+                  ))
+                }
+              </select>
+            </label>
+          </div>
+
+          <div
+            class="nest-tabs__panel stack"
+            id="locale-panel-import"
+            role="tabpanel"
+            aria-labelledby="locale-tab-import"
+            data-nest-tab-panel="import"
+            hidden
+          >
+            <LocaleListingPrefsFields prefs={locale.listing_prefs} showTitle={false} />
+          </div>
+
+          <button type="submit">Save</button>
+        </form>
+      </div>
+
       <p id="error" class="alert" hidden></p>
+
       <section class="locale-form-danger stack">
         <h2 class="locale-form-danger__title">Delete Locale</h2>
         <p class="muted locale-form-danger__copy">
@@ -112,5 +170,6 @@ const hasCenter = !localeNeedsSetup(locale);
     };
   </script>
   <script src="/scripts/locale-map.js" type="module"></script>
+  <script src="/scripts/nest-tabs.js" type="module"></script>
   <script src="/scripts/locale-form.js" type="module"></script>
 </AppLayout>

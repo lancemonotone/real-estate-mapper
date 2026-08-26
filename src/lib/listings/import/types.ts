@@ -1,4 +1,5 @@
-import type { ListingPrefs } from '../../types/database.ts';
+export type { ListingPrefs } from '../../types/database.ts';
+export { validateListingPrefs } from '../listing-prefs.ts';
 
 export type ParsedListing = {
   name: string | null;
@@ -59,24 +60,6 @@ export type ZillowExtract = {
   hasOneTimeFeesSection: boolean;
 };
 
-export function validateListingPrefs(
-  prefs: unknown,
-): prefs is ListingPrefs {
-  if (!prefs || typeof prefs !== 'object') return false;
-  const p = prefs as Record<string, unknown>;
-  if (typeof p.target_beds !== 'number' || !Number.isFinite(p.target_beds)) {
-    return false;
-  }
-  if (!p.pets || typeof p.pets !== 'object') return false;
-  const pets = p.pets as Record<string, unknown>;
-  return (
-    typeof pets.cats === 'number' &&
-    Number.isFinite(pets.cats) &&
-    typeof pets.dogs === 'number' &&
-    Number.isFinite(pets.dogs)
-  );
-}
-
 export function parseSourceUrlHeader(content: string): string | null {
   for (const line of content.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -99,9 +82,16 @@ export function splitDumpContent(content: string): {
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (!trimmed) continue;
-    const match = trimmed.match(/^source_url:\s*(https:\/\/\S+)/i);
-    if (match) {
-      sourceUrl = match[1].trim();
+    const labeled = trimmed.match(/^source_url:\s*(https:\/\/\S+)/i);
+    if (labeled) {
+      sourceUrl = labeled[1].trim();
+      bodyStart = i + 1;
+      if (lines[bodyStart]?.trim() === '') bodyStart += 1;
+      break;
+    }
+    const bare = trimmed.match(/^(https:\/\/\S+)/i);
+    if (bare) {
+      sourceUrl = bare[1].trim();
       bodyStart = i + 1;
       if (lines[bodyStart]?.trim() === '') bodyStart += 1;
     }

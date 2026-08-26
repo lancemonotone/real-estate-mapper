@@ -1,5 +1,6 @@
 ---
 import AppLayout from '../../../layouts/AppLayout.astro';
+import LocaleListingPrefsFields from '../../../components/LocaleListingPrefsFields.astro';
 import '../../../styles/locale-map.css';
 import {
   DEFAULT_LOCALE_RADIUS_MILES,
@@ -12,34 +13,90 @@ import {
 
   <section class="locale-browse">
     <div class="locale-browse__list stack">
-      <form id="locale-form" class="stack">
-        <label>
-          Name
-          <input name="name" id="locale-name" required placeholder="e.g. Tampa Bay" />
-        </label>
-        <label>
-          Center place
-          <input
-            name="place"
-            id="locale-place"
-            required
-            placeholder="City, neighborhood, or address"
-          />
-        </label>
-        <label>
-          Radius
-          <select name="radius_miles" id="locale-radius" required>
-            {
-              LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
-                <option value={m} selected={m === DEFAULT_LOCALE_RADIUS_MILES}>
-                  {m} miles
-                </option>
-              ))
-            }
-          </select>
-        </label>
-        <button type="submit">Create Locale</button>
-      </form>
+      <div class="nest-tabs locale-form-tabs" data-nest-tabs>
+        <nav
+          class="locale-nav nest-tabs__bar"
+          aria-label="Locale settings"
+          data-nest-tabs-bar
+          role="tablist"
+        >
+          <span class="locale-nav__pill" aria-hidden="true" data-nest-tabs-pill></span>
+          <button
+            type="button"
+            class="button secondary locale-nav__link locale-nav__link--active"
+            id="locale-tab-general"
+            role="tab"
+            aria-selected="true"
+            aria-controls="locale-panel-general"
+            tabindex="0"
+            data-nest-tab="general"
+          >
+            General
+          </button>
+          <button
+            type="button"
+            class="button secondary locale-nav__link"
+            id="locale-tab-import"
+            role="tab"
+            aria-selected="false"
+            aria-controls="locale-panel-import"
+            tabindex="-1"
+            data-nest-tab="import"
+          >
+            Listing import
+          </button>
+        </nav>
+
+        <form id="locale-form" class="stack locale-form-tabs__form">
+          <div
+            class="nest-tabs__panel stack"
+            id="locale-panel-general"
+            role="tabpanel"
+            aria-labelledby="locale-tab-general"
+            data-nest-tab-panel="general"
+          >
+            <label>
+              Name
+              <input name="name" id="locale-name" required placeholder="e.g. Tampa Bay" />
+            </label>
+            <label>
+              Center place
+              <input
+                name="place"
+                id="locale-place"
+                required
+                placeholder="City, neighborhood, or address"
+              />
+            </label>
+            <label>
+              Radius
+              <select name="radius_miles" id="locale-radius" required>
+                {
+                  LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
+                    <option value={m} selected={m === DEFAULT_LOCALE_RADIUS_MILES}>
+                      {m} miles
+                    </option>
+                  ))
+                }
+              </select>
+            </label>
+          </div>
+
+          <div
+            class="nest-tabs__panel stack"
+            id="locale-panel-import"
+            role="tabpanel"
+            aria-labelledby="locale-tab-import"
+            data-nest-tab-panel="import"
+            hidden
+          >
+            <LocaleListingPrefsFields prefs={null} showTitle={false} />
+          </div>
+
+          <button type="submit">Create Locale</button>
+        </form>
+      </div>
+
       <p id="error" class="alert" hidden></p>
     </div>
 
@@ -60,5 +117,6 @@ import {
     window.__WAYHOME_LOCALE_FORM__ = { mode: 'create', initialHasCenter: false };
   </script>
   <script src="/scripts/locale-map.js" type="module"></script>
+  <script src="/scripts/nest-tabs.js" type="module"></script>
   <script src="/scripts/locale-form.js" type="module"></script>
 </AppLayout>
