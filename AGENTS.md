@@ -12,6 +12,12 @@ Canonical labels: needs-triage, needs-info, ready-for-agent, ready-for-human, wo
 
 Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
 
+### Agent listings API
+
+Session JSON create/list/update for AI agents: `docs/agents/agent-listings-api.md`.
+
+Import-from-URL workflow skill: `.cursor/skills/wayhome-import-listing/SKILL.md`.
+
 ### Supabase
 
 Migrations and remote DB: use **`npm run db:push`** / **`npm run db:status`** (see `package.json`) and the **Supabase MCP** — do not default to “paste this into the SQL editor.” Details: `docs/agents/supabase.md`.
