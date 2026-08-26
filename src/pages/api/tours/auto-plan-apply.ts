@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
-import { buildFillPreview } from '../../../lib/tours/fill-date-range-db';
+import { applyFillDateRange } from '../../../lib/tours/fill-date-range-db';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -22,7 +22,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     );
   }
 
-  const result = await buildFillPreview(
+  const result = await applyFillDateRange(
     supabase,
     body.localeId,
     body.startDate,

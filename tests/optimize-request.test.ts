@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildOptimizePlan } from '../src/lib/google/optimize-request';
+import {
+  buildFixedOrderPlan,
+  buildOptimizePlan,
+} from '../src/lib/google/optimize-request';
 
 describe('buildOptimizePlan', () => {
   it('sets origin to start, destination to farthest, intermediates the rest', () => {
@@ -67,5 +70,36 @@ describe('buildOptimizePlan', () => {
     expect(plan.destinationId).toBeNull();
     expect(plan.intermediateIds).toEqual(['a']);
     expect(plan.body.destination.location.latLng.latitude).toBe(2);
+  });
+});
+
+describe('buildFixedOrderPlan', () => {
+  it('keeps visit order and disables waypoint optimize', () => {
+    const plan = buildFixedOrderPlan([
+      { id: 'first', lat: 0, lng: 0 },
+      { id: 'mid', lat: 0.5, lng: 0 },
+      { id: 'last', lat: 1, lng: 0 },
+    ]);
+    expect(plan.originId).toBe('first');
+    expect(plan.destinationId).toBe('last');
+    expect(plan.intermediateIds).toEqual(['mid']);
+    expect(plan.body.optimizeWaypointOrder).toBe(false);
+  });
+
+  it('uses custom start/end with all listings as intermediates', () => {
+    const plan = buildFixedOrderPlan(
+      [
+        { id: 'a', lat: 0.1, lng: 0 },
+        { id: 'b', lat: 0.2, lng: 0 },
+      ],
+      {
+        customStart: { lat: 0, lng: 0 },
+        customEnd: { lat: 1, lng: 0 },
+      },
+    );
+    expect(plan.originId).toBeNull();
+    expect(plan.destinationId).toBeNull();
+    expect(plan.intermediateIds).toEqual(['a', 'b']);
+    expect(plan.body.optimizeWaypointOrder).toBe(false);
   });
 });

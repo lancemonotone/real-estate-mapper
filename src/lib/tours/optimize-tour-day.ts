@@ -1,6 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildOptimizePlan } from '../google/optimize-request';
+import {
+  buildFixedOrderPlan,
+  buildOptimizePlan,
+} from '../google/optimize-request';
 import { computeOptimizedRoute } from '../google/routes';
+import {
+  dayHasAppointmentTimes,
+  orderStopsForAutoroute,
+} from './appointment-order';
 import { routeSignatureForListingIds } from './route-signature';
 
 type OptimizeOk = { ok: true };
@@ -9,6 +16,7 @@ type OptimizeErr = { ok: false; error: string; status: number };
 /**
  * Recompute stop order, legs, and polyline for a tour day.
  * Uses DB custom start/end when present; otherwise the start listing.
+ * When any stop has appointment_time, visit order is fixed (timed first).
  */
 export async function optimizeTourDay(
   supabase: SupabaseClient,
@@ -33,7 +41,7 @@ export async function optimizeTourDay(
 
   const { data: stops, error: stopsError } = await supabase
     .from('tour_stops')
-    .select('listing_id, is_start')
+    .select('listing_id, is_start, sort_order, appointment_time')
     .eq('tour_day_id', tourDayId);
   if (stopsError) return { ok: false, error: stopsError.message, status: 400 };
 
@@ -43,7 +51,14 @@ export async function optimizeTourDay(
     (stops ?? []).find((s) => s.is_start)?.listing_id ??
     undefined;
 
-  if (!customStart && !startListingId) {
+  const forOrderEarly = (stops ?? []).map((s) => ({
+    listingId: s.listing_id,
+    appointmentTime: (s.appointment_time as string | null) ?? null,
+    sortOrder: s.sort_order as number | null,
+  }));
+  const useFixedOrderEarly = dayHasAppointmentTimes(forOrderEarly);
+
+  if (!customStart && !startListingId && !useFixedOrderEarly) {
     return {
       ok: false,
       error: 'Set a start listing or a custom start address',
@@ -66,16 +81,41 @@ export async function optimizeTourDay(
     };
   }
 
+  const geocodedIds = new Set(geocoded.map((l) => l.id));
+  const stopRows = (stops ?? []).filter((s) => geocodedIds.has(s.listing_id));
+  const forOrder = stopRows.map((s) => ({
+    listingId: s.listing_id,
+    appointmentTime: (s.appointment_time as string | null) ?? null,
+    sortOrder: s.sort_order,
+  }));
+  const useFixedOrder = dayHasAppointmentTimes(forOrder);
+
   try {
-    const plan = buildOptimizePlan(
-      geocoded.map((l) => ({
-        id: l.id,
-        lat: l.lat!,
-        lng: l.lng!,
-        isStart: !customStart && l.id === startListingId,
-      })),
-      { customStart, customEnd },
-    );
+    const listingById = new Map(geocoded.map((l) => [l.id, l]));
+    let plan;
+    let originListingId: string | null;
+
+    if (useFixedOrder) {
+      const ordered = orderStopsForAutoroute(forOrder);
+      const stopsInVisitOrder = ordered.map((s) => {
+        const listing = listingById.get(s.listingId)!;
+        return { id: listing.id, lat: listing.lat!, lng: listing.lng! };
+      });
+      plan = buildFixedOrderPlan(stopsInVisitOrder, { customStart, customEnd });
+      originListingId = plan.originId;
+    } else {
+      plan = buildOptimizePlan(
+        geocoded.map((l) => ({
+          id: l.id,
+          lat: l.lat!,
+          lng: l.lng!,
+          isStart: !customStart && l.id === startListingId,
+        })),
+        { customStart, customEnd },
+      );
+      originListingId = plan.originId;
+    }
+
     const result = await computeOptimizedRoute(plan);
 
     for (let fullIdx = 0; fullIdx < result.fullPathIds.length; fullIdx++) {
@@ -86,7 +126,7 @@ export async function optimizeTourDay(
         .from('tour_stops')
         .update({
           sort_order: result.orderedIds.indexOf(listingId),
-          is_start: !customStart && listingId === plan.originId,
+          is_start: !customStart && listingId === originListingId,
           leg_duration_sec: leg?.durationSec ?? null,
           leg_distance_m: leg?.distanceM ?? null,
         })

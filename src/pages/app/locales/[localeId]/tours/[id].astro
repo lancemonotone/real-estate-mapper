@@ -3,6 +3,7 @@ import AppLayout from '../../../../../layouts/AppLayout.astro';
 import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
 import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import { toTimeInputValue } from '../../../../../lib/tours/appointment-order';
 import {
   tourEndGlyph,
   tourListingStopGlyph,
@@ -210,6 +211,16 @@ const stopCount = (stops ?? []).length;
                 </div>
               )}
               <div class="tours-stops__actions">
+                <label class="tours-stops__time-label">
+                  <span class="visually-hidden">Appointment time</span>
+                  <input
+                    type="time"
+                    class="tours-stops__time"
+                    data-appointment-time
+                    data-listing-id={stop.listing_id}
+                    value={toTimeInputValue(stop.appointment_time)}
+                  />
+                </label>
                 <FavoriteHeart
                   listingId={stop.listing_id}
                   favorited={Boolean(listing?.is_favorite)}

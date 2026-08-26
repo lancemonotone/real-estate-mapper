@@ -96,6 +96,8 @@ export type TourStop = {
   sort_order: number | null;
   leg_duration_sec: number | null;
   leg_distance_m: number | null;
+  /** Local clock on tour_days.tour_date; null = date only. */
+  appointment_time: string | null;
 };
 
 export type ProximityCriterionKind = 'place_type' | 'fixed_pin';

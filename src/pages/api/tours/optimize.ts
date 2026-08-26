@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { buildOptimizePlan } from '../../../lib/google/optimize-request';
 import { computeOptimizedRoute } from '../../../lib/google/routes';
 import { geocodeAddress } from '../../../lib/google/geocode';
-import { routeSignatureForListingIds } from '../../../lib/tours/route-signature';
+import { optimizeTourDay } from '../../../lib/tours/optimize-tour-day';
 
 type LatLng = { lat: number; lng: number };
 
@@ -38,45 +38,27 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   let customStart = readEndpoint(body, 'customStart');
   let customEnd = readEndpoint(body, 'customEnd');
-  let customStartAddress =
+  const customStartAddress =
     typeof body.customStartAddress === 'string' ? body.customStartAddress.trim() : '';
-  let customEndAddress =
+  const customEndAddress =
     typeof body.customEndAddress === 'string' ? body.customEndAddress.trim() : '';
 
-  let listingIds: string[] = [];
-  let resolvedStartListingId = startListingId;
-
   if (tourDayId) {
-    const { data: tour, error: tourError } = await supabase
-      .from('tour_days')
-      .select('start_lat, start_lng, end_lat, end_lng, start_address, end_address')
-      .eq('id', tourDayId)
-      .single();
-    if (tourError) return Response.json({ error: tourError.message }, { status: 400 });
+    const opt = await optimizeTourDay(supabase, tourDayId, {
+      startListingId,
+    });
+    if (!opt.ok) {
+      return Response.json({ error: opt.error }, { status: opt.status });
+    }
+    return Response.json({ ok: true });
+  }
 
-    if (!customStart && tour?.start_lat != null && tour?.start_lng != null) {
-      customStart = { lat: tour.start_lat, lng: tour.start_lng };
-      customStartAddress = tour.start_address ?? customStartAddress;
-    }
-    if (!customEnd && tour?.end_lat != null && tour?.end_lng != null) {
-      customEnd = { lat: tour.end_lat, lng: tour.end_lng };
-      customEndAddress = tour.end_address ?? customEndAddress;
-    }
-
-    const { data: stops, error } = await supabase
-      .from('tour_stops')
-      .select('listing_id, is_start')
-      .eq('tour_day_id', tourDayId);
-    if (error) return Response.json({ error: error.message }, { status: 400 });
-    listingIds = (stops ?? []).map((s) => s.listing_id);
-    if (!resolvedStartListingId) {
-      resolvedStartListingId = (stops ?? []).find((s) => s.is_start)?.listing_id;
-    }
-  } else if (scratchListingIds?.length) {
-    listingIds = scratchListingIds;
-  } else {
+  if (!scratchListingIds?.length) {
     return Response.json({ error: 'Provide tourDayId or scratchListingIds' }, { status: 400 });
   }
+
+  const listingIds = scratchListingIds;
+  const resolvedStartListingId = startListingId;
 
   try {
     if (!customStart && customStartAddress) {
@@ -131,32 +113,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       { customStart, customEnd },
     );
     const result = await computeOptimizedRoute(plan);
-
-    if (tourDayId) {
-      for (let fullIdx = 0; fullIdx < result.fullPathIds.length; fullIdx++) {
-        const listingId = result.fullPathIds[fullIdx];
-        if (!listingId) continue;
-        const leg = result.legs[fullIdx];
-        await supabase
-          .from('tour_stops')
-          .update({
-            sort_order: result.orderedIds.indexOf(listingId),
-            is_start: !customStart && listingId === plan.originId,
-            leg_duration_sec: leg?.durationSec ?? null,
-            leg_distance_m: leg?.distanceM ?? null,
-          })
-          .eq('tour_day_id', tourDayId)
-          .eq('listing_id', listingId);
-      }
-      await supabase
-        .from('tour_days')
-        .update({
-          encoded_polyline: result.encodedPolyline ?? null,
-          // Match page freshness check: all stop listing ids, not visit order.
-          route_signature: routeSignatureForListingIds(listingIds),
-        })
-        .eq('id', tourDayId);
-    }
 
     return Response.json({
       ok: true,

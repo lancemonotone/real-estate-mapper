@@ -6,6 +6,7 @@ import '../../../../../styles/locale-map.css';
 import { milesToMeters, nearestAllowedRadiusMiles } from '../../../../../lib/geo/locale-radius';
 import { getLocaleForNestMember, localeNeedsSetup } from '../../../../../lib/supabase/nest';
 import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import { toTimeInputValue } from '../../../../../lib/tours/appointment-order';
 import {
   tourEndGlyph,
   tourListingStopGlyph,
@@ -204,9 +205,34 @@ const seed = {
       <div class="tours-workspace__rail-body" data-tours-rail-body>
         {
           unassigned.length > 0 ? (
-            <button type="button" class="secondary" data-tours-auto-plan>
-              Auto-plan
-            </button>
+            <div class="tours-auto-plan stack" data-tours-auto-plan-root>
+              <label class="tours-auto-plan__field">
+                <span class="muted">From</span>
+                <input
+                  type="date"
+                  data-auto-plan-start
+                  value={weekKeys[0]}
+                  required
+                />
+              </label>
+              <label class="tours-auto-plan__field">
+                <span class="muted">To</span>
+                <input
+                  type="date"
+                  data-auto-plan-end
+                  value={weekKeys[6]}
+                  required
+                />
+              </label>
+              <div class="tours-auto-plan__actions">
+                <button type="button" class="secondary" data-tours-auto-plan>
+                  Preview
+                </button>
+                <button type="button" class="button" data-tours-auto-plan-apply hidden>
+                  Apply
+                </button>
+              </div>
+            </div>
           ) : (
             <p class="muted">No unscheduled listings.</p>
           )
@@ -396,6 +422,16 @@ const seed = {
                         </div>
                       )}
                       <div class="tours-stops__actions">
+                        <label class="tours-stops__time-label">
+                          <span class="visually-hidden">Appointment time</span>
+                          <input
+                            type="time"
+                            class="tours-stops__time"
+                            data-appointment-time
+                            data-listing-id={stop.listing_id}
+                            value={toTimeInputValue(stop.appointment_time)}
+                          />
+                        </label>
                         <FavoriteHeart
                           listingId={stop.listing_id}
                           favorited={Boolean(listing?.is_favorite)}

@@ -30,3 +30,19 @@ export function weekDateKeys(anchor: Date): string[] {
   const start = startOfWeekSunday(anchor);
   return Array.from({ length: 7 }, (_, i) => toDateKey(addDays(start, i)));
 }
+
+/** Inclusive date keys from startKey through endKey (local calendar). */
+export function dateKeysInclusive(startKey: string, endKey: string): string[] {
+  const start = parseDateKey(startKey);
+  const end = parseDateKey(endKey);
+  if (start.getTime() > end.getTime()) {
+    throw new Error('startDate must be on or before endDate');
+  }
+  const keys: string[] = [];
+  let cur = start;
+  while (cur.getTime() <= end.getTime()) {
+    keys.push(toDateKey(cur));
+    cur = addDays(cur, 1);
+  }
+  return keys;
+}

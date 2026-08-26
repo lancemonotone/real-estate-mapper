@@ -604,6 +604,43 @@ async function boot() {
     );
   });
 
+  root.querySelectorAll('[data-appointment-time]').forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    input.addEventListener('mousedown', (e) => e.stopPropagation(), { signal });
+    input.addEventListener('pointerdown', (e) => e.stopPropagation(), { signal });
+    input.addEventListener(
+      'change',
+      async () => {
+        const listingId = input.getAttribute('data-listing-id');
+        const tourDayId = root
+          .querySelector('[data-tours-stops]')
+          ?.getAttribute('data-tour-day-id');
+        if (!listingId || !tourDayId) return;
+        const appointment_time = input.value.trim() || null;
+        try {
+          const res = await fetch('/api/tours/appointment-time', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              tour_day_id: tourDayId,
+              listing_id: listingId,
+              appointment_time,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Could not save time');
+          if (data.optimizeError) {
+            showStatus(data.optimizeError, true);
+          }
+          reloadForDay(cfg.selectedDate);
+        } catch (e) {
+          showStatus(e instanceof Error ? e.message : 'Could not save time', true);
+        }
+      },
+      { signal },
+    );
+  });
+
   root.querySelectorAll('[data-tours-se-open]').forEach((btn) => {
     btn.addEventListener(
       'click',
@@ -664,42 +701,127 @@ async function boot() {
     async () => {
       const hint = document.getElementById('auto-plan-hint');
       const box = document.getElementById('auto-plan-clusters');
+      const applyBtn = root.querySelector('[data-tours-auto-plan-apply]');
+      const startEl = root.querySelector('[data-auto-plan-start]');
+      const endEl = root.querySelector('[data-auto-plan-end]');
+      const startDate =
+        startEl instanceof HTMLInputElement ? startEl.value.trim() : '';
+      const endDate = endEl instanceof HTMLInputElement ? endEl.value.trim() : '';
+      if (!startDate || !endDate) {
+        if (hint) {
+          hint.hidden = false;
+          hint.textContent = 'Choose a From and To date.';
+        }
+        return;
+      }
+      if (applyBtn instanceof HTMLButtonElement) applyBtn.hidden = true;
       if (hint) {
         hint.hidden = false;
-        hint.textContent = 'Clustering…';
+        hint.textContent = 'Planning…';
       }
       try {
         const res = await fetch('/api/tours/auto-plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ localeId: cfg.localeId }),
+          body: JSON.stringify({
+            localeId: cfg.localeId,
+            startDate,
+            endDate,
+          }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Auto-plan failed');
-        if (hint) {
-          hint.textContent = `Clusters within ${data.radiusMiles} mi (max ${data.maxPerCluster}). Drag a cluster onto a date.`;
-        }
         if (!box) return;
         box.hidden = false;
         box.replaceChildren();
-        for (const cluster of data.clusters ?? []) {
+
+        const assignedCount = (data.assignments ?? []).reduce(
+          (n, a) => n + (a.listingIds?.length ?? 0),
+          0,
+        );
+        const overflowCount = (data.overflowIds ?? []).length;
+        if (hint) {
+          const parts = [
+            `Preview: ${assignedCount} listing${assignedCount === 1 ? '' : 's'} into ${startDate} → ${endDate}`,
+            `(${data.radiusMiles} mi · max ${data.maxPerDay}/day)`,
+          ];
+          if (data.skippedMissingGeo > 0) {
+            parts.push(`${data.skippedMissingGeo} missing location skipped`);
+          }
+          if (overflowCount > 0) {
+            parts.push(`${overflowCount} left unscheduled`);
+          }
+          hint.textContent = parts.join(' · ');
+        }
+
+        for (const group of data.assignments ?? []) {
           const card = document.createElement('div');
           card.className = 'tours-workspace__cluster';
-          card.draggable = true;
-          card.dataset.dragKind = 'listing';
-          card.dataset.listingIds = JSON.stringify(cluster.listingIds);
-          card.innerHTML = `<strong>Cluster ${cluster.index + 1}</strong><span class="muted">${(cluster.labels || []).join(', ')}</span>`;
-          card.addEventListener('dragstart', (event) => {
-            event.dataTransfer?.setData(
-              'application/json',
-              JSON.stringify({ kind: 'listing', listingIds: cluster.listingIds }),
-            );
-            event.dataTransfer.effectAllowed = 'move';
-          });
+          const verb = group.merge ? 'Merge' : 'New day';
+          card.innerHTML = `<strong>${verb} · ${group.tourDate}</strong><span class="muted">${(group.labels || []).join(', ')}</span>`;
           box.appendChild(card);
+        }
+
+        if (overflowCount > 0) {
+          const card = document.createElement('div');
+          card.className = 'tours-workspace__cluster tours-workspace__cluster--overflow';
+          card.innerHTML = `<strong>Unscheduled overflow</strong><span class="muted">${(data.overflowLabels || []).join(', ')}</span>`;
+          box.appendChild(card);
+        }
+
+        if (applyBtn instanceof HTMLButtonElement) {
+          applyBtn.hidden = assignedCount === 0;
         }
       } catch (e) {
         if (hint) hint.textContent = e instanceof Error ? e.message : 'Auto-plan failed';
+        if (box) {
+          box.hidden = true;
+          box.replaceChildren();
+        }
+      }
+    },
+    { signal },
+  );
+
+  root.querySelector('[data-tours-auto-plan-apply]')?.addEventListener(
+    'click',
+    async () => {
+      const hint = document.getElementById('auto-plan-hint');
+      const applyBtn = root.querySelector('[data-tours-auto-plan-apply]');
+      const startEl = root.querySelector('[data-auto-plan-start]');
+      const endEl = root.querySelector('[data-auto-plan-end]');
+      const startDate =
+        startEl instanceof HTMLInputElement ? startEl.value.trim() : '';
+      const endDate = endEl instanceof HTMLInputElement ? endEl.value.trim() : '';
+      if (!startDate || !endDate) return;
+      if (applyBtn instanceof HTMLButtonElement) applyBtn.disabled = true;
+      if (hint) {
+        hint.hidden = false;
+        hint.textContent = 'Applying…';
+      }
+      try {
+        const res = await fetch('/api/tours/auto-plan-apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            localeId: cfg.localeId,
+            startDate,
+            endDate,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Apply failed');
+        const optFail = (data.optimized ?? []).filter((o) => !o.ok);
+        if (optFail.length > 0) {
+          showStatus(
+            optFail.map((o) => o.error || 'Optimize failed').join('; '),
+            true,
+          );
+        }
+        reloadForDay(cfg.selectedDate || startDate);
+      } catch (e) {
+        if (hint) hint.textContent = e instanceof Error ? e.message : 'Apply failed';
+        if (applyBtn instanceof HTMLButtonElement) applyBtn.disabled = false;
       }
     },
     { signal },

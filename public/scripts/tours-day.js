@@ -124,6 +124,36 @@ function initTourDay() {
   const cfg = window.__WAYHOME_TOUR_DAY__ || {};
   const tourId = cfg.tourId;
   const localeId = cfg.localeId;
+
+  document.querySelectorAll('[data-appointment-time]').forEach((input) => {
+    if (!(input instanceof HTMLInputElement) || input.dataset.appointmentBound === '1') return;
+    input.dataset.appointmentBound = '1';
+    input.addEventListener('change', async () => {
+      const listingId = input.getAttribute('data-listing-id');
+      if (!listingId || !tourId) return;
+      const appointment_time = input.value.trim() || null;
+      try {
+        const res = await fetch('/api/tours/appointment-time', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            tour_day_id: tourId,
+            listing_id: listingId,
+            appointment_time,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setStatus(data.error || 'Could not save time');
+          return;
+        }
+        location.reload();
+      } catch {
+        setStatus('Could not save time');
+      }
+    });
+  });
+
   if (!(overlay instanceof HTMLElement) || !(form instanceof HTMLFormElement) || !tourId) return;
 
   if (overlay._tourDayAbort instanceof AbortController) {
