@@ -149,23 +149,34 @@ const mapListings = rows
                     >
                       <th scope="row" class="matrix-table__listing">
                         <div class="matrix-listing">
-                          <a class="matrix-listing__media" href={`${base}/listings/${listing.id}`}>
-                            {photo ? (
+                          {photo ? (
+                            <button
+                              type="button"
+                              class="matrix-listing__media"
+                              data-listing-gallery
+                              data-photo-urls={JSON.stringify(
+                                listing.photo_urls?.length
+                                  ? listing.photo_urls
+                                  : [photo],
+                              )}
+                              data-photo-index="0"
+                              aria-label={`Photos: ${title}`}
+                            >
                               <img
                                 class="matrix-listing__thumb"
                                 src={photo}
                                 alt=""
                                 loading="lazy"
                               />
-                            ) : (
-                              <span
-                                class="matrix-listing__thumb matrix-listing__thumb--empty"
-                                aria-hidden="true"
-                              >
-                                No photo
-                              </span>
-                            )}
-                          </a>
+                            </button>
+                          ) : (
+                            <span
+                              class="matrix-listing__thumb matrix-listing__thumb--empty"
+                              aria-hidden="true"
+                            >
+                              No photo
+                            </span>
+                          )}
                           <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
                             <span class="matrix-listing__name">{title}</span>
                             {listing.address && listing.name ? (
@@ -216,4 +227,8 @@ const mapListings = rows
 
   {hasCenter && <script src="/scripts/locale-map.js" type="module"></script>}
   <script src="/scripts/listings-sort.js" type="module"></script>
+  <script>
+    import { bindListingGalleries } from '../../../../client/listing-gallery';
+    bindListingGalleries();
+  </script>
 </AppLayout>

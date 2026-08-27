@@ -26,6 +26,12 @@ const tourTimeValue = resolveListingTourTimeInput(
 const badges = listing.id
   ? listingBadges(listing as Listing)
   : [];
+const initialPhotoUrls =
+  listing.photo_urls && listing.photo_urls.length > 0
+    ? listing.photo_urls
+    : listing.photo_url
+      ? [listing.photo_url]
+      : [];
 ---
 {badges.length > 0 && (
   <ul>
@@ -41,7 +47,48 @@ const badges = listing.id
   <label>Address <input name="address" value={listing.address ?? ''} /></label>
   <label>Phone <input name="phone" type="tel" autocomplete="tel" value={listing.phone ?? ''} /></label>
   <label>Source URL <input name="source_url" type="url" value={listing.source_url ?? ''} /></label>
-  <label>Photo URL <input name="photo_url" type="url" value={listing.photo_url ?? ''} /></label>
+  <fieldset class="listing-form__gallery" data-gallery-form>
+    <legend>Photos</legend>
+    <ul class="listing-form__gallery-list" data-gallery-list>
+      {initialPhotoUrls.map((url, i) => (
+        <li
+          class:list={['listing-form__gallery-item', { 'is-primary': i === 0 }]}
+          data-gallery-item
+        >
+          <input type="hidden" name="photo_urls" value={url} />
+          <img src={url} alt="" />
+          <span class="badge" data-gallery-primary-label hidden={i !== 0}>
+            Primary
+          </span>
+          <div class="listing-form__gallery-actions">
+            <button type="button" class="secondary" data-gallery-primary>
+              Make primary
+            </button>
+            <button type="button" class="secondary" data-gallery-up>
+              Up
+            </button>
+            <button type="button" class="secondary" data-gallery-down>
+              Down
+            </button>
+            <button type="button" class="secondary" data-gallery-remove>
+              Remove
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
+    <label>
+      Add photo URL(s)
+      <textarea
+        data-gallery-add
+        rows="2"
+        placeholder="One https URL per line"
+      ></textarea>
+    </label>
+    <button type="button" class="secondary" data-gallery-add-btn>
+      Add
+    </button>
+  </fieldset>
   <label>Upload photo <input name="photo" type="file" accept="image/*" /></label>
   <div class="listing-form__tour">
     <label>
@@ -213,4 +260,53 @@ const badges = listing.id
       --attrs-gap: 1rem;
     }
   }
+
+  .listing-form__gallery {
+    --gallery-gap: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gallery-gap);
+  }
+
+  .listing-form__gallery-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .listing-form__gallery-item {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0.65rem;
+    align-items: start;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-1);
+
+    &.is-primary {
+      border-color: var(--border-accent);
+    }
+
+    & img {
+      inline-size: 4.5rem;
+      block-size: 4.5rem;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  .listing-form__gallery-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    grid-column: 2;
+  }
 </style>
+<script>
+  import { bindListingGalleryForm } from '../client/listing-gallery-form';
+  bindListingGalleryForm();
+</script>

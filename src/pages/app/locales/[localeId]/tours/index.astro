@@ -77,7 +77,7 @@ const assignedIds = new Set((allStops ?? []).map((s) => s.listing_id));
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, phone, lat, lng, photo_path, photo_url, is_favorite')
+  .select('id, name, address, phone, lat, lng, photo_path, photo_url, photo_urls, is_favorite')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -252,25 +252,36 @@ const seed = {
                   data-map-listing={listing.id}
                   data-drag-kind="listing"
                 >
-                  <a class="matrix-listing tours-stops__link" href={href}>
-                    <span class="matrix-listing__media">
-                      {listing.photo_url ? (
+                  <div class="matrix-listing tours-stops__link">
+                    {listing.photo_url ? (
+                      <button
+                        type="button"
+                        class="matrix-listing__media"
+                        data-listing-gallery
+                        data-photo-urls={JSON.stringify(
+                          listing.photo_urls?.length
+                            ? listing.photo_urls
+                            : [listing.photo_url],
+                        )}
+                        data-photo-index="0"
+                        aria-label={`Photos: ${title}`}
+                      >
                         <img
                           class="matrix-listing__thumb"
                           src={listing.photo_url}
                           alt=""
                           loading="lazy"
                         />
-                      ) : (
-                        <span
-                          class="matrix-listing__thumb matrix-listing__thumb--empty"
-                          aria-hidden="true"
-                        >
-                          No photo
-                        </span>
-                      )}
-                    </span>
-                    <span class="matrix-listing__text">
+                      </button>
+                    ) : (
+                      <span
+                        class="matrix-listing__thumb matrix-listing__thumb--empty"
+                        aria-hidden="true"
+                      >
+                        No photo
+                      </span>
+                    )}
+                    <a class="matrix-listing__text" href={href}>
                       <span class="matrix-listing__name">{title}</span>
                       {listing.address && listing.name ? (
                         <span class="muted matrix-listing__address">{listing.address}</span>
@@ -278,8 +289,8 @@ const seed = {
                       {listing.phone ? (
                         <span class="muted matrix-listing__phone">{listing.phone}</span>
                       ) : null}
-                    </span>
-                  </a>
+                    </a>
+                  </div>
                   <div class="tours-stops__actions">
                     <FavoriteHeart
                       listingId={listing.id}
@@ -388,25 +399,36 @@ const seed = {
                         {glyph}
                       </span>
                       {href ? (
-                        <a class="matrix-listing tours-stops__link" href={href}>
-                          <span class="matrix-listing__media">
-                            {photo ? (
+                        <div class="matrix-listing tours-stops__link">
+                          {photo ? (
+                            <button
+                              type="button"
+                              class="matrix-listing__media"
+                              data-listing-gallery
+                              data-photo-urls={JSON.stringify(
+                                listing?.photo_urls?.length
+                                  ? listing.photo_urls
+                                  : [photo],
+                              )}
+                              data-photo-index="0"
+                              aria-label={`Photos: ${title}`}
+                            >
                               <img
                                 class="matrix-listing__thumb"
                                 src={photo}
                                 alt=""
                                 loading="lazy"
                               />
-                            ) : (
-                              <span
-                                class="matrix-listing__thumb matrix-listing__thumb--empty"
-                                aria-hidden="true"
-                              >
-                                No photo
-                              </span>
-                            )}
-                          </span>
-                          <span class="matrix-listing__text">
+                            </button>
+                          ) : (
+                            <span
+                              class="matrix-listing__thumb matrix-listing__thumb--empty"
+                              aria-hidden="true"
+                            >
+                              No photo
+                            </span>
+                          )}
+                          <a class="matrix-listing__text" href={href}>
                             <span class="matrix-listing__name">{title}</span>
                             {listing?.address && listing?.name ? (
                               <span class="muted matrix-listing__address">{listing.address}</span>
@@ -414,8 +436,8 @@ const seed = {
                             {listing?.phone ? (
                               <span class="muted matrix-listing__phone">{listing.phone}</span>
                             ) : null}
-                          </span>
-                        </a>
+                          </a>
+                        </div>
                       ) : (
                         <div class="tours-stops__main">
                           <strong>{title}</strong>
@@ -786,4 +808,8 @@ const seed = {
   }
   {selectedTour ? <script src="/scripts/place-search.js" type="module"></script> : null}
   <script src="/scripts/listing-favorite.js" type="module"></script>
+  <script>
+    import { bindListingGalleries } from '../../../../../client/listing-gallery';
+    bindListingGalleries();
+  </script>
 </AppLayout>

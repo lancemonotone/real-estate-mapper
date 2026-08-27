@@ -177,20 +177,31 @@ const stopCount = (stops ?? []).length;
                 {glyph}
               </span>
               {href ? (
-                <a class="matrix-listing tours-stops__link" href={href}>
-                  <span class="matrix-listing__media">
-                    {photo ? (
+                <div class="matrix-listing tours-stops__link">
+                  {photo ? (
+                    <button
+                      type="button"
+                      class="matrix-listing__media"
+                      data-listing-gallery
+                      data-photo-urls={JSON.stringify(
+                        listing?.photo_urls?.length
+                          ? listing.photo_urls
+                          : [photo],
+                      )}
+                      data-photo-index="0"
+                      aria-label={`Photos: ${title}`}
+                    >
                       <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
-                    ) : (
-                      <span
-                        class="matrix-listing__thumb matrix-listing__thumb--empty"
-                        aria-hidden="true"
-                      >
-                        No photo
-                      </span>
-                    )}
-                  </span>
-                  <span class="matrix-listing__text">
+                    </button>
+                  ) : (
+                    <span
+                      class="matrix-listing__thumb matrix-listing__thumb--empty"
+                      aria-hidden="true"
+                    >
+                      No photo
+                    </span>
+                  )}
+                  <a class="matrix-listing__text" href={href}>
                     <span class="matrix-listing__name">{title}</span>
                     {listing?.address && listing?.name ? (
                       <span class="muted matrix-listing__address">{listing.address}</span>
@@ -203,8 +214,8 @@ const stopCount = (stops ?? []).length;
                         Next leg ~{Math.round(stop.leg_duration_sec / 60)} min
                       </span>
                     ) : null}
-                  </span>
-                </a>
+                  </a>
+                </div>
               ) : (
                 <div class="tours-stops__main">
                   <strong class="listing-row__name">{title}</strong>
@@ -457,4 +468,8 @@ const stopCount = (stops ?? []).length;
   </script>
   <script src="/scripts/tour-map.js" type="module"></script>
   <script src="/scripts/tours-day.js" type="module"></script>
+  <script>
+    import { bindListingGalleries } from '../../../../../client/listing-gallery';
+    bindListingGalleries();
+  </script>
 </AppLayout>

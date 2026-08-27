@@ -60,10 +60,19 @@ When the user saves page HTML (portals block agent fetch):
 
    Writes `_listings/listing.json` by default; stdout is the output path.
 
-4. Read the JSON file; user may edit before upsert (e.g. pick another `photo_url` from `photo_candidates`).
+4. Read the JSON file; user may edit before upsert (e.g. pick another primary from `photo_candidates`).
 5. `GET` listings → duplicate name / different URL → **ask** before `PATCH`.
-6. Else `PUT` with parser `listing` + `source_url`.
+6. Else `PUT` with parser `listing` + `source_url` + **`photo_urls: photo_candidates`** (full gallery). `photo_url` is derived as `photo_urls[0]`; if the listing already had a primary still present in the candidates, that URL is kept as primary.
 7. Report id, `created`, money fields, amenities, warnings.
+
+### Photo fields
+
+| Field | Role |
+|-------|------|
+| `photo_urls` | Ordered gallery of remote image URLs (required for multi-photo import) |
+| `photo_url` | Primary thumb; always synced to `photo_urls[0]` when `photo_urls` is sent |
+
+Remote URLs only — Wayhome does not host gallery image files.
 
 ## Agent workflow (live URL)
 

@@ -56,6 +56,7 @@ Call the agent API on a host that **actually serves** `/api/agent/...` (often lo
 3. For multi-unit pages, filter to `listing_prefs.target_beds`; derive fields per **Unit metrics** below.
 4. **Always** include fee data when present in dump/page (Zillow: “Monthly rent, fees & charges” and “One-time fees & charges”). Map recurring extras → `fees_monthly`, security deposit → `deposit`, pet one-time → `pet_deposit`, monthly pet rent → `pet_rent_monthly` using locale pet counts.
 5. Build **amenities** with the filter below → **string array** in JSON (parser applies this for dumps).
+5b. For photos: send **`photo_urls`** = full `photo_candidates` array from the parser (not only the first). Server sets primary = first URL, or keeps the existing primary if it is still in the set.
 6. `GET /api/agent/locales/:localeId/listings` — if another listing has the same or obviously similar **name** and a **different** `source_url`, **stop and ask the user** before updating.
 7. Else `PUT /api/agent/locales/:localeId/listings` with `source_url` + fields. Same URL → upsert.
 8. Reply with listing id, `created` true/false, key money fields, amenities, and parser/page warnings.
@@ -80,7 +81,8 @@ Map into PUT/PATCH body when known:
 | `name` | Property / community name |
 | `address` | Full street address |
 | `phone` | Leasing phone |
-| `photo_url` | Primary photo if available |
+| `photo_url` | Primary photo (legacy single); prefer `photo_urls` |
+| `photo_urls` | Full ordered gallery of remote image URLs |
 | `beds` | `listing_prefs.target_beds` |
 | `baths` | Typical for target units (see above) |
 | `sqft` | Typical/average for target units |

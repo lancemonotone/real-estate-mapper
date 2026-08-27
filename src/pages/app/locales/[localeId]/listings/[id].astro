@@ -143,6 +143,13 @@ const hasLocation = listing.lat != null && listing.lng != null;
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
 const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 const photoUrl = listing.photo_url ?? '';
+const photoUrls =
+  listing.photo_urls?.length > 0
+    ? listing.photo_urls
+    : photoUrl
+      ? [photoUrl]
+      : [];
+const photoUrlsJson = JSON.stringify(photoUrls);
 const base = `/app/locales/${locale.id}`;
 const listingTitle = listing.name || 'Listing';
 
@@ -523,8 +530,55 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
 
     <div class="listing-hero__visual stack">
       {
-        photoUrl ? (
-          <img class="listing-hero__photo" src={photoUrl} alt="" />
+        photoUrls.length > 0 ? (
+          <div class="listing-hero__gallery" data-hero-gallery>
+            <button
+              type="button"
+              class="listing-hero__photo-btn"
+              data-listing-gallery
+              data-photo-urls={photoUrlsJson}
+              data-photo-index="0"
+              aria-label="Open photo gallery"
+            >
+              <img
+                class="listing-hero__photo"
+                src={photoUrls[0]}
+                alt=""
+                data-hero-gallery-img
+              />
+            </button>
+            {
+              photoUrls.length > 1 && (
+                <div class="listing-hero__gallery-nav">
+                  <button
+                    type="button"
+                    class="secondary icon-btn"
+                    data-hero-gallery-prev
+                    aria-label="Previous photo"
+                    title="Previous photo"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M15 6l-6 6 6 6"></path>
+                    </svg>
+                  </button>
+                  <span class="muted" data-hero-gallery-count>
+                    1 / {photoUrls.length}
+                  </span>
+                  <button
+                    type="button"
+                    class="secondary icon-btn"
+                    data-hero-gallery-next
+                    aria-label="Next photo"
+                    title="Next photo"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M9 6l6 6-6 6"></path>
+                    </svg>
+                  </button>
+                </div>
+              )
+            }
+          </div>
         ) : (
           <p class="muted">No photo</p>
         )
@@ -816,6 +870,48 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
   </div>
 
   {hasLocation && <script src="/scripts/listing-map.js" type="module"></script>}
+  <script>
+    import {
+      bindListingGalleries,
+    } from '../../../../../client/listing-gallery';
+
+    bindListingGalleries();
+
+    const root = document.querySelector('[data-hero-gallery]');
+    if (root instanceof HTMLElement) {
+      const trigger = root.querySelector('[data-listing-gallery]');
+      const raw = trigger?.getAttribute('data-photo-urls') || '[]';
+      let urls: string[] = [];
+      try {
+        const parsed = JSON.parse(raw);
+        urls = Array.isArray(parsed) ? parsed.filter((u) => typeof u === 'string') : [];
+      } catch {
+        urls = [];
+      }
+      let index = 0;
+      const img = root.querySelector('[data-hero-gallery-img]');
+      const count = root.querySelector('[data-hero-gallery-count]');
+      function render() {
+        if (img instanceof HTMLImageElement && urls[index]) img.src = urls[index];
+        if (count) count.textContent = `${index + 1} / ${urls.length}`;
+        if (trigger instanceof HTMLElement) {
+          trigger.setAttribute('data-photo-index', String(index));
+        }
+      }
+      root.querySelector('[data-hero-gallery-prev]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (urls.length === 0) return;
+        index = (index - 1 + urls.length) % urls.length;
+        render();
+      });
+      root.querySelector('[data-hero-gallery-next]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (urls.length === 0) return;
+        index = (index + 1) % urls.length;
+        render();
+      });
+    }
+  </script>
   <script
     define:vars={{
       listingId: listing.id,
