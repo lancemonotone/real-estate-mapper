@@ -3,14 +3,37 @@ function syncHiddenInputs(list: HTMLElement) {
     const input = item.querySelector('input[name="photo_urls"]');
     const img = item.querySelector('img');
     if (input instanceof HTMLInputElement && img instanceof HTMLImageElement) {
-      input.value = img.src;
+      input.value = img.getAttribute('src') || img.src;
     }
   });
-  list.querySelectorAll('[data-gallery-item]').forEach((item, i) => {
-    item.classList.toggle('is-primary', i === 0);
-    const badge = item.querySelector('[data-gallery-primary-label]');
-    if (badge) badge.hidden = i !== 0;
-  });
+}
+
+function createItem(url: string): HTMLLIElement {
+  const li = document.createElement('li');
+  li.className = 'listing-form__gallery-item';
+  li.dataset.galleryItem = '';
+  li.draggable = true;
+  li.innerHTML = `
+    <input type="hidden" name="photo_urls" value="" />
+    <img src="" alt="" draggable="false" />
+    <button
+      type="button"
+      class="secondary icon-btn listing-form__gallery-remove"
+      data-gallery-remove
+      aria-label="Remove photo"
+      title="Remove photo"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 6l12 12"></path>
+        <path d="M18 6L6 18"></path>
+      </svg>
+    </button>
+  `;
+  const input = li.querySelector('input[name="photo_urls"]');
+  const img = li.querySelector('img');
+  if (input instanceof HTMLInputElement) input.value = url;
+  if (img instanceof HTMLImageElement) img.src = url;
+  return li;
 }
 
 function addUrls(list: HTMLElement, raw: string) {
@@ -26,25 +49,7 @@ function addUrls(list: HTMLElement, raw: string) {
   for (const url of urls) {
     if (existing.has(url)) continue;
     existing.add(url);
-    const li = document.createElement('li');
-    li.className = 'listing-form__gallery-item';
-    li.dataset.galleryItem = '';
-    li.innerHTML = `
-      <input type="hidden" name="photo_urls" value="" />
-      <img src="" alt="" />
-      <span class="badge" data-gallery-primary-label hidden>Primary</span>
-      <div class="listing-form__gallery-actions">
-        <button type="button" class="secondary" data-gallery-primary>Make primary</button>
-        <button type="button" class="secondary" data-gallery-up>Up</button>
-        <button type="button" class="secondary" data-gallery-down>Down</button>
-        <button type="button" class="secondary" data-gallery-remove>Remove</button>
-      </div>
-    `;
-    const input = li.querySelector('input[name="photo_urls"]');
-    const img = li.querySelector('img');
-    if (input instanceof HTMLInputElement) input.value = url;
-    if (img instanceof HTMLImageElement) img.src = url;
-    list.appendChild(li);
+    list.appendChild(createItem(url));
   }
   syncHiddenInputs(list);
 }
@@ -56,43 +61,79 @@ export function bindListingGalleryForm(root: ParentNode = document): void {
     const list = form.querySelector<HTMLElement>('[data-gallery-list]');
     if (!list) return;
 
+    let dragItem: HTMLElement | null = null;
+
     form.addEventListener('click', (e) => {
       const target = e.target;
       if (!(target instanceof Element)) return;
-      const item = target.closest<HTMLElement>('[data-gallery-item]');
-      if (!item || !list.contains(item)) {
-        if (target.closest('[data-gallery-add-btn]')) {
-          e.preventDefault();
-          const ta = form.querySelector<HTMLTextAreaElement>('[data-gallery-add]');
-          if (ta) {
-            addUrls(list, ta.value);
-            ta.value = '';
-          }
+
+      if (target.closest('[data-gallery-add-btn]')) {
+        e.preventDefault();
+        const ta = form.querySelector<HTMLTextAreaElement>('[data-gallery-add]');
+        if (ta) {
+          addUrls(list, ta.value);
+          ta.value = '';
         }
         return;
       }
+
+      const removeBtn = target.closest('[data-gallery-remove]');
+      if (!removeBtn) return;
+      const item = removeBtn.closest<HTMLElement>('[data-gallery-item]');
+      if (!item || !list.contains(item)) return;
       e.preventDefault();
+      item.remove();
+      syncHiddenInputs(list);
+    });
+
+    list.addEventListener('dragstart', (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
       if (target.closest('[data-gallery-remove]')) {
-        item.remove();
-        syncHiddenInputs(list);
+        e.preventDefault();
         return;
       }
-      if (target.closest('[data-gallery-primary]')) {
-        list.prepend(item);
-        syncHiddenInputs(list);
+      const item = target.closest<HTMLElement>('[data-gallery-item]');
+      if (!item || !list.contains(item)) return;
+      dragItem = item;
+      item.classList.add('is-dragging');
+      e.dataTransfer?.setData('text/plain', '');
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    });
+
+    list.addEventListener('dragend', () => {
+      dragItem?.classList.remove('is-dragging');
+      list
+        .querySelectorAll('.is-drag-over')
+        .forEach((el) => el.classList.remove('is-drag-over'));
+      dragItem = null;
+      syncHiddenInputs(list);
+    });
+
+    list.addEventListener('dragover', (e) => {
+      if (!dragItem) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      const over = (e.target as Element | null)?.closest?.('[data-gallery-item]');
+      if (!(over instanceof HTMLElement) || over === dragItem || !list.contains(over)) {
         return;
       }
-      if (target.closest('[data-gallery-up]')) {
-        const prev = item.previousElementSibling;
-        if (prev) list.insertBefore(item, prev);
-        syncHiddenInputs(list);
-        return;
-      }
-      if (target.closest('[data-gallery-down]')) {
-        const next = item.nextElementSibling;
-        if (next) list.insertBefore(next, item);
-        syncHiddenInputs(list);
-      }
+      list
+        .querySelectorAll('.is-drag-over')
+        .forEach((el) => el.classList.remove('is-drag-over'));
+      over.classList.add('is-drag-over');
+      const rect = over.getBoundingClientRect();
+      const before = e.clientX < rect.left + rect.width / 2;
+      if (before) list.insertBefore(dragItem, over);
+      else list.insertBefore(dragItem, over.nextSibling);
+    });
+
+    list.addEventListener('drop', (e) => {
+      e.preventDefault();
+      list
+        .querySelectorAll('.is-drag-over')
+        .forEach((el) => el.classList.remove('is-drag-over'));
+      syncHiddenInputs(list);
     });
 
     syncHiddenInputs(list);

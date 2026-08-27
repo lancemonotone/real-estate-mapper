@@ -49,31 +49,26 @@ const initialPhotoUrls =
   <label>Source URL <input name="source_url" type="url" value={listing.source_url ?? ''} /></label>
   <fieldset class="listing-form__gallery" data-gallery-form>
     <legend>Photos</legend>
+    <p class="muted listing-form__gallery-hint">
+      Drag to reorder. First photo is the primary thumb.
+    </p>
     <ul class="listing-form__gallery-list" data-gallery-list>
-      {initialPhotoUrls.map((url, i) => (
-        <li
-          class:list={['listing-form__gallery-item', { 'is-primary': i === 0 }]}
-          data-gallery-item
-        >
+      {initialPhotoUrls.map((url) => (
+        <li class="listing-form__gallery-item" data-gallery-item draggable="true">
           <input type="hidden" name="photo_urls" value={url} />
-          <img src={url} alt="" />
-          <span class="badge" data-gallery-primary-label hidden={i !== 0}>
-            Primary
-          </span>
-          <div class="listing-form__gallery-actions">
-            <button type="button" class="secondary" data-gallery-primary>
-              Make primary
-            </button>
-            <button type="button" class="secondary" data-gallery-up>
-              Up
-            </button>
-            <button type="button" class="secondary" data-gallery-down>
-              Down
-            </button>
-            <button type="button" class="secondary" data-gallery-remove>
-              Remove
-            </button>
-          </div>
+          <img src={url} alt="" draggable="false" />
+          <button
+            type="button"
+            class="secondary icon-btn listing-form__gallery-remove"
+            data-gallery-remove
+            aria-label="Remove photo"
+            title="Remove photo"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 6l12 12"></path>
+              <path d="M18 6L6 18"></path>
+            </svg>
+          </button>
         </li>
       ))}
     </ul>
@@ -263,47 +258,84 @@ const initialPhotoUrls =
 
   .listing-form__gallery {
     --gallery-gap: 0.75rem;
+    --gallery-cols: 2;
+    --gallery-tile: 5.5rem;
+
     display: flex;
     flex-direction: column;
     gap: var(--gallery-gap);
+
+    @media (min-width: 768px) {
+      --gallery-cols: 4;
+      --gallery-tile: 6.25rem;
+    }
+
+    @media (min-width: 1024px) {
+      --gallery-cols: 5;
+    }
+  }
+
+  .listing-form__gallery-hint {
+    margin: 0;
+    font-size: 0.9rem;
   }
 
   .listing-form__gallery-list {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
+    display: grid;
+    grid-template-columns: repeat(var(--gallery-cols), var(--gallery-tile));
+    gap: 0.55rem;
   }
 
   .listing-form__gallery-item {
-    display: grid;
-    grid-template-columns: 4.5rem 1fr;
-    gap: 0.65rem;
-    align-items: start;
-    padding: 0.5rem;
+    position: relative;
+    margin: 0;
+    padding: 0;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--bg-1);
+    overflow: hidden;
+    cursor: grab;
+    aspect-ratio: 1;
+    inline-size: var(--gallery-tile);
+    block-size: var(--gallery-tile);
 
-    &.is-primary {
+    &:active {
+      cursor: grabbing;
+    }
+
+    &.is-dragging {
+      opacity: 0.45;
+    }
+
+    &.is-drag-over {
       border-color: var(--border-accent);
+      outline: 2px solid var(--accent, var(--border-accent));
+      outline-offset: 1px;
     }
 
     & img {
-      inline-size: 4.5rem;
-      block-size: 4.5rem;
+      display: block;
+      inline-size: 100%;
+      block-size: 100%;
       object-fit: cover;
-      border-radius: var(--radius-sm);
+      pointer-events: none;
     }
   }
 
-  .listing-form__gallery-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    grid-column: 2;
+  .listing-form__gallery-remove {
+    --control-pad-block: 0.2rem;
+    --control-pad-inline: 0.2rem;
+    --icon-size: 0.95rem;
+
+    position: absolute;
+    inset-block-start: 0.25rem;
+    inset-inline-end: 0.25rem;
+    min-inline-size: 1.65rem;
+    min-block-size: 1.65rem;
+    z-index: 1;
   }
 </style>
 <script>
