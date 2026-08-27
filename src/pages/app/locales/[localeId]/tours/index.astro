@@ -4,7 +4,12 @@ import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/locale-map.css';
 import { milesToMeters, nearestAllowedRadiusMiles } from '../../../../../lib/geo/locale-radius';
-import { getLocaleForNestMember, localeNeedsSetup } from '../../../../../lib/supabase/nest';
+import {
+  filterListingStops,
+  filterVisibleListings,
+  filterVisibleTourDays,
+} from '../../../../../lib/nest/entitlements';
+import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../../lib/supabase/nest';
 import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
 import { toTimeInputValue } from '../../../../../lib/tours/appointment-order';
 import {
@@ -20,8 +25,10 @@ import {
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
-const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
-if (!locale) return new Response('Not found', { status: 404 });
+const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+if (!localeContext) return new Response('Not found', { status: 404 });
+
+const { locale, snapshot } = localeContext;
 
 const base = `/app/locales/${locale.id}`;
 const toursBase = `${base}/tours`;
@@ -34,13 +41,14 @@ const dayParam = Astro.url.searchParams.get('day');
 const dayParamValid =
   dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : null;
 
-const { data: tours } = await supabase
+const { data: toursRaw } = await supabase
   .from('tour_days')
   .select('*')
   .eq('locale_id', locale.id)
   .order('tour_date', { ascending: true });
 
-const tourDayIds = (tours ?? []).map((t) => t.id);
+const tours = filterVisibleTourDays(toursRaw ?? [], snapshot);
+const tourDayIds = tours.map((t) => t.id);
 const { data: allStops } =
   tourDayIds.length > 0
     ? await supabase
@@ -50,15 +58,17 @@ const { data: allStops } =
         .order('sort_order', { ascending: true, nullsFirst: false })
     : { data: [] as never[] };
 
-const stopsByDay = new Map<string, NonNullable<typeof allStops>>();
-for (const stop of allStops ?? []) {
+const allStopsFiltered = filterListingStops(allStops ?? [], snapshot);
+
+const stopsByDay = new Map<string, NonNullable<typeof allStopsFiltered>>();
+for (const stop of allStopsFiltered) {
   const list = stopsByDay.get(stop.tour_day_id) ?? [];
   list.push(stop);
   stopsByDay.set(stop.tour_day_id, list);
 }
 
 const daysByDate: Record<string, { id: string; stopCount: number }> = {};
-for (const tour of tours ?? []) {
+for (const tour of tours) {
   daysByDate[tour.tour_date] = {
     id: tour.id,
     stopCount: (stopsByDay.get(tour.id) ?? []).length,
@@ -66,14 +76,13 @@ for (const tour of tours ?? []) {
 }
 
 const firstScheduledDate =
-  (tours ?? []).find((t) => (stopsByDay.get(t.id) ?? []).length > 0)?.tour_date ??
-  null;
+  tours.find((t) => (stopsByDay.get(t.id) ?? []).length > 0)?.tour_date ?? null;
 const selectedDate = dayParamValid ?? firstScheduledDate;
 const weekAnchor = selectedDate ? parseDateKey(selectedDate) : new Date();
 const weekKeys = weekDateKeys(weekAnchor);
 const weekLabel = `${formatShortTourDate(weekKeys[0]!)} → ${formatShortTourDate(weekKeys[6]!)}`;
 
-const assignedIds = new Set((allStops ?? []).map((s) => s.listing_id));
+const assignedIds = new Set(allStopsFiltered.map((s) => s.listing_id));
 
 const { data: listings } = await supabase
   .from('listings')
@@ -81,12 +90,12 @@ const { data: listings } = await supabase
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
-const unassigned = (listings ?? []).filter((l) => !assignedIds.has(l.id));
+const visibleListings = filterVisibleListings(listings ?? [], snapshot);
+
+const unassigned = visibleListings.filter((l) => !assignedIds.has(l.id));
 const railExpanded = unassigned.length > 0;
 
-const selectedTour = selectedDate
-  ? (tours ?? []).find((t) => t.tour_date === selectedDate) ?? null
-  : null;
+const selectedTour = selectedDate ? tours.find((t) => t.tour_date === selectedDate) ?? null : null;
 const selectedStops = selectedTour ? (stopsByDay.get(selectedTour.id) ?? []) : [];
 const hasCustomStart =
   selectedTour?.start_lat != null && selectedTour?.start_lng != null;
@@ -119,7 +128,7 @@ const mapStops = selectedStops
     };
   });
 
-const mapListings = (listings ?? [])
+const mapListings = visibleListings
   .filter((l) => l.lat != null && l.lng != null)
   .map((l) => ({
     id: l.id,
@@ -167,6 +176,7 @@ const seed = {
   ]}
   locale={{ id: locale.id, name: locale.name }}
   localeSection="tours"
+  nestId={locale.nest_id}
 >
   <header class="compare-header">
     <div class="compare-header__titles">

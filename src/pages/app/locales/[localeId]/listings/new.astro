@@ -1,10 +1,12 @@
 ---
-import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+import { getVisibleLocaleContext } from '../../../../../lib/supabase/nest';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
-const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
-if (!locale) return new Response('Not found', { status: 404 });
+const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+if (!localeContext) return new Response('Not found', { status: 404 });
+
+const { locale } = localeContext;
 
 return Astro.redirect(`/app/locales/${locale.id}?new=1`);
 ---

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateInviteToken, hashInviteToken } from '../crypto/invite-token';
+import { loadNestEntitlements } from '../nest/entitlements/db';
+import type { NestEntitlementSnapshot } from '../nest/entitlements/types';
 import type { Database, Locale, NestMemberProfile, NestRole } from '../types/database';
 
 type Client = SupabaseClient<Database>;
@@ -138,4 +140,23 @@ export async function getLocaleForNestMember(
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data as Locale | null) ?? null;
+}
+
+export type VisibleLocaleContext = {
+  locale: Locale;
+  snapshot: NestEntitlementSnapshot;
+};
+
+/** Locale the member can access and that is visible under Nest entitlements. */
+export async function getVisibleLocaleContext(
+  supabase: Client,
+  localeId: string,
+): Promise<VisibleLocaleContext | null> {
+  const locale = await getLocaleForNestMember(supabase, localeId);
+  if (!locale) return null;
+
+  const snapshot = await loadNestEntitlements(supabase, locale.nest_id);
+  if (!snapshot || !snapshot.visibleLocaleIds.has(localeId)) return null;
+
+  return { locale, snapshot };
 }

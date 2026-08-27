@@ -1,4 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  assertNestEntitlement,
+} from '../nest/entitlements';
 import { optimizeTourDay } from './optimize-tour-day';
 
 export type ConflictMode = 'merge' | 'replace';
@@ -178,8 +181,40 @@ async function assignListings(
     return { ok: false, error: 'One or more listings are not in this Locale', status: 400 };
   }
 
-  const target = await upsertDay(supabase, localeId, tourDate);
-  const existingCount = await stopCount(supabase, target.id);
+  const { data: localeRow, error: localeError } = await supabase
+    .from('locales')
+    .select('nest_id')
+    .eq('id', localeId)
+    .single();
+  if (localeError || !localeRow) {
+    return { ok: false, error: localeError?.message ?? 'Locale not found', status: 400 };
+  }
+
+  const { data: existingDay } = await supabase
+    .from('tour_days')
+    .select('id')
+    .eq('locale_id', localeId)
+    .eq('tour_date', tourDate)
+    .maybeSingle();
+
+  const existingCount = existingDay ? await stopCount(supabase, existingDay.id) : 0;
+  const entitlement = await assertNestEntitlement(
+    supabase,
+    localeRow.nest_id,
+    'add_tour_day_with_stops',
+    { targetTourDayStopCount: existingCount },
+  );
+  if ('denial' in entitlement) {
+    return {
+      ok: false,
+      error: entitlement.denial.message,
+      status: 403,
+    };
+  }
+
+  const target = existingDay
+    ? { id: existingDay.id }
+    : await upsertDay(supabase, localeId, tourDate);
   const resolution = resolveOccupiedDrop(existingCount > 0, mode);
   if (resolution === 'need-choice') {
     return { ok: false, error: 'need-choice', status: 409 };

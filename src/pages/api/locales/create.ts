@@ -6,6 +6,10 @@ import {
 } from '../../../lib/geo/locale-radius';
 import { geocodeAddress } from '../../../lib/google/geocode';
 import { parseListingPrefsInput } from '../../../lib/listings/listing-prefs';
+import {
+  assertNestEntitlement,
+  entitlementDenialResponse,
+} from '../../../lib/nest/entitlements';
 import { ensureNestForUser, getPrimaryNestId } from '../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
@@ -67,6 +71,11 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
 
   let nestId = await getPrimaryNestId(supabase, user.id);
   if (!nestId) nestId = await ensureNestForUser(supabase, user.id);
+
+  const entitlement = await assertNestEntitlement(supabase, nestId, 'create_locale');
+  if ('denial' in entitlement) {
+    return entitlementDenialResponse(entitlement.denial);
+  }
 
   let listing_prefs = undefined;
   if (body.listing_prefs !== undefined) {

@@ -1,5 +1,10 @@
 import type { APIRoute } from 'astro';
 import { computeProximityResult, computeStaleForLocale } from '../../../lib/proximity/compute-result';
+import {
+  assertNestEntitlement,
+  entitlementDenialResponse,
+  recordProximityApiUsage,
+} from '../../../lib/nest/entitlements';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
@@ -32,8 +37,28 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
         { status: 400 },
       );
     }
+
+    const { data: locale, error: localeError } = await supabase
+      .from('locales')
+      .select('nest_id')
+      .eq('id', localeId)
+      .single();
+    if (localeError || !locale) {
+      return new Response(JSON.stringify({ error: 'Locale not found' }), { status: 404 });
+    }
+
+    const entitlement = await assertNestEntitlement(
+      supabase,
+      locale.nest_id,
+      'proximity_refresh',
+    );
+    if ('denial' in entitlement) {
+      return entitlementDenialResponse(entitlement.denial);
+    }
+
     try {
       const results = await computeStaleForLocale(supabase, localeId);
+      await recordProximityApiUsage(supabase, locale.nest_id, entitlement, 'refresh');
       return new Response(JSON.stringify({ results }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -55,8 +80,36 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     );
   }
 
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('locale_id')
+    .eq('id', listingId)
+    .single();
+  if (listingError || !listing) {
+    return new Response(JSON.stringify({ error: 'Listing not found' }), { status: 404 });
+  }
+
+  const { data: locale, error: localeError } = await supabase
+    .from('locales')
+    .select('nest_id')
+    .eq('id', listing.locale_id)
+    .single();
+  if (localeError || !locale) {
+    return new Response(JSON.stringify({ error: 'Locale not found' }), { status: 404 });
+  }
+
+  const entitlement = await assertNestEntitlement(
+    supabase,
+    locale.nest_id,
+    'proximity_compute',
+  );
+  if ('denial' in entitlement) {
+    return entitlementDenialResponse(entitlement.denial);
+  }
+
   try {
     const result = await computeProximityResult(supabase, listingId, criterionId);
+    await recordProximityApiUsage(supabase, locale.nest_id, entitlement, 'compute');
     return new Response(JSON.stringify({ result }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

@@ -10,6 +10,10 @@ import {
 } from '../../../lib/listings/format-attributes';
 import { resolvePhotoFields } from '../../../lib/listings/photo-urls';
 import {
+  assertNestEntitlement,
+  entitlementDenialResponse,
+} from '../../../lib/nest/entitlements';
+import {
   parseListingTourFields,
   syncListingTour,
 } from '../../../lib/tours/listing-tour-date';
@@ -27,6 +31,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const locale = await getLocaleForNestMember(supabase, localeId);
   if (!locale) return new Response('Locale not found', { status: 404 });
+
+  const entitlement = await assertNestEntitlement(supabase, locale.nest_id, 'add_listing', {
+    localeId,
+  });
+  if ('denial' in entitlement) {
+    return entitlementDenialResponse(entitlement.denial);
+  }
 
   const name = String(form.get('name') ?? '').trim() || null;
   const address = String(form.get('address') ?? '').trim() || null;

@@ -4,6 +4,12 @@ import {
   parseAgentListingPatch,
   upsertListingBySourceUrl,
 } from '../../../../../../lib/listings/agent-write';
+import {
+  assertNestEntitlement,
+  entitlementDenialResponse,
+  filterVisibleListings,
+} from '../../../../../../lib/nest/entitlements';
+import { loadNestEntitlements } from '../../../../../../lib/nest/entitlements/db';
 import { getLocaleForNestMember } from '../../../../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../../../../lib/supabase/server';
 
@@ -49,7 +55,12 @@ export const GET: APIRoute = async ({ params, request, cookies, locals }) => {
     });
   }
 
-  return new Response(JSON.stringify({ listings: data ?? [] }), {
+  const snapshot = await loadNestEntitlements(supabase, locale.nest_id);
+  const visible = snapshot
+    ? filterVisibleListings(data ?? [], snapshot)
+    : (data ?? []);
+
+  return new Response(JSON.stringify({ listings: visible }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
@@ -111,6 +122,25 @@ export const PUT: APIRoute = async ({ params, request, cookies, locals }) => {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+
+  const { data: existingListing } = await supabase
+    .from('listings')
+    .select('id')
+    .eq('locale_id', localeId)
+    .eq('source_url', sourceUrl)
+    .maybeSingle();
+
+  if (!existingListing) {
+    const entitlement = await assertNestEntitlement(
+      supabase,
+      locale.nest_id,
+      'add_listing',
+      { localeId },
+    );
+    if ('denial' in entitlement) {
+      return entitlementDenialResponse(entitlement.denial);
+    }
   }
 
   try {

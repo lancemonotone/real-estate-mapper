@@ -9,6 +9,7 @@ import {
   parseOptionalNumber,
 } from '../../../lib/listings/format-attributes';
 import { resolvePhotoFields } from '../../../lib/listings/photo-urls';
+import { assertNestEntitlement } from '../../../lib/nest/entitlements';
 import {
   parseListingTourFields,
   syncListingTour,
@@ -69,6 +70,21 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const photos = resolvePhotoFields({
     photo_urls: form.getAll('photo_urls').map(String),
   });
+
+  const nestId =
+    existing.locales &&
+    typeof existing.locales === 'object' &&
+    'nest_id' in existing.locales
+      ? String((existing.locales as { nest_id: string }).nest_id)
+      : null;
+  if (!nestId) return fail(request, 'Nest not found', 404);
+
+  const entitlement = await assertNestEntitlement(supabase, nestId, 'add_photo', {
+    photoCount: photos.photo_urls.length,
+  });
+  if ('denial' in entitlement) {
+    return fail(request, entitlement.denial.message, 403);
+  }
 
   let lat = existing.lat;
   let lng = existing.lng;

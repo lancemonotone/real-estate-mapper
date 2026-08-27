@@ -6,7 +6,11 @@ import ListingForm from '../../../../../components/ListingForm.astro';
 import PlaceTypePicker from '../../../../../components/PlaceTypePicker.astro';
 import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/listing-map.css';
-import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+import {
+  applyListingPhotoVisibility,
+  isListingVisible,
+} from '../../../../../lib/nest/entitlements';
+import { getVisibleLocaleContext } from '../../../../../lib/supabase/nest';
 import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
 import { parseDateKey, toDateKey, weekDateKeys } from '../../../../../lib/tours/week';
 import {
@@ -19,13 +23,20 @@ import { textQueryCacheKey } from '../../../../../lib/proximity/text-query';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
-const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
-if (!locale) return new Response('Not found', { status: 404 });
+const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+if (!localeContext) return new Response('Not found', { status: 404 });
 
-const { data: listing } = await supabase.from('listings').select('*').eq('id', id!).single();
-if (!listing || listing.locale_id !== locale.id) {
+const { locale, snapshot } = localeContext;
+
+const { data: listingRaw } = await supabase.from('listings').select('*').eq('id', id!).single();
+if (!listingRaw || listingRaw.locale_id !== locale.id) {
   return new Response('Not found', { status: 404 });
 }
+if (!isListingVisible(snapshot, listingRaw.id)) {
+  return new Response('Not found', { status: 404 });
+}
+
+const listing = applyListingPhotoVisibility(listingRaw, snapshot);
 
 function formatListingMeta(
   durationSec: number | null | undefined,
@@ -67,11 +78,15 @@ const { data: proximityResults } = await supabase
 
 const resultByCriterion = new Map((proximityResults ?? []).map((r) => [r.criterion_id, r]));
 
-const { data: localeTours } = await supabase
+const { data: localeToursRaw } = await supabase
   .from('tour_days')
   .select('id, tour_date')
   .eq('locale_id', locale.id)
   .order('tour_date', { ascending: true });
+
+const localeTours = (localeToursRaw ?? []).filter((day) =>
+  snapshot.visibleTourDayIds.has(day.id),
+);
 
 const tourIds = (localeTours ?? []).map((t) => t.id);
 let assignment: {
@@ -227,6 +242,7 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
   ]}
   locale={{ id: locale.id, name: locale.name }}
   localeSection="listings"
+  nestId={locale.nest_id}
 >
   <div class="locale-hero__heading">
     <div class="locale-hero__title">

@@ -12,6 +12,11 @@ export type Nest = {
   id: string;
   name: string;
   invite_token_hash: string;
+  pass_started_at: string | null;
+  pass_expires_at: string | null;
+  proximity_demo_used_at: string | null;
+  proximity_refresh_granted: number;
+  proximity_refresh_used: number;
   created_at: string;
 };
 
@@ -75,6 +80,7 @@ export type Listing = {
   pet_deposit: number | null;
   amenities: string[] | null;
   is_favorite: boolean;
+  archived_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

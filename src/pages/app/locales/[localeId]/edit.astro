@@ -7,12 +7,14 @@ import {
   nearestAllowedRadiusMiles,
   milesToMeters,
 } from '../../../../lib/geo/locale-radius';
-import { getLocaleForNestMember, localeNeedsSetup } from '../../../../lib/supabase/nest';
+import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../lib/supabase/nest';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
-const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
-if (!locale) return new Response('Not found', { status: 404 });
+const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+if (!localeContext) return new Response('Not found', { status: 404 });
+
+const { locale } = localeContext;
 
 const selectedMiles = nearestAllowedRadiusMiles(locale.radius_m);
 const base = `/app/locales/${locale.id}`;
@@ -28,6 +30,7 @@ const hasCenter = !localeNeedsSetup(locale);
     { label: 'Edit' },
   ]}
   locale={{ id: locale.id, name: locale.name }}
+  nestId={locale.nest_id}
   localeSection="edit"
 >
   <h1>Edit Locale</h1>

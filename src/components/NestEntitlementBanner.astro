@@ -1,0 +1,62 @@
+---
+import type { NestEntitlementUi } from '../lib/nest/entitlements/ui-context';
+
+interface Props {
+  ui: NestEntitlementUi;
+}
+
+const { ui } = Astro.props;
+
+const hiddenParts: string[] = [];
+if (ui.hidden.locales > 0) {
+  hiddenParts.push(
+    ui.hidden.locales === 1 ? '1 Locale' : `${ui.hidden.locales} Locales`,
+  );
+}
+if (ui.hidden.listings > 0) {
+  hiddenParts.push(
+    ui.hidden.listings === 1 ? '1 listing' : `${ui.hidden.listings} listings`,
+  );
+}
+if (ui.hidden.tourDays > 0) {
+  hiddenParts.push(
+    ui.hidden.tourDays === 1 ? '1 tour day' : `${ui.hidden.tourDays} tour days`,
+  );
+}
+
+const showHiddenBanner = ui.hiddenTotal > 0;
+const showBanner = showHiddenBanner || ui.showExpiryNag;
+---
+
+{
+  showBanner && (
+    <div class="nest-entitlement-banner stack" role="status">
+      {showHiddenBanner && (
+        <p class="nest-entitlement-banner__text">
+          {hiddenParts.join(', ')} hidden on the Free plan. Renew Hunt Pass to see
+          everything.
+        </p>
+      )}
+      {ui.showExpiryNag && ui.daysUntilExpiry !== null && (
+        <p class="nest-entitlement-banner__text">
+          {
+            ui.daysUntilExpiry === 0
+              ? 'Your Hunt Pass ends today.'
+              : `Your Hunt Pass ends in ${ui.daysUntilExpiry} day${ui.daysUntilExpiry === 1 ? '' : 's'}.`
+          }
+        </p>
+      )}
+      <div class="nest-entitlement-banner__actions">
+        {
+          ui.isOwner ? (
+            <a class="button" href="/app/upgrade">Upgrade Hunt Pass</a>
+          ) : (
+            <p class="muted nest-entitlement-banner__member">
+              Ask {ui.ownerDisplayName ?? 'the Nest owner'} to upgrade Hunt Pass.
+            </p>
+          )
+        }
+      </div>
+    </div>
+  )
+}

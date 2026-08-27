@@ -1,0 +1,63 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { ensureNestForUser, getPrimaryNestId } from '../../lib/supabase/nest';
+import { loadNestEntitlementUi } from '../../lib/nest/entitlements/ui-context';
+import { PLAN_LIMITS } from '../../lib/nest/entitlements/constants';
+
+const user = Astro.locals.user!;
+const supabase = Astro.locals.supabase!;
+
+let nestId = await getPrimaryNestId(supabase, user.id);
+if (!nestId) nestId = await ensureNestForUser(supabase, user.id);
+
+const entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id);
+const freeLimits = PLAN_LIMITS.free;
+const proLimits = PLAN_LIMITS.pro;
+---
+
+<AppLayout
+  title="Hunt Pass"
+  crumbs={[{ href: '/app', label: 'Home' }, { label: 'Hunt Pass' }]}
+  nestId={nestId}
+  entitlementUi={entitlementUi}
+>
+  <header class="locale-hero__heading nest-hero">
+    <h1 class="locale-hero__name">Hunt Pass</h1>
+    <p class="muted">
+      One payment unlocks Pro features on this Nest for 90 days. Checkout is coming
+      soon; limits below are already enforced.
+    </p>
+  </header>
+
+  <div class="nest-upgrade-plans stack">
+    <section class="panel glass stack nest-upgrade-card">
+      <h2>Free</h2>
+      <ul class="nest-upgrade-list">
+        <li>{freeLimits.listings} listings</li>
+        <li>{freeLimits.tourDaysWithStops} tour days</li>
+        <li>{freeLimits.locales} Locale</li>
+        <li>{freeLimits.photosPerListing} photos per listing</li>
+        <li>1 proximity demo</li>
+      </ul>
+    </section>
+    <section class="panel glass stack nest-upgrade-card nest-upgrade-card--pro">
+      <h2>Hunt Pass · $29 / 90 days</h2>
+      <ul class="nest-upgrade-list">
+        <li>{proLimits.listings} listings</li>
+        <li>Unlimited tour days</li>
+        <li>{proLimits.locales} Locales</li>
+        <li>{proLimits.photosPerListing} photos per listing</li>
+        <li>Proximity compare + 60 refreshes</li>
+      </ul>
+      {
+        entitlementUi?.isOwner ? (
+          <p class="muted">Stripe checkout will appear here when billing is enabled.</p>
+        ) : (
+          <p class="muted">
+            Only the Nest owner can purchase Hunt Pass. Ask {entitlementUi?.ownerDisplayName ?? 'your Nest owner'}.
+          </p>
+        )
+      }
+    </section>
+  </div>
+</AppLayout>

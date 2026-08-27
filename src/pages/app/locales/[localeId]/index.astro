@@ -4,18 +4,21 @@ import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
 import ListingForm from '../../../../components/ListingForm.astro';
 import '../../../../styles/locale-map.css';
 import {
-  nearestAllowedRadiusMiles,
-  milesToMeters,
   metersToMiles,
+  milesToMeters,
+  nearestAllowedRadiusMiles,
 } from '../../../../lib/geo/locale-radius';
 import { haversineMeters } from '../../../../lib/geo/haversine';
-import { getLocaleForNestMember, localeNeedsSetup } from '../../../../lib/supabase/nest';
+import { filterVisibleListings } from '../../../../lib/nest/entitlements';
+import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../lib/supabase/nest';
 import { formatMoney } from '../../../../lib/listings/format-attributes';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
-const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
-if (!locale) return new Response('Not found', { status: 404 });
+const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+if (!localeContext) return new Response('Not found', { status: 404 });
+
+const { locale, snapshot } = localeContext;
 
 const radiusMiles = nearestAllowedRadiusMiles(locale.radius_m);
 const base = `/app/locales/${locale.id}`;
@@ -35,7 +38,7 @@ const { data: listings } = await supabase
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
-const rows = (listings ?? []).map((listing) => {
+const rows = filterVisibleListings(listings ?? [], snapshot).map((listing) => {
   const distanceM =
     hasCenter && listing.lat != null && listing.lng != null
       ? haversineMeters(
@@ -62,6 +65,7 @@ const mapListings = rows
   crumbs={[{ href: '/app', label: 'Home' }, { label: locale.name }]}
   locale={{ id: locale.id, name: locale.name }}
   localeSection="listings"
+  nestId={locale.nest_id}
 >
   <header class="compare-header">
     <div class="compare-header__titles">

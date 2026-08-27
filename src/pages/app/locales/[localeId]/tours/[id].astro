@@ -1,7 +1,11 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
-import { getLocaleForNestMember } from '../../../../../lib/supabase/nest';
+import {
+  filterListingStops,
+  isTourDayVisible,
+} from '../../../../../lib/nest/entitlements';
+import { getVisibleLocaleContext } from '../../../../../lib/supabase/nest';
 import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
 import { toTimeInputValue } from '../../../../../lib/tours/appointment-order';
 import {
@@ -22,18 +26,25 @@ if (!tour || (localeId && tour.locale_id !== localeId)) {
   return new Response('Not found', { status: 404 });
 }
 
-const locale = await getLocaleForNestMember(supabase, tour.locale_id);
-if (!locale) return new Response('Not found', { status: 404 });
+const localeContext = await getVisibleLocaleContext(supabase, tour.locale_id);
+if (!localeContext) return new Response('Not found', { status: 404 });
+
+const { locale, snapshot } = localeContext;
+if (!isTourDayVisible(snapshot, tour.id)) {
+  return new Response('Not found', { status: 404 });
+}
 
 const toursBase = `/app/locales/${tour.locale_id}/tours`;
 const base = `/app/locales/${tour.locale_id}`;
 const tourTitle = formatTourDate(tour.tour_date);
 
-const { data: stops } = await supabase
+const { data: stopsRaw } = await supabase
   .from('tour_stops')
   .select('*, listings(*)')
   .eq('tour_day_id', tour.id)
   .order('sort_order', { ascending: true, nullsFirst: false });
+
+const stops = filterListingStops(stopsRaw ?? [], snapshot);
 
 const hasCustomStart = tour.start_lat != null && tour.start_lng != null;
 const hasCustomEnd = tour.end_lat != null && tour.end_lng != null;
@@ -91,6 +102,7 @@ const stopCount = (stops ?? []).length;
   ]}
   locale={{ id: locale.id, name: locale.name }}
   localeSection="tours"
+  nestId={locale.nest_id}
 >
   <div class="locale-hero__heading">
     <h1 class="locale-hero__name">{tourTitle}</h1>

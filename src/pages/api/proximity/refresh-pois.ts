@@ -5,6 +5,11 @@ import {
 } from '../../../lib/proximity/fill-pois';
 import { PLACE_TYPE_CATALOG, type PlaceTypeKey } from '../../../lib/proximity/place-types';
 import { normalizeTextQuery } from '../../../lib/proximity/text-query';
+import {
+  assertNestEntitlement,
+  entitlementDenialResponse,
+  recordProximityApiUsage,
+} from '../../../lib/nest/entitlements';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 function isPlaceTypeKey(key: string): key is PlaceTypeKey {
@@ -44,6 +49,15 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       JSON.stringify({ error: localeError?.message ?? 'Locale not found' }),
       { status: 404 },
     );
+  }
+
+  const entitlement = await assertNestEntitlement(
+    supabase,
+    locale.nest_id,
+    'proximity_refresh',
+  );
+  if ('denial' in entitlement) {
+    return entitlementDenialResponse(entitlement.denial);
   }
 
   const { data: typeCriteria, error: typeError } = await supabase
@@ -98,6 +112,8 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     const message = e instanceof Error ? e.message : 'Places fill failed';
     return new Response(JSON.stringify({ error: message, filled }), { status: 500 });
   }
+
+  await recordProximityApiUsage(supabase, locale.nest_id, entitlement, 'refresh');
 
   return new Response(JSON.stringify({ filled }), {
     status: 200,

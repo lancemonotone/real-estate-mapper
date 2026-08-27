@@ -5,12 +5,15 @@ import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
 import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
 import { placeTypeLabel } from '../../../../lib/proximity/place-types';
 import { textQueryCacheKey } from '../../../../lib/proximity/text-query';
-import { getLocaleForNestMember } from '../../../../lib/supabase/nest';
+import { filterVisibleListings } from '../../../../lib/nest/entitlements';
+import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
-const locale = localeId ? await getLocaleForNestMember(supabase, localeId) : null;
-if (!locale) return new Response('Not found', { status: 404 });
+const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+if (!localeContext) return new Response('Not found', { status: 404 });
+
+const { locale, snapshot } = localeContext;
 
 const base = `/app/locales/${locale.id}`;
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
@@ -29,7 +32,9 @@ const { data: criteria } = await supabase
   .order('sort_order', { ascending: true })
   .order('created_at', { ascending: true });
 
-const listingIds = (listings ?? []).map((l) => l.id);
+const visibleListings = filterVisibleListings(listings ?? [], snapshot);
+
+const listingIds = visibleListings.map((l) => l.id);
 const { data: results } =
   listingIds.length > 0
     ? await supabase
@@ -43,7 +48,7 @@ for (const row of results ?? []) {
   resultMap.set(`${row.listing_id}:${row.criterion_id}`, row);
 }
 
-const listingRows = listings ?? [];
+const listingRows = visibleListings;
 const criterionRows = criteria ?? [];
 ---
 <AppLayout
@@ -55,6 +60,7 @@ const criterionRows = criteria ?? [];
   ]}
   locale={{ id: locale.id, name: locale.name }}
   localeSection="travel"
+  nestId={locale.nest_id}
 >
   <header class="compare-header">
     <div class="compare-header__titles">
