@@ -46,7 +46,7 @@ Call the agent API on a host that **actually serves** `/api/agent/...` (often lo
 
    Default output: `_listings/listing.json` (stdout prints the path). Override with `--out`.
 
-4. **Read** the JSON file (compact — safe for context). User may edit it first (e.g. swap `photo_url` from `photo_candidates`).
+4. **Read** the JSON file (compact — safe for context). User may edit it first (e.g. reorder `photo_candidates` so the preferred primary is first).
 5. Continue with duplicate check + `PUT` below.
 
 ## Workflow
