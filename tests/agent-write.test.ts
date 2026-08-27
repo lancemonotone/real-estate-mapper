@@ -38,6 +38,18 @@ describe('parseAgentListingPatch', () => {
     const result = parseAgentListingPatch({ beds: '2' });
     expect(result.ok).toBe(false);
   });
+
+  it('parses photo_urls arrays', () => {
+    const result = parseAgentListingPatch({
+      photo_urls: [' https://a.jpg ', '', 'https://b.jpg', 'https://a.jpg'],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.patch.photo_urls).toEqual([
+      'https://a.jpg',
+      'https://b.jpg',
+    ]);
+  });
 });
 
 describe('agentPatchHasFields', () => {

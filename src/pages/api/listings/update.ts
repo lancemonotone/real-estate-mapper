@@ -8,6 +8,7 @@ import {
   parseOptionalInt,
   parseOptionalNumber,
 } from '../../../lib/listings/format-attributes';
+import { resolvePhotoFields } from '../../../lib/listings/photo-urls';
 import {
   parseListingTourFields,
   syncListingTour,
@@ -28,7 +29,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const address = String(form.get('address') ?? '').trim() || null;
   const phone = String(form.get('phone') ?? '').trim() || null;
   const source_url = String(form.get('source_url') ?? '').trim() || null;
-  const photo_url = String(form.get('photo_url') ?? '').trim() || null;
   const notes = String(form.get('notes') ?? '').trim() || null;
   const tour = parseListingTourFields(form.get('tour_date'), form.get('tour_time'));
   const appointment_at = tour.appointmentAt;
@@ -44,11 +44,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const { data: existing } = await supabase
     .from('listings')
-    .select('id, address, lat, lng, locale_id, locales(nest_id)')
+    .select('id, address, lat, lng, locale_id, photo_url, locales(nest_id)')
     .eq('id', id)
     .single();
 
   if (!existing) return new Response('Not found', { status: 404 });
+
+  const photos = resolvePhotoFields({
+    photo_urls: form.getAll('photo_urls').map(String),
+  });
 
   let lat = existing.lat;
   let lng = existing.lng;
@@ -72,7 +76,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       address,
       phone,
       source_url,
-      photo_url,
+      photo_url: photos.photo_url,
+      photo_urls: photos.photo_urls,
       notes,
       appointment_at,
       lat,

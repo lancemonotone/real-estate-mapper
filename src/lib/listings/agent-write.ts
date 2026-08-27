@@ -3,6 +3,7 @@ import { ensureLocaleCoversPoint } from '../geo/ensure-locale-covers';
 import { geocodeAddress } from '../google/geocode';
 import { invalidateListingProximityResults } from '../proximity/invalidate';
 import type { Database, Listing } from '../types/database';
+import { normalizePhotoUrls, resolvePhotoFields } from './photo-urls';
 
 type Client = SupabaseClient<Database>;
 
@@ -11,7 +12,6 @@ const WRITABLE_KEYS = [
   'address',
   'phone',
   'source_url',
-  'photo_url',
   'notes',
   'appointment_at',
   'price_monthly',
@@ -33,6 +33,7 @@ export type AgentListingPatch = Partial<{
   phone: string | null;
   source_url: string | null;
   photo_url: string | null;
+  photo_urls: string[];
   notes: string | null;
   appointment_at: string | null;
   price_monthly: number | null;
@@ -45,6 +46,20 @@ export type AgentListingPatch = Partial<{
   pet_deposit: number | null;
   amenities: string[] | null;
 }>;
+
+function resolveAgentPhotoFields(
+  patch: AgentListingPatch,
+  existingPrimary: string | null,
+): { photo_urls: string[]; photo_url: string | null } | null {
+  const hasUrls = Object.prototype.hasOwnProperty.call(patch, 'photo_urls');
+  const hasLegacy = Object.prototype.hasOwnProperty.call(patch, 'photo_url');
+  if (!hasUrls && !hasLegacy) return null;
+  return resolvePhotoFields({
+    ...(hasUrls ? { photo_urls: patch.photo_urls } : {}),
+    ...(hasLegacy && !hasUrls ? { photo_url: patch.photo_url } : {}),
+    existingPrimary,
+  });
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -138,6 +153,12 @@ export function parseAgentListingPatch(
       return { ok: false, error: 'photo_url must be string or null' };
     }
     patch.photo_url = v ?? null;
+  }
+  if ('photo_urls' in body) {
+    if (body.photo_urls !== null && !Array.isArray(body.photo_urls)) {
+      return { ok: false, error: 'photo_urls must be string array or null' };
+    }
+    patch.photo_urls = normalizePhotoUrls(body.photo_urls ?? []);
   }
   if ('notes' in body) {
     const v = parseOptionalString(body.notes);
@@ -301,6 +322,8 @@ export async function upsertListingBySourceUrl(
     lng = coords.lng;
   }
 
+  const photos = resolveAgentPhotoFields(patch, null);
+
   const row = {
     locale_id: input.localeId,
     name: Object.prototype.hasOwnProperty.call(patch, 'name')
@@ -311,9 +334,8 @@ export async function upsertListingBySourceUrl(
       ? (patch.phone ?? null)
       : null,
     source_url: sourceUrl,
-    photo_url: Object.prototype.hasOwnProperty.call(patch, 'photo_url')
-      ? (patch.photo_url ?? null)
-      : null,
+    photo_url: photos?.photo_url ?? null,
+    photo_urls: photos?.photo_urls ?? [],
     notes: Object.prototype.hasOwnProperty.call(patch, 'notes')
       ? (patch.notes ?? null)
       : null,
@@ -419,6 +441,12 @@ async function applyListingPatch(
     if (Object.prototype.hasOwnProperty.call(patch, key)) {
       update[key] = patch[key] ?? null;
     }
+  }
+
+  const photos = resolveAgentPhotoFields(patch, existing.photo_url);
+  if (photos) {
+    update.photo_url = photos.photo_url;
+    update.photo_urls = photos.photo_urls;
   }
 
   const coordsChanged = lat !== existing.lat || lng !== existing.lng;
