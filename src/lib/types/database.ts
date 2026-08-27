@@ -60,6 +60,8 @@ export type Listing = {
   source_url: string | null;
   photo_path: string | null;
   photo_url: string | null;
+  /** Ordered gallery URLs; primary thumb is photo_urls[0] === photo_url when non-empty. */
+  photo_urls: string[];
   appointment_at: string | null;
   notes: string | null;
   price_monthly: number | null;
