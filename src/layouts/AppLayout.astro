@@ -1,8 +1,10 @@
 ---
 import '../styles/tokens.css';
 import '../styles/chrome.css';
+import '../styles/ui-borders-off.css';
 import { ClientRouter } from 'astro:transitions';
 import SpeedInsights from '@vercel/speed-insights/astro';
+import { resolveUiBorders } from '../lib/ui/borders';
 import { resolveUiThemeId } from '../lib/ui/themes';
 import LocaleNav from '../components/LocaleNav.astro';
 import SiteFavicon from '../components/SiteFavicon.astro';
@@ -23,17 +25,19 @@ const user = Astro.locals.user;
 const supabase = Astro.locals.supabase;
 
 let themeId = resolveUiThemeId(null);
+let bordersMode = resolveUiBorders(true);
 if (user && supabase) {
   const { data: profile } = await supabase
     .from('profiles')
-    .select('ui_theme_id')
+    .select('ui_theme_id, ui_show_borders')
     .eq('id', user.id)
     .maybeSingle();
   themeId = resolveUiThemeId(profile?.ui_theme_id);
+  bordersMode = resolveUiBorders(profile?.ui_show_borders);
 }
 ---
 <!doctype html>
-<html lang="en" data-theme={themeId}>
+<html lang="en" data-theme={themeId} data-ui-borders={bordersMode}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />

@@ -5,6 +5,17 @@ function syncFavoriteButtons(listingId, favorited) {
     el.setAttribute('aria-label', favorited ? 'Remove favorite' : 'Favorite');
     el.title = favorited ? 'Favorited' : 'Favorite';
   });
+
+  document.querySelectorAll(`tr[data-listing-id="${listingId}"]`).forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    el.dataset.favorite = favorited ? '1' : '0';
+  });
+
+  document.dispatchEvent(
+    new CustomEvent('listing-favorite-changed', {
+      detail: { listingId, favorited },
+    }),
+  );
 }
 
 async function onFavoriteClick(e) {

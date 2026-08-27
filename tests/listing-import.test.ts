@@ -78,7 +78,9 @@ describe('parseListingDump', () => {
     } catch {
       return;
     }
-    if (!content.includes('MacAlpine')) return;
+    if (!/data-test-id="bdp-building-title"[^>]*>MacAlpine Place/i.test(content)) {
+      return;
+    }
 
     const withHeader = content.startsWith('source_url:')
       ? content
@@ -135,5 +137,74 @@ describe('extractZillow + rollup', () => {
     const { listing } = rollupZillowListing(extract, PREFS);
     expect(listing.price_monthly).toBe(1709);
     expect(listing.sqft).toBe(911);
+  });
+
+  it('extracts numeric unit ids without hyphen', () => {
+    const html = `
+      <h1 data-test-id="bdp-building-title">Waterchase Apartments</h1>
+      842 2 bd, 1 ba 800 Now $1,466
+      211 2 bd, 2 ba 1,100 Sep 8 $1,732
+    `;
+    const extract = extractZillow(html);
+    expect(extract.units).toHaveLength(2);
+    const { listing } = rollupZillowListing(extract, PREFS);
+    expect(listing.price_monthly).toBe(1599);
+    expect(listing.baths).toBe(1);
+  });
+
+  it('extracts letter unit ids with Message suffix', () => {
+    const html = `
+      <h1 data-test-id="bdp-building-title">The Carlisle at Dunedin</h1>
+      D 2 bd, 1 ba 786 Sep 25 Message $1,742
+      A 2 bd, 1 ba 786 Sep 18 Message $1,742
+    `;
+    const extract = extractZillow(html);
+    expect(extract.units).toHaveLength(2);
+    const { listing } = rollupZillowListing(extract, PREFS);
+    expect(listing.price_monthly).toBe(1742);
+    expect(listing.sqft).toBe(786);
+    expect(listing.baths).toBe(1);
+  });
+
+  it('extracts units with singular photo label before sqft', () => {
+    const html = `
+      <h1 data-test-id="bdp-building-title">Promenade At Edgewater Apartments</h1>
+      263-205 2 bd, 1.5 ba 1 photo 960 Now $1,609
+      250-102 2 bd, 1.5 ba 1 photo 960 Now $1,614
+    `;
+    const extract = extractZillow(html);
+    expect(extract.units).toHaveLength(2);
+    const { listing } = rollupZillowListing(extract, PREFS);
+    expect(listing.price_monthly).toBe(1612);
+    expect(listing.sqft).toBe(960);
+    expect(listing.baths).toBe(1.5);
+  });
+
+  it('extracts Eden-style numeric unit ids with Message and Cat/Dog Fee labels', () => {
+    const html = `
+      <h1 data-test-id="bdp-building-title">The Eden at Clearwater</h1>
+      2690 Drew St, Clearwater, FL 33759
+      (848) 356-4436
+      Pet-friendly Surface parking lot
+      Monthly rent, fees & charges Required Monthly base rent $1,225 - $1,775 See unit for details Asset Protection $15 Monthly utilities $25 Pest control $2 Water $100
+      One-time fees & charges Required Security deposit $500 Cat Fee ($450 each) $450 Dog Fee ($450 each) $450
+      Building Amenities Club House Fitness Center Laundry: Shared Swimming Pool Deck Playground
+      906 2 bd, 1.5 ba 980 Now Message $1,375
+      1141 2 bd, 1.5 ba 992 Now Message $1,400
+      714 2 bd, 2 ba 992 Now Message $1,675
+    `;
+    const extract = extractZillow(html);
+    expect(extract.units).toHaveLength(3);
+    const { listing } = rollupZillowListing(extract, PREFS);
+    expect(listing.price_monthly).toBe(1483);
+    expect(listing.baths).toBe(1.5);
+    expect(listing.sqft).toBe(988);
+    expect(listing.fees_monthly).toBe(142);
+    expect(listing.deposit).toBe(500);
+    expect(listing.pet_deposit).toBe(900);
+    expect(listing.amenities).toContain('Shared Laundry');
+    expect(listing.amenities).toContain('Deck');
+    expect(listing.amenities).toContain('Surface Lot Parking');
+    expect(listing.amenities).toContain('Pets Allowed');
   });
 });

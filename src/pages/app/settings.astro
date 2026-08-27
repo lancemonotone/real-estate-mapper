@@ -5,6 +5,7 @@ import { generateInviteToken } from '../../lib/crypto/invite-token';
 import { getPrimaryNestId, listNestMembers } from '../../lib/supabase/nest';
 import type { NestMemberProfile } from '../../lib/types/database';
 import { listUiThemes, resolveUiThemeId } from '../../lib/ui/themes';
+import { resolveUiBorders } from '../../lib/ui/borders';
 
 const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
@@ -17,10 +18,11 @@ let notice = '';
 
 const { data: profile } = await supabase
   .from('profiles')
-  .select('ui_theme_id')
+  .select('ui_theme_id, ui_show_borders')
   .eq('id', user.id)
   .maybeSingle();
 const currentThemeId = resolveUiThemeId(profile?.ui_theme_id);
+const bordersOn = resolveUiBorders(profile?.ui_show_borders) === 'on';
 
 let nestMembers: NestMemberProfile[] = [];
 if (nestId) {
@@ -148,6 +150,15 @@ const defaultTab: 'theme' | 'members' | 'invite' = inviteUrl || notice ? 'invite
             })
           }
         </div>
+        <label class="theme-borders">
+          <input
+            type="checkbox"
+            id="ui-show-borders"
+            name="ui_show_borders"
+            checked={bordersOn}
+          />
+          <span>Show borders</span>
+        </label>
         <p id="theme-status" class="theme-status muted" aria-live="polite"></p>
       </section>
     </div>
@@ -220,6 +231,8 @@ const defaultTab: 'theme' | 'members' | 'invite' = inviteUrl || notice ? 'invite
   <script>
     const status = document.getElementById('theme-status');
     const group = document.getElementById('theme-swatches');
+    const borders = document.getElementById('ui-show-borders');
+
     group?.addEventListener('change', async (e) => {
       const target = e.target;
       if (!(target instanceof HTMLInputElement) || target.name !== 'ui_theme_id') return;
@@ -242,5 +255,46 @@ const defaultTab: 'theme' | 'members' | 'invite' = inviteUrl || notice ? 'invite
         if (status) status.textContent = 'Could not save theme';
       }
     });
+
+    borders?.addEventListener('change', async () => {
+      if (!(borders instanceof HTMLInputElement)) return;
+      const ui_show_borders = borders.checked;
+      document.documentElement.dataset.uiBorders = ui_show_borders ? 'on' : 'off';
+      if (status) status.textContent = 'Saving…';
+      try {
+        const res = await fetch('/api/profile/borders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ui_show_borders }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (status) status.textContent = data.error || 'Could not save border preference';
+          return;
+        }
+        if (status) status.textContent = '';
+      } catch {
+        if (status) status.textContent = 'Could not save border preference';
+      }
+    });
   </script>
+  <style>
+    .theme-borders {
+      --borders-gap: 0.65rem;
+
+      display: inline-flex;
+      align-items: center;
+      gap: var(--borders-gap);
+      margin: 0;
+      font-size: 0.95rem;
+      cursor: pointer;
+
+      & input {
+        inline-size: 1.1rem;
+        block-size: 1.1rem;
+        margin: 0;
+        accent-color: var(--primary);
+      }
+    }
+  </style>
 </AppLayout>

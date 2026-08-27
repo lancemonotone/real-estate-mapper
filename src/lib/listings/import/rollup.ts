@@ -54,16 +54,6 @@ export function rollupZillowListing(
 
   const amenities = filterAmenities(extract.rawAmenities);
 
-  const notesParts: string[] = [];
-  if (targetUnits.length > 0) {
-    notesParts.push(
-      `${prefs.target_beds}-bed metrics from ${targetUnits.length} visible unit(s)`,
-    );
-  }
-  if (extract.requiredMonthlyFees.length > 0) {
-    notesParts.push('fees_monthly sums required recurring fees beyond base rent');
-  }
-
   return {
     listing: {
       name: extract.name,
@@ -79,7 +69,7 @@ export function rollupZillowListing(
       pet_deposit: petDeposit,
       pet_rent_monthly: petRentMonthly,
       amenities,
-      notes: notesParts.length ? notesParts.join('. ') + '.' : null,
+      notes: null,
     },
     warnings,
   };

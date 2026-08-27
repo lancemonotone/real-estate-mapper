@@ -73,6 +73,7 @@ export function bindListingGalleryForm(root: ParentNode = document): void {
         if (ta) {
           addUrls(list, ta.value);
           ta.value = '';
+          form.dispatchEvent(new CustomEvent('listing-gallery-changed', { bubbles: true }));
         }
         return;
       }
@@ -84,6 +85,7 @@ export function bindListingGalleryForm(root: ParentNode = document): void {
       e.preventDefault();
       item.remove();
       syncHiddenInputs(list);
+      form.dispatchEvent(new CustomEvent('listing-gallery-changed', { bubbles: true }));
     });
 
     list.addEventListener('dragstart', (e) => {
@@ -108,6 +110,7 @@ export function bindListingGalleryForm(root: ParentNode = document): void {
         .forEach((el) => el.classList.remove('is-drag-over'));
       dragItem = null;
       syncHiddenInputs(list);
+      form.dispatchEvent(new CustomEvent('listing-gallery-changed', { bubbles: true }));
     });
 
     list.addEventListener('dragover', (e) => {
@@ -134,6 +137,7 @@ export function bindListingGalleryForm(root: ParentNode = document): void {
         .querySelectorAll('.is-drag-over')
         .forEach((el) => el.classList.remove('is-drag-over'));
       syncHiddenInputs(list);
+      form.dispatchEvent(new CustomEvent('listing-gallery-changed', { bubbles: true }));
     });
 
     syncHiddenInputs(list);

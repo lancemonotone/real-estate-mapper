@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
+import ListingForm from '../../../../components/ListingForm.astro';
 import '../../../../styles/locale-map.css';
 import {
   nearestAllowedRadiusMiles,
@@ -62,23 +63,28 @@ const mapListings = rows
   locale={{ id: locale.id, name: locale.name }}
   localeSection="listings"
 >
-  <div class="locale-hero__heading">
-    <h1 class="locale-hero__name">{locale.name}</h1>
-    <a
-      class="secondary icon-btn locale-hero__edit"
-      href={`${base}/edit`}
-      title="Edit Locale name, center, and radius"
-      aria-label="Edit Locale name, center, and radius"
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 20h9"></path>
-        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-      </svg>
-    </a>
-    <p class="muted locale-hero__count">
-      {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
-    </p>
-    <div class="locale-hero__actions">
+  <header class="compare-header">
+    <div class="compare-header__titles">
+      <div class="locale-hero__heading">
+        <h1 class="compare-header__title locale-hero__name">{locale.name}</h1>
+        <a
+          class="secondary icon-btn locale-hero__edit"
+          href={`${base}/edit`}
+          title="Edit Locale name, center, and radius"
+          aria-label="Edit Locale name, center, and radius"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+        </a>
+        <p class="muted locale-hero__count">
+          {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
+        </p>
+      </div>
+      {centerLine && <p class="muted compare-header__sub">{centerLine}</p>}
+    </div>
+    <div class="compare-header__actions">
       {
         rows.length > 0 && (
           <label class="listings-sort">
@@ -91,11 +97,20 @@ const mapListings = rows
           </label>
         )
       }
-      <a class="button locale-hero__add" href={`${base}/listings/new`}>Add listing</a>
+      <button
+        type="button"
+        class="button icon-btn compare-header__add"
+        data-listing-overlay-open="new"
+        aria-label="Add listing"
+        title="Add listing"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 5v14"></path>
+          <path d="M5 12h14"></path>
+        </svg>
+      </button>
     </div>
-  </div>
-
-  {centerLine && <p class="muted locale-hero__meta">{centerLine}</p>}
+  </header>
 
   {
     localeNeedsSetup(locale) && (
@@ -111,9 +126,9 @@ const mapListings = rows
         rows.length === 0 ? (
           <div class="listings-empty glass panel stack">
             <p class="muted">No listings in this Locale yet.</p>
-            <a class="button" href={`${base}/listings/new`}>
+            <button type="button" class="button" data-listing-overlay-open="new">
               Add your first listing
-            </a>
+            </button>
           </div>
         ) : (
           <div class="matrix-scroll">
@@ -225,8 +240,63 @@ const mapListings = rows
     </div>
   </section>
 
+  <div
+    id="listing-overlay-new"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="listing-overlay-new-title"
+    data-listing-overlay="new"
+  >
+    <div class="compare-column-overlay__backdrop" data-listing-overlay-close></div>
+    <div class="compare-column-overlay__panel glass listing-overlay__panel">
+      <header class="compare-column-overlay__header">
+        <h2 id="listing-overlay-new-title">New listing</h2>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-listing-overlay-close
+          aria-label="Close"
+          title="Close"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12"></path>
+            <path d="M18 6L6 18"></path>
+          </svg>
+        </button>
+      </header>
+      <div class="listing-overlay__body stack">
+        <section class="listing-form__section listing-import-block">
+          <h3 class="listing-import-block__title">Import from URL</h3>
+          <form id="import-form" class="listing-import stack">
+            <label class="listing-import__label" for="import-url">Listing URL</label>
+            <div class="listing-import__row">
+              <input
+                type="url"
+                name="url"
+                id="import-url"
+                class="listing-import__input"
+                required
+              />
+              <button type="submit">Fetch</button>
+            </div>
+          </form>
+          <p id="import-status" class="muted" aria-live="polite"></p>
+        </section>
+        <ListingForm
+          action="/api/listings/create"
+          submitLabel="Save listing"
+          localeId={locale.id}
+        />
+      </div>
+    </div>
+  </div>
+
   {hasCenter && <script src="/scripts/locale-map.js" type="module"></script>}
   <script src="/scripts/listings-sort.js" type="module"></script>
+  <script src="/scripts/listing-detail.js" type="module"></script>
+  <script src="/scripts/listing-import.js" type="module"></script>
   <script>
     import { bindListingGalleries } from '../../../../client/listing-gallery';
     bindListingGalleries();

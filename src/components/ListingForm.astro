@@ -10,11 +10,19 @@ interface Props {
   listing?: Partial<Listing>;
   tourAssignment?: { tourDate: string; appointmentTime?: string | null } | null;
   action: string;
-  submitLabel: string;
+  submitLabel?: string;
   localeId?: string;
+  autosave?: boolean;
 }
 
-const { listing = {}, tourAssignment = null, action, submitLabel, localeId } = Astro.props;
+const {
+  listing = {},
+  tourAssignment = null,
+  action,
+  submitLabel = 'Save listing',
+  localeId,
+  autosave = false,
+} = Astro.props;
 const tourDateValue = resolveListingTourDateInput(
   tourAssignment,
   listing.appointment_at ?? null,
@@ -40,14 +48,32 @@ const initialPhotoUrls =
     ))}
   </ul>
 )}
-<form method="post" action={action} enctype="multipart/form-data" class="listing-form stack">
+<form
+  method="post"
+  action={action}
+  enctype="multipart/form-data"
+  class:list={['listing-form', 'stack', autosave && 'listing-form--autosave']}
+  data-listing-autosave={autosave ? '' : undefined}
+>
   {listing.id && <input type="hidden" name="id" value={listing.id} />}
   {localeId && <input type="hidden" name="locale_id" value={localeId} />}
-  <label>Name <input name="name" value={listing.name ?? ''} /></label>
-  <label>Address <input name="address" value={listing.address ?? ''} /></label>
-  <label>Phone <input name="phone" type="tel" autocomplete="tel" value={listing.phone ?? ''} /></label>
-  <label>Source URL <input name="source_url" type="url" value={listing.source_url ?? ''} /></label>
-  <fieldset class="listing-form__gallery" data-gallery-form>
+  {autosave && (
+    <p
+      class="muted listing-form__autosave-status"
+      data-listing-autosave-status
+      aria-live="polite"
+    ></p>
+  )}
+
+  <fieldset class="listing-form__section listing-form__details">
+    <legend>Details</legend>
+    <label>Name <input name="name" value={listing.name ?? ''} /></label>
+    <label>Address <input name="address" value={listing.address ?? ''} /></label>
+    <label>Phone <input name="phone" type="tel" autocomplete="tel" value={listing.phone ?? ''} /></label>
+    <label>Source URL <input name="source_url" type="url" value={listing.source_url ?? ''} /></label>
+  </fieldset>
+
+  <fieldset class="listing-form__section listing-form__gallery" data-gallery-form>
     <legend>Photos</legend>
     <p class="muted listing-form__gallery-hint">
       Drag to reorder. First photo is the primary thumb.
@@ -80,29 +106,40 @@ const initialPhotoUrls =
         placeholder="One https URL per line"
       ></textarea>
     </label>
-    <button type="button" class="secondary" data-gallery-add-btn>
-      Add
-    </button>
+    <div class="listing-form__gallery-add-actions">
+      <button type="button" data-gallery-add-btn>Add</button>
+    </div>
+    <label>Upload photo <input name="photo" type="file" accept="image/*" /></label>
   </fieldset>
-  <label>Upload photo <input name="photo" type="file" accept="image/*" /></label>
-  <div class="listing-form__tour">
-    <label>
-      Tour date
-      <input name="tour_date" type="date" value={tourDateValue} />
-    </label>
-    <label class="listing-form__tour-time">
-      <span class="visually-hidden">Tour time</span>
-      <input
-        name="tour_time"
-        type="time"
-        class="tours-stops__time"
-        value={tourTimeValue}
-      />
-    </label>
-  </div>
-  <label>Notes <textarea name="notes">{listing.notes ?? ''}</textarea></label>
 
-  <fieldset class="listing-form__attrs">
+  <fieldset class="listing-form__section listing-form__tour-section">
+    <legend>Tour</legend>
+    <div class="listing-form__tour">
+      <label>
+        Tour date
+        <input name="tour_date" type="date" value={tourDateValue} />
+      </label>
+      <label class="listing-form__tour-time">
+        <span class="visually-hidden">Tour time</span>
+        <input
+          name="tour_time"
+          type="time"
+          class="tours-stops__time"
+          value={tourTimeValue}
+        />
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset class="listing-form__section listing-form__notes-section">
+    <legend>Notes</legend>
+    <label>
+      <span class="visually-hidden">Notes</span>
+      <textarea name="notes">{listing.notes ?? ''}</textarea>
+    </label>
+  </fieldset>
+
+  <fieldset class="listing-form__section listing-form__attrs">
     <legend>Attributes</legend>
     <label>
       Price / mo
@@ -182,10 +219,12 @@ const initialPhotoUrls =
     </label>
   </fieldset>
 
-  <div class="listing-form__actions">
-    <button type="submit">{submitLabel}</button>
-    <slot name="actions" />
-  </div>
+  {!autosave && (
+    <div class="listing-form__actions">
+      <button type="submit">{submitLabel}</button>
+      <slot name="actions" />
+    </div>
+  )}
 </form>
 <style>
   .listing-form {
@@ -198,6 +237,16 @@ const initialPhotoUrls =
     }
   }
 
+  .listing-form--autosave {
+    margin-block: 0.35rem 0;
+  }
+
+  .listing-form__autosave-status {
+    margin: 0;
+    min-block-size: 1.25em;
+    font-size: 0.9rem;
+  }
+
   .listing-form__actions {
     --actions-gap: 0.75rem;
     display: flex;
@@ -205,6 +254,31 @@ const initialPhotoUrls =
     align-items: center;
     gap: var(--actions-gap);
     padding-block-start: 0.35rem;
+  }
+
+  .listing-form__section {
+    margin: 0;
+    padding: 0.85rem 1rem 1rem;
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-md);
+    background: var(--glass-wash);
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+
+    & legend {
+      font-family: var(--font-display);
+      font-weight: 600;
+      padding-inline: 0.35rem;
+    }
+  }
+
+  .listing-form__details {
+    & label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
   }
 
   .listing-form__tour {
@@ -227,24 +301,25 @@ const initialPhotoUrls =
     margin: 0;
   }
 
+  .listing-form__notes-section {
+    & label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    & textarea {
+      min-block-size: 5rem;
+    }
+  }
+
   .listing-form__attrs {
     --attrs-gap: 0.85rem;
     --attrs-cols: 1fr;
 
-    margin: 0;
-    padding: 0.85rem 1rem 1rem;
-    border: 1px solid var(--border-accent);
-    border-radius: var(--radius-md);
-    background: var(--glass-wash);
     display: grid;
     grid-template-columns: var(--attrs-cols);
     gap: var(--attrs-gap);
-
-    & legend {
-      font-family: var(--font-display);
-      font-weight: 600;
-      padding-inline: 0.35rem;
-    }
 
     & label:last-of-type {
       grid-column: 1 / -1;
@@ -261,8 +336,6 @@ const initialPhotoUrls =
     --gallery-cols: 2;
     --gallery-tile: 5.5rem;
 
-    display: flex;
-    flex-direction: column;
     gap: var(--gallery-gap);
 
     @media (min-width: 768px) {
@@ -278,6 +351,13 @@ const initialPhotoUrls =
   .listing-form__gallery-hint {
     margin: 0;
     font-size: 0.9rem;
+  }
+
+  .listing-form__gallery-add-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .listing-form__gallery-list {
@@ -340,5 +420,7 @@ const initialPhotoUrls =
 </style>
 <script>
   import { bindListingGalleryForm } from '../client/listing-gallery-form';
+  import { bindListingFormAutosave } from '../client/listing-form-autosave';
   bindListingGalleryForm();
+  bindListingFormAutosave();
 </script>

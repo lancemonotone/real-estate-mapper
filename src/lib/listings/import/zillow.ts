@@ -2,8 +2,10 @@ import { htmlToText, parseMoney } from './text.ts';
 import type { ZillowExtract, ZillowUnit } from './types.ts';
 
 const UNIT_PATTERNS = [
-  /(\d+-\d+)\s+(\d+)\s*bd,\s*([\d.]+)\s*ba(?:\s+Special offer)?(?:\s+\d+\s+photos)?\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+(?:Message|Take tour)\s+\$([\d,]+)/g,
-  /(\d+-\d+)\s+(\d+)\s*bd,\s*([\d.]+)\s*ba\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+\$([\d,]+)/g,
+  /(\d+-\d+)\s+(\d+)\s*bd,\s*([\d.]+)\s*ba(?:\s+Special offer)?(?:\s+\d+\s+photo(?:s)?)?\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+(?:Message|Take tour)\s+\$([\d,]+)/g,
+  /(\d+-\d+)\s+(\d+)\s*bd,\s*([\d.]+)\s*ba(?:\s+\d+\s+photo(?:s)?)?\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+\$([\d,]+)/g,
+  /(?<![-\d])(\d{3,4})\s+(\d+)\s*bd,\s*([\d.]+)\s*ba(?:\s+\d+\s+photo(?:s)?)?\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+(?:Message|Take tour)?\s*\$([\d,]+)/g,
+  /\b([A-Z])\s+(\d+)\s*bd,\s*([\d.]+)\s*ba\s+([\d,]+)\s+(?:Now|[A-Za-z]{3}\s+\d+)\s+(?:Message|Take tour)\s+\$([\d,]+)/g,
 ];
 
 export function isZillowDump(html: string, text: string): boolean {
@@ -55,7 +57,19 @@ export function extractZillow(html: string): ZillowExtract {
     ? Number(truncatedMatch[1])
     : null;
 
-  const rawAmenities = extractZillowAmenities(text);
+  const rawAmenities = [
+    ...extractZillowAmenities(text),
+    ...extractSpecialFeatures(text),
+  ];
+  if (/pets?\s*allowed|pet-friendly|cats?\s+allowed|dogs?\s+allowed/i.test(text)) {
+    rawAmenities.push('Pets Allowed');
+  }
+  if (/surface (?:parking )?lot/i.test(text)) {
+    rawAmenities.push('Surface Lot');
+  }
+  if (/shared laundry/i.test(text)) {
+    rawAmenities.push('Shared Laundry');
+  }
 
   const monthlySection = extractSection(
     text,
@@ -123,6 +137,8 @@ function parseRequiredMonthlyFees(section: string): number[] {
 
   const namedFees: Array<{ pattern: RegExp }> = [
     { pattern: /Package Lockers[^$]*\$\s*([\d,]+)(?:\s*-\s*\$\s*([\d,]+))?/i },
+    { pattern: /Asset Protection[^$]*\$\s*([\d,]+)(?:\s*-\s*\$\s*([\d,]+))?/i },
+    { pattern: /Monthly utilities[^$]*\$\s*([\d,]+)(?:\s*-\s*\$\s*([\d,]+))?/i },
     { pattern: /Pest Control[^$]*\$\s*([\d,]+)(?:\s*-\s*\$\s*([\d,]+))?/i },
     {
       pattern: /Smart Home[^$]*\$\s*([\d,]+)(?:\s*-\s*\$\s*([\d,]+))?/i,
@@ -180,13 +196,16 @@ function parsePetFee(
   kind: 'one' | 'monthly',
 ): number | null {
   const speciesLabel = species === 'cat' ? 'cat' : 'dog';
+  const speciesTitle =
+    speciesLabel.charAt(0).toUpperCase() + speciesLabel.slice(1);
   const patterns =
     kind === 'one'
       ? [
           new RegExp(
-            `Pet Fee \\(${speciesLabel.charAt(0).toUpperCase() + speciesLabel.slice(1)}\\)[^$]*\\$\\s*([\\d,]+)`,
+            `Pet Fee \\(${speciesTitle}\\)[^$]*\\$\\s*([\\d,]+)`,
             'i',
           ),
+          new RegExp(`${speciesTitle} Fee(?:\\s*\\([^)]*\\))?[^$]*\\$\\s*([\\d,]+)`, 'i'),
           new RegExp(`One-time ${speciesLabel} fee \\$([\\d,]+)`, 'i'),
         ]
       : [
@@ -233,6 +252,11 @@ function extractZillowAmenities(text: string): string[] {
 
   const rules: Array<{ pattern: RegExp; pick: (m: RegExpMatchArray) => string }> = [
     { pattern: /\bClub House\b/i, pick: () => 'Club House' },
+    { pattern: /\bFitness Center\b/i, pick: () => 'Fitness Center' },
+    { pattern: /Laundry:\s*Shared/i, pick: () => 'Shared Laundry' },
+    { pattern: /\bShared Laundry\b/i, pick: () => 'Shared Laundry' },
+    { pattern: /\bDeck\b/i, pick: () => 'Deck' },
+    { pattern: /\bSurface (?:parking )?lot\b/i, pick: () => 'Surface Lot' },
     {
       pattern: /Fitness Center:\s*([^:]+?)(?=\s+Game Room|$)/i,
       pick: (m) => `Fitness Center: ${m[1].trim()}`,
@@ -290,6 +314,7 @@ function extractZillowAmenities(text: string): string[] {
       pick: (m) => `Package Service: ${m[1].trim()}`,
     },
     { pattern: /\bPet Park\b/i, pick: () => 'Pet Park' },
+    { pattern: /\bPet Spa\b/i, pick: () => 'Pet Spa' },
     {
       pattern: /Garage:\s*([^:]+?)(?=\s+Other|$)/i,
       pick: (m) => `Garage: ${m[1].trim()}`,
@@ -301,6 +326,30 @@ function extractZillowAmenities(text: string): string[] {
   for (const rule of rules) {
     const match = block.match(rule.pattern);
     if (match) add(rule.pick(match));
+  }
+
+  return items;
+}
+
+function extractSpecialFeatures(text: string): string[] {
+  const section = extractSection(text, 'Special Features', [
+    'Neighborhood:',
+    'Available units',
+    'Office hours',
+    'Highlights',
+    'Apply with your pet',
+  ]);
+  if (!section) return [];
+
+  const items: string[] = [];
+  const rules: Array<{ pattern: RegExp; label: string }> = [
+    { pattern: /Climate Controlled Bike Station/i, label: 'Climate-Controlled Bike Station' },
+    { pattern: /Community Courtyard/i, label: 'Community Courtyard' },
+    { pattern: /Golf Cart Parking/i, label: 'Golf Cart Parking' },
+  ];
+
+  for (const { pattern, label } of rules) {
+    if (pattern.test(section)) items.push(label);
   }
 
   return items;

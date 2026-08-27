@@ -1,0 +1,16 @@
+/**
+ * Borderless chrome override (shadows / radius / washes unchanged).
+ *
+ * Applied when <html data-ui-borders="off">.
+ * Revert: toggle Settings → Theme → Show borders, or delete this file + its import.
+ */
+
+:root[data-ui-borders='off'] {
+  --border: transparent;
+  --border-accent: transparent;
+}
+
+/* Win over color-mix() border-colors in component rules; shadows untouched. */
+:root[data-ui-borders='off'] :where(*) {
+  border-color: transparent !important;
+}

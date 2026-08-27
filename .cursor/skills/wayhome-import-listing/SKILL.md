@@ -92,9 +92,10 @@ Map into PUT/PATCH body when known:
 | `pet_deposit` | Sum of one-time pet fees for locale pets |
 | `pet_rent_monthly` | Monthly pet rent for locale pets |
 | `amenities` | Filtered **string array** |
-| `notes` | Optional short caveats |
 
 Omit or `null` when unknown. Do not write "Unlisted" into numeric fields.
+
+**`notes` is user-authored only.** Never set or overwrite `notes` on import (omit the field).
 
 ## Amenities filter (normative)
 
@@ -104,7 +105,7 @@ Keep **property / lifestyle** highlights only (pool, hot tub, jacuzzi, spa, saun
 
 **Assume present — do not list:** AC, Dishwasher, Refrigerator, Basic Parking.
 
-**If clearly missing**, include a combined note tag such as `Note: No AC, No Dishwasher` in the amenities array (or put the note in `notes`).
+**If clearly missing**, include a combined note tag such as `Note: No AC, No Dishwasher` in the amenities array (not in `notes`).
 
 ## Do not
 
@@ -117,3 +118,4 @@ Keep **property / lifestyle** highlights only (pool, hot tub, jacuzzi, spa, saun
 - Average bathrooms into non-floor-plan fractions
 - Authenticate via Supabase MCP instead of the Wayhome browser session
 - Ask beds/pets when `listing_prefs` is set on the locale
+- Write import metadata or caveats into `notes` (leave that field for the user)

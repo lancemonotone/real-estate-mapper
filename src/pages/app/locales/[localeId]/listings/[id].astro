@@ -632,18 +632,15 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
           </svg>
         </button>
       </header>
-      <ListingForm
-        listing={listing}
-        tourAssignment={assignment}
-        action="/api/listings/update"
-        submitLabel="Update listing"
-        localeId={locale.id}
-      >
-        <button type="button" id="geocode-retry" class="secondary" slot="actions">
-          Retry geocode
-        </button>
-      </ListingForm>
-      <p id="geocode-status" class="muted"></p>
+      <div class="listing-overlay__body">
+        <ListingForm
+          listing={listing}
+          tourAssignment={assignment}
+          action="/api/listings/update"
+          localeId={locale.id}
+          autosave
+        />
+      </div>
     </div>
   </div>
 
@@ -947,24 +944,6 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
   <script src="/scripts/listing-proximity.js" type="module"></script>
   <script src="/scripts/listing-detail.js" type="module"></script>
   <script src="/scripts/listing-tour-calendar.js" type="module"></script>
-  <script define:vars={{ listingId: listing.id }}>
-    document.getElementById('geocode-retry')?.addEventListener('click', async () => {
-      const status = document.getElementById('geocode-status');
-      if (status) status.textContent = 'Geocoding…';
-      const res = await fetch('/api/listings/geocode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: listingId }),
-      });
-      const data = await res.json();
-      if (status) {
-        status.textContent = data.ok
-          ? `Geocoded: ${data.lat}, ${data.lng}`
-          : data.error || 'Geocode failed';
-      }
-      if (data.ok) location.reload();
-    });
-  </script>
   <style>
     .proximity-panel {
       --prox-gap: 1.35rem;

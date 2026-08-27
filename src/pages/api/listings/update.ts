@@ -14,16 +14,32 @@ import {
   syncListingTour,
 } from '../../../lib/tours/listing-tour-date';
 
+function wantsJson(request: Request): boolean {
+  return (request.headers.get('Accept') ?? '').includes('application/json');
+}
+
+function fail(request: Request, message: string, status: number) {
+  if (wantsJson(request)) {
+    return Response.json({ ok: false, error: message }, { status });
+  }
+  return new Response(message, { status });
+}
+
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return redirect('/login');
+  if (!user) {
+    if (wantsJson(request)) {
+      return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    return redirect('/login');
+  }
 
   const form = await request.formData();
   const id = String(form.get('id') ?? '');
-  if (!id) return new Response('Missing id', { status: 400 });
+  if (!id) return fail(request, 'Missing id', 400);
 
   const name = String(form.get('name') ?? '').trim() || null;
   const address = String(form.get('address') ?? '').trim() || null;
@@ -44,11 +60,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const { data: existing } = await supabase
     .from('listings')
-    .select('id, address, lat, lng, locale_id, photo_url, locales(nest_id)')
+    .select('id, address, lat, lng, locale_id, photo_url, photo_urls, locales(nest_id)')
     .eq('id', id)
     .single();
 
-  if (!existing) return new Response('Not found', { status: 404 });
+  if (!existing) return fail(request, 'Not found', 404);
 
   const photos = resolvePhotoFields({
     photo_urls: form.getAll('photo_urls').map(String),
@@ -95,7 +111,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     })
     .eq('id', id);
 
-  if (error) return new Response(error.message, { status: 400 });
+  if (error) return fail(request, error.message, 400);
 
   const tourSync = await syncListingTour(
     supabase,
@@ -104,7 +120,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     tour.tourDate,
     tour.appointmentTime,
   );
-  if (!tourSync.ok) return new Response(tourSync.error, { status: 400 });
+  if (!tourSync.ok) return fail(request, tourSync.error, 400);
 
   if (coordsChanged) {
     await invalidateListingProximityResults(supabase, id);
@@ -129,6 +145,34 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     if (!uploadError) {
       await supabase.from('listings').update({ photo_path: path }).eq('id', id);
     }
+  }
+
+  if (wantsJson(request)) {
+    return Response.json({
+      ok: true,
+      listing: {
+        id,
+        locale_id: existing.locale_id,
+        name,
+        address,
+        phone,
+        source_url,
+        photo_url: photos.photo_url,
+        photo_urls: photos.photo_urls,
+        notes,
+        price_monthly,
+        deposit,
+        fees_monthly,
+        sqft,
+        beds,
+        baths,
+        pet_rent_monthly,
+        pet_deposit,
+        amenities,
+        lat,
+        lng,
+      },
+    });
   }
 
   return redirect(`/app/locales/${existing.locale_id}/listings/${id}`);

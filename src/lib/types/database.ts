@@ -4,6 +4,7 @@ export type Profile = {
   id: string;
   display_name: string | null;
   ui_theme_id: string | null;
+  ui_show_borders: boolean;
   created_at: string;
 };
 
