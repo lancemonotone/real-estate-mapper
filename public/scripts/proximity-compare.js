@@ -137,7 +137,6 @@ function applyExcludeResults(results) {
     );
     if (td) renderCell(td, result);
   }
-  equalizeCompareRows();
 }
 
 async function excludePlaceFromCell(td, result) {
@@ -210,14 +209,19 @@ function renderCell(td, result) {
   if (result.status === 'ok') {
     const wrap = document.createElement('div');
     wrap.className = 'cell-ok';
-    const line = document.createElement('div');
-    line.textContent = formatMeta(result.duration_sec, result.distance_m);
-    wrap.appendChild(line);
+    const place = document.createElement('div');
+    place.className = 'cell-ok__place';
     if (result.place_name) {
       const name = document.createElement('div');
+      name.className = 'cell-ok__name';
       name.textContent = result.place_name;
-      wrap.appendChild(name);
+      place.appendChild(name);
     }
+    const meta = document.createElement('div');
+    meta.className = 'cell-ok__meta';
+    meta.textContent = formatMeta(result.duration_sec, result.distance_m);
+    if (meta.textContent) place.appendChild(meta);
+    if (place.childNodes.length) wrap.appendChild(place);
 
     const href = directionsUrl(td, result);
     const originLat = Number(td.dataset.listingLat);
@@ -1030,7 +1034,6 @@ function initCellPlacePicker(signal) {
     const result = lockData.result || cellPickerLastResult;
     closeCellPlacePicker();
     renderCell(td, result);
-    equalizeCompareRows();
     },
     { signal },
   );
@@ -1066,25 +1069,6 @@ async function hydrateAndCompute(signal) {
     if (signal?.aborted) return;
     td.dataset.hydrated = '1';
   }
-  equalizeCompareRows();
-}
-
-function equalizeCompareRows() {
-  const rows = [...document.querySelectorAll('#compare-table tbody tr')];
-  if (!rows.length) return;
-
-  for (const row of rows) {
-    row.style.blockSize = '';
-    row.style.height = '';
-  }
-
-  const max = Math.max(...rows.map((row) => row.getBoundingClientRect().height));
-  if (!(max > 0)) return;
-
-  const px = `${Math.ceil(max)}px`;
-  for (const row of rows) {
-    row.style.blockSize = px;
-  }
 }
 
 let comparePageAbort = null;
@@ -1119,9 +1103,7 @@ function bootComparePage() {
   initDeleteButtons(signal);
   initCellPlacePicker(signal);
   mountAllPlaceTypePickers(document);
-  equalizeCompareRows();
   void hydrateAndCompute(signal);
 }
 
 document.addEventListener('astro:page-load', bootComparePage);
-window.addEventListener('resize', equalizeCompareRows);

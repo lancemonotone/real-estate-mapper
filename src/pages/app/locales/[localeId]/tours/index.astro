@@ -267,25 +267,14 @@ const seed = {
                 >
                   <div class="matrix-listing tours-stops__link">
                     {listing.photo_url ? (
-                      <button
-                        type="button"
-                        class="matrix-listing__media"
-                        data-listing-gallery
-                        data-photo-urls={JSON.stringify(
-                          listing.photo_urls?.length
-                            ? listing.photo_urls
-                            : [listing.photo_url],
-                        )}
-                        data-photo-index="0"
-                        aria-label={`Photos: ${title}`}
-                      >
+                      <span class="matrix-listing__media matrix-listing__media--static" aria-hidden="true">
                         <img
                           class="matrix-listing__thumb"
                           src={listing.photo_url}
                           alt=""
                           loading="lazy"
                         />
-                      </button>
+                      </span>
                     ) : (
                       <span
                         class="matrix-listing__thumb matrix-listing__thumb--empty"
@@ -414,25 +403,14 @@ const seed = {
                       {href ? (
                         <div class="matrix-listing tours-stops__link">
                           {photo ? (
-                            <button
-                              type="button"
-                              class="matrix-listing__media"
-                              data-listing-gallery
-                              data-photo-urls={JSON.stringify(
-                                listing?.photo_urls?.length
-                                  ? listing.photo_urls
-                                  : [photo],
-                              )}
-                              data-photo-index="0"
-                              aria-label={`Photos: ${title}`}
-                            >
+                            <span class="matrix-listing__media matrix-listing__media--static" aria-hidden="true">
                               <img
                                 class="matrix-listing__thumb"
                                 src={photo}
                                 alt=""
                                 loading="lazy"
                               />
-                            </button>
+                            </span>
                           ) : (
                             <span
                               class="matrix-listing__thumb matrix-listing__thumb--empty"
@@ -821,8 +799,4 @@ const seed = {
   }
   {selectedTour ? <script src="/scripts/place-search.js" type="module"></script> : null}
   <script src="/scripts/listing-favorite.js" type="module"></script>
-  <script>
-    import { bindListingGalleries } from '../../../../../client/listing-gallery';
-    bindListingGalleries();
-  </script>
 </AppLayout>

@@ -562,30 +562,25 @@ function openPlacePicker(detail) {
 
 function fillCompareCellActions(li, result) {
   const actions = li.querySelector('[data-cell-actions]');
-  const meta = li.querySelector('.prox-cell-meta');
-  const title = li.querySelector('strong, .matrix-listing__name');
+  const meta = li.querySelector('.prox-cell-meta, .cell-ok__meta');
+  const nameEl = li.querySelector('.cell-ok__name');
   if (!actions) return;
   actions.replaceChildren();
 
   const columnLabel = li.dataset.columnLabel || 'Travel column';
-  if (title) {
-    title.textContent = columnLabel;
-  }
 
   if (!result) {
+    if (nameEl) nameEl.textContent = '';
     if (meta) meta.textContent = 'Computing…';
   } else if (result.status !== 'ok') {
+    if (nameEl) nameEl.textContent = '';
     if (meta) {
       meta.textContent = [result.status, result.error_message].filter(Boolean).join(' — ');
     }
   } else {
     ensurePlaceThumb(li, result.place_id);
-
-    if (meta) {
-      meta.textContent = [result.place_name, formatMeta(result.duration_sec, result.distance_m)]
-        .filter(Boolean)
-        .join(' · ');
-    }
+    if (nameEl) nameEl.textContent = result.place_name || '';
+    if (meta) meta.textContent = formatMeta(result.duration_sec, result.distance_m);
   }
 
   const origin = {
@@ -787,7 +782,7 @@ function initListingPlaceActions() {
   const origin = listingOrigin();
   document.querySelectorAll('#listing-places-list > tr').forEach((li) => {
     if (li.hasAttribute('data-listing-prox-cell')) return;
-    const actions = li.querySelector('[data-listing-place-actions]');
+    const actions = li.querySelector('[data-cell-actions]');
     if (!actions) return;
     actions.replaceChildren();
 

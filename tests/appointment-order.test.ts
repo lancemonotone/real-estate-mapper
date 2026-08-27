@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   dayHasAppointmentTimes,
+  formatAppointmentTime,
   orderStopsForAutoroute,
   toTimeInputValue,
 } from '../src/lib/tours/appointment-order';
@@ -63,5 +64,15 @@ describe('toTimeInputValue', () => {
 
   it('returns empty for null', () => {
     expect(toTimeInputValue(null)).toBe('');
+  });
+});
+
+describe('formatAppointmentTime', () => {
+  it('formats afternoon time for display', () => {
+    expect(formatAppointmentTime('14:05:00')).toBe('2:05 PM');
+  });
+
+  it('returns null when unset', () => {
+    expect(formatAppointmentTime(null)).toBeNull();
   });
 });

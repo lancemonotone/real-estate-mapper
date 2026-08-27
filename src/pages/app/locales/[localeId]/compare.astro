@@ -62,43 +62,6 @@ const criterionRows = criteria ?? [];
   localeSection="travel"
   nestId={locale.nest_id}
 >
-  <header class="compare-header">
-    <div class="compare-header__titles">
-      <h1 class="compare-header__title">Travel Times</h1>
-      <p class="muted compare-header__sub">
-        Drive, walk, bike, or transit times from each listing to shared destinations.
-      </p>
-    </div>
-    <div class="compare-header__actions">
-      <button
-        type="button"
-        class="listing-favorite matrix-favorite-filter"
-        data-matrix-favorite-filter
-        aria-pressed="false"
-        aria-label="Show favorites only"
-        title="Show favorites only"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path
-            d="M12 21s-6.7-4.35-9.33-8.1C.8 10.4 1.2 6.9 3.9 5.2 6.1 3.85 8.85 4.4 12 7.1c3.15-2.7 5.9-3.25 8.1-1.9 2.7 1.7 3.1 5.2 1.23 7.7C18.7 16.65 12 21 12 21z"
-          ></path>
-        </svg>
-      </button>
-      <button
-        type="button"
-        class="button icon-btn compare-header__add"
-        data-compare-column-open
-        aria-label="Add column"
-        title="Add column"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M12 5v14"></path>
-          <path d="M5 12h14"></path>
-        </svg>
-      </button>
-    </div>
-  </header>
-
   {
     listingRows.length === 0 ? (
       <p class="muted">No listings in this Locale yet.</p>
@@ -116,9 +79,46 @@ const criterionRows = criteria ?? [];
         <p class="muted compare-empty-hint" data-matrix-favorite-empty hidden>
           No favorited listings. Heart a listing or turn off the favorites filter.
         </p>
-        <div class="matrix-scroll">
+        <div class="matrix-panel">
+          <div class="matrix-panel__header">
+            <div class="matrix-panel__titles compare-header__titles">
+              <h1 class="compare-header__title">Travel Times</h1>
+              <p class="muted compare-header__sub">
+                Drive, walk, bike, or transit times from each listing to shared destinations.
+              </p>
+            </div>
+            <div class="matrix-panel__actions compare-header__actions">
+              <button
+                type="button"
+                class="listing-favorite matrix-favorite-filter"
+                data-matrix-favorite-filter
+                aria-pressed="false"
+                aria-label="Show favorites only"
+                title="Show favorites only"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 21s-6.7-4.35-9.33-8.1C.8 10.4 1.2 6.9 3.9 5.2 6.1 3.85 8.85 4.4 12 7.1c3.15-2.7 5.9-3.25 8.1-1.9 2.7 1.7 3.1 5.2 1.23 7.7C18.7 16.65 12 21 12 21z"
+                  ></path>
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="button icon-btn compare-header__add"
+                data-compare-column-open
+                aria-label="Add column"
+                title="Add column"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M12 5v14"></path>
+                  <path d="M5 12h14"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="matrix-scroll">
           <table
-            class="data matrix-table"
+            class="data matrix-table matrix-table--travel"
             id="compare-table"
             data-sortable
             style={`--data-cols: ${Math.max(criterionRows.length, 1)}`}
@@ -251,6 +251,7 @@ const criterionRows = criteria ?? [];
               })}
             </tbody>
           </table>
+        </div>
         </div>
       </>
     )
@@ -479,8 +480,4 @@ const criterionRows = criteria ?? [];
   <script src="/scripts/matrix-sort.js" type="module"></script>
   <script src="/scripts/matrix-favorite-filter.js" type="module"></script>
   <script src="/scripts/proximity-compare.js" type="module"></script>
-  <script>
-    import { bindListingGalleries } from '../../../../client/listing-gallery';
-    bindListingGalleries();
-  </script>
 </AppLayout>

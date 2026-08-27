@@ -191,20 +191,9 @@ const stopCount = (stops ?? []).length;
               {href ? (
                 <div class="matrix-listing tours-stops__link">
                   {photo ? (
-                    <button
-                      type="button"
-                      class="matrix-listing__media"
-                      data-listing-gallery
-                      data-photo-urls={JSON.stringify(
-                        listing?.photo_urls?.length
-                          ? listing.photo_urls
-                          : [photo],
-                      )}
-                      data-photo-index="0"
-                      aria-label={`Photos: ${title}`}
-                    >
+                    <span class="matrix-listing__media matrix-listing__media--static" aria-hidden="true">
                       <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
-                    </button>
+                    </span>
                   ) : (
                     <span
                       class="matrix-listing__thumb matrix-listing__thumb--empty"
@@ -480,8 +469,4 @@ const stopCount = (stops ?? []).length;
   </script>
   <script src="/scripts/tour-map.js" type="module"></script>
   <script src="/scripts/tours-day.js" type="module"></script>
-  <script>
-    import { bindListingGalleries } from '../../../../../client/listing-gallery';
-    bindListingGalleries();
-  </script>
 </AppLayout>

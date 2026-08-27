@@ -30,22 +30,24 @@ const showBanner = showHiddenBanner || ui.showExpiryNag;
 
 {
   showBanner && (
-    <div class="nest-entitlement-banner stack" role="status">
-      {showHiddenBanner && (
-        <p class="nest-entitlement-banner__text">
-          {hiddenParts.join(', ')} hidden on the Free plan. Renew Hunt Pass to see
-          everything.
-        </p>
-      )}
-      {ui.showExpiryNag && ui.daysUntilExpiry !== null && (
-        <p class="nest-entitlement-banner__text">
-          {
-            ui.daysUntilExpiry === 0
-              ? 'Your Hunt Pass ends today.'
-              : `Your Hunt Pass ends in ${ui.daysUntilExpiry} day${ui.daysUntilExpiry === 1 ? '' : 's'}.`
-          }
-        </p>
-      )}
+    <div class="nest-entitlement-banner" role="status">
+      <div class="nest-entitlement-banner__content">
+        {showHiddenBanner && (
+          <p class="nest-entitlement-banner__text">
+            {hiddenParts.join(', ')} hidden on the Free plan. Renew Hunt Pass to see
+            everything.
+          </p>
+        )}
+        {ui.showExpiryNag && ui.daysUntilExpiry !== null && (
+          <p class="nest-entitlement-banner__text">
+            {
+              ui.daysUntilExpiry === 0
+                ? 'Your Hunt Pass ends today.'
+                : `Your Hunt Pass ends in ${ui.daysUntilExpiry} day${ui.daysUntilExpiry === 1 ? '' : 's'}.`
+            }
+          </p>
+        )}
+      </div>
       <div class="nest-entitlement-banner__actions">
         {
           ui.isOwner ? (

@@ -11,7 +11,7 @@ import {
 import { haversineMeters } from '../../../../lib/geo/haversine';
 import { filterVisibleListings } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../lib/supabase/nest';
-import { formatMoney } from '../../../../lib/listings/format-attributes';
+import { formatMoney, formatSqft } from '../../../../lib/listings/format-attributes';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -67,55 +67,6 @@ const mapListings = rows
   localeSection="listings"
   nestId={locale.nest_id}
 >
-  <header class="compare-header">
-    <div class="compare-header__titles">
-      <div class="locale-hero__heading">
-        <h1 class="compare-header__title locale-hero__name">{locale.name}</h1>
-        <a
-          class="secondary icon-btn locale-hero__edit"
-          href={`${base}/edit`}
-          title="Edit Locale name, center, and radius"
-          aria-label="Edit Locale name, center, and radius"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 20h9"></path>
-            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-          </svg>
-        </a>
-        <p class="muted locale-hero__count">
-          {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
-        </p>
-      </div>
-      {centerLine && <p class="muted compare-header__sub">{centerLine}</p>}
-    </div>
-    <div class="compare-header__actions">
-      {
-        rows.length > 0 && (
-          <label class="listings-sort">
-            <span class="visually-hidden">Sort by</span>
-            <select id="listings-sort" data-listings-sort>
-              <option value="recent">Newest</option>
-              <option value="distance">Distance</option>
-              <option value="price">Lowest price</option>
-            </select>
-          </label>
-        )
-      }
-      <button
-        type="button"
-        class="button icon-btn compare-header__add"
-        data-listing-overlay-open="new"
-        aria-label="Add listing"
-        title="Add listing"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M12 5v14"></path>
-          <path d="M5 12h14"></path>
-        </svg>
-      </button>
-    </div>
-  </header>
-
   {
     localeNeedsSetup(locale) && (
       <p class="alert" role="alert">
@@ -135,17 +86,65 @@ const mapListings = rows
             </button>
           </div>
         ) : (
-          <div class="matrix-scroll">
+          <div class="matrix-panel">
+            <div class="matrix-panel__header">
+              <div class="matrix-panel__titles compare-header__titles">
+                <div class="locale-hero__heading">
+                  <h1 class="compare-header__title locale-hero__name">{locale.name}</h1>
+                  <a
+                    class="secondary icon-btn locale-hero__edit"
+                    href={`${base}/edit`}
+                    title="Edit Locale name, center, and radius"
+                    aria-label="Edit Locale name, center, and radius"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M12 20h9"></path>
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                  </a>
+                  <p class="muted locale-hero__count">
+                    {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
+                  </p>
+                </div>
+                {centerLine && <p class="muted compare-header__sub">{centerLine}</p>}
+              </div>
+              <div class="matrix-panel__actions compare-header__actions">
+                <label class="listings-sort">
+                  <span class="visually-hidden">Sort by</span>
+                  <select id="listings-sort" data-listings-sort>
+                    <option value="recent">Newest</option>
+                    <option value="distance">Distance</option>
+                    <option value="price">Lowest price</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  class="button icon-btn compare-header__add"
+                  data-listing-overlay-open="new"
+                  aria-label="Add listing"
+                  title="Add listing"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 5v14"></path>
+                    <path d="M5 12h14"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="matrix-scroll">
             <table
-              class="data matrix-table"
+              class="data matrix-table matrix-table--listings"
               id="listings-table"
-              style="--data-cols: 2"
+              style="--data-cols: 3"
             >
               <thead>
                 <tr>
-                  <th class="matrix-table__listing">Listing</th>
-                  <th>Distance</th>
-                  <th>Price / mo</th>
+                  <th class="matrix-table__listing">
+                    <span class="matrix-table__heading">Listing</span>
+                  </th>
+                  <th><span class="matrix-table__heading">Distance</span></th>
+                  <th><span class="matrix-table__heading">Sq ft</span></th>
+                  <th><span class="matrix-table__heading">Price / mo</span></th>
                 </tr>
               </thead>
               <tbody id="listings-list" data-listings-list>
@@ -164,6 +163,7 @@ const mapListings = rows
                       data-map-listing={listing.id}
                       data-sort-recent={String(Number.isFinite(created) ? created : 0)}
                       data-sort-distance={distanceM != null ? String(distanceM) : ''}
+                      data-sort-sqft={listing.sqft != null ? String(listing.sqft) : ''}
                       data-sort-price={price != null ? String(price) : ''}
                     >
                       <th scope="row" class="matrix-table__listing">
@@ -212,12 +212,14 @@ const mapListings = rows
                         </div>
                       </th>
                       <td>{distanceLabel}</td>
+                      <td>{formatSqft(listing.sqft)}</td>
                       <td>{formatMoney(price)}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+          </div>
           </div>
         )
       }
@@ -301,8 +303,4 @@ const mapListings = rows
   <script src="/scripts/listings-sort.js" type="module"></script>
   <script src="/scripts/listing-detail.js" type="module"></script>
   <script src="/scripts/listing-import.js" type="module"></script>
-  <script>
-    import { bindListingGalleries } from '../../../../client/listing-gallery';
-    bindListingGalleries();
-  </script>
 </AppLayout>

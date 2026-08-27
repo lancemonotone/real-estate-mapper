@@ -58,3 +58,15 @@ export function toTimeInputValue(raw: string | null | undefined): string {
   const m = minutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
+
+/** User-facing clock label, e.g. `2:30 PM`; null when unset/invalid. */
+export function formatAppointmentTime(raw: string | null | undefined): string | null {
+  const minutes = appointmentTimeToMinutes(raw ?? null);
+  if (minutes == null) return null;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}

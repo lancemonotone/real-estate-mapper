@@ -24,7 +24,12 @@ function initMatrixSort(table) {
   const tbody = table.tBodies[0];
   if (!tbody) return;
 
-  const headers = [...table.querySelectorAll('thead th[data-sort-type]')];
+  const panel = table.closest('.matrix-panel');
+  const headTable = panel?.querySelector('.matrix-table--head');
+  const headerRoot =
+    headTable instanceof HTMLTableElement ? headTable : table;
+
+  const headers = [...headerRoot.querySelectorAll('thead th[data-sort-type]')];
   headers.forEach((th, colIndex) => {
     const type = th.getAttribute('data-sort-type') || 'text';
     const btn = th.querySelector('.matrix-sort');
@@ -48,6 +53,27 @@ function initMatrixSort(table) {
   });
 }
 
+function syncMatrixPanelScroll(panel) {
+  const headScroll = panel.querySelector('.matrix-panel__head-table');
+  const bodyScroll = panel.querySelector('.matrix-scroll');
+  if (!(headScroll instanceof HTMLElement) || !(bodyScroll instanceof HTMLElement)) return;
+  if (headScroll.dataset.scrollSyncBound === '1') return;
+  headScroll.dataset.scrollSyncBound = '1';
+  bodyScroll.addEventListener(
+    'scroll',
+    () => {
+      headScroll.scrollLeft = bodyScroll.scrollLeft;
+    },
+    { passive: true },
+  );
+}
+
+function bootMatrixPanels() {
+  document.querySelectorAll('.matrix-panel').forEach((panel) => {
+    syncMatrixPanelScroll(panel);
+  });
+}
+
 function bootMatrixSort() {
   document.querySelectorAll('table.matrix-table[data-sortable]').forEach((table) => {
     if (!(table instanceof HTMLTableElement)) return;
@@ -57,5 +83,9 @@ function bootMatrixSort() {
   });
 }
 
+bootMatrixPanels();
 bootMatrixSort();
-document.addEventListener('astro:page-load', bootMatrixSort);
+document.addEventListener('astro:page-load', () => {
+  bootMatrixPanels();
+  bootMatrixSort();
+});

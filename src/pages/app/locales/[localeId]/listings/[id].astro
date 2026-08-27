@@ -12,6 +12,7 @@ import {
 } from '../../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../../lib/supabase/nest';
 import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import { formatAppointmentTime } from '../../../../../lib/tours/appointment-order';
 import { parseDateKey, toDateKey, weekDateKeys } from '../../../../../lib/tours/week';
 import {
   formatAmenities,
@@ -139,6 +140,9 @@ const listingTourSelected =
     : assignment?.tourDate ?? toDateKey(new Date());
 const listingTourWeekKeys = weekDateKeys(parseDateKey(listingTourSelected));
 const listingTourWeekLabel = `${formatShortTourDate(listingTourWeekKeys[0]!)} → ${formatShortTourDate(listingTourWeekKeys[6]!)}`;
+const assignmentTourTimeLabel = assignment?.appointmentTime
+  ? formatAppointmentTime(assignment.appointmentTime)
+  : null;
 
 const selectedListingTour = (localeTours ?? []).find((t) => t.tour_date === listingTourSelected);
 let selectedDayStopLabels: string[] = [];
@@ -271,6 +275,7 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
               On tour{' '}
               <a href={`${base}/tours/${assignment.tourDayId}`}>
                 {formatTourDate(assignment.tourDate)}
+                {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}
               </a>
             </>
           ) : (
@@ -354,55 +359,75 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
       }
 
       <div class="listing-hero__travel prox-saved">
-        <header class="listing-section__header">
-          <h2 class="listing-section__title">Travel Times</h2>
-          <button type="button" class="button" data-listing-overlay-open="place">
-            Add place
-          </button>
-        </header>
         {
           compareRows.length === 0 && (listingPlaces ?? []).length === 0 ? (
-            <p class="muted" id="listing-places-empty">
-              None yet — add a place.
-            </p>
-          ) : (
             <>
-              <ul class="matrix-type-legend" aria-label="Place scope">
-                <li>
-                  <span class="matrix-type__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path d="M4 6h16"></path>
-                      <path d="M4 12h16"></path>
-                      <path d="M4 18h10"></path>
-                      <path d="M16 16l2 2 4-4"></path>
+              <h2 class="listing-section__title">Travel Times</h2>
+              <p class="muted" id="listing-places-empty">
+              None yet —{' '}
+              <button type="button" class="linkish" data-listing-overlay-open="place">
+                add a place
+              </button>
+              .
+            </p>
+            </>
+          ) : (
+            <div class="matrix-panel">
+              <div class="matrix-panel__header">
+                <div class="matrix-panel__titles">
+                  <h2 class="listing-section__title compare-header__title">Travel Times</h2>
+                  <ul class="matrix-type-legend" aria-label="Place scope">
+                    <li>
+                      <span class="matrix-type__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                          <path d="M4 6h16"></path>
+                          <path d="M4 12h16"></path>
+                          <path d="M4 18h10"></path>
+                          <path d="M16 16l2 2 4-4"></path>
+                        </svg>
+                      </span>
+                      On Travel Times
+                    </li>
+                    <li>
+                      <span class="matrix-type__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                          <path d="M3 10.5L12 3l9 7.5"></path>
+                          <path d="M5 9.5V21h14V9.5"></path>
+                          <path d="M10 21v-6h4v6"></path>
+                        </svg>
+                      </span>
+                      Listing only
+                    </li>
+                  </ul>
+                </div>
+                <div class="matrix-panel__actions compare-header__actions">
+                  <button
+                    type="button"
+                    class="button icon-btn compare-header__add"
+                    data-listing-overlay-open="place"
+                    aria-label="Add place"
+                    title="Add place"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M12 5v14"></path>
+                      <path d="M5 12h14"></path>
                     </svg>
-                  </span>
-                  On Travel Times
-                </li>
-                <li>
-                  <span class="matrix-type__icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                      <path d="M3 10.5L12 3l9 7.5"></path>
-                      <path d="M5 9.5V21h14V9.5"></path>
-                      <path d="M10 21v-6h4v6"></path>
-                    </svg>
-                  </span>
-                  Listing only
-                </li>
-              </ul>
+                  </button>
+                </div>
+              </div>
               <div class="matrix-scroll">
               <table class="data matrix-table matrix-table--fit" aria-label="Travel Times">
                 <tbody id="listing-places-list">
                   {compareRows.map((row) => {
                     const placeId = row.result?.place_id ?? '';
-                    const timeLabel =
+                    const placeName =
+                      row.result?.status === 'ok' ? row.result.place_name ?? '' : '';
+                    const metaLabel =
                       row.result?.status === 'ok'
-                        ? [
-                            row.result.place_name,
-                            formatListingMeta(row.result.duration_sec, row.result.distance_m),
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')
+                        ? formatListingMeta(
+                            row.result.duration_sec,
+                            row.result.distance_m,
+                          )
                         : row.result
                           ? row.result.status
                           : 'Pending…';
@@ -425,7 +450,7 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
                         data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
                         data-travel-mode={row.travelMode}
                       >
-                        <th scope="row" class="matrix-table__listing">
+                        <th scope="row" class="matrix-table__place">
                           {row.result ? (
                             <span class="seeded" hidden>
                               {JSON.stringify(row.result)}
@@ -450,12 +475,14 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
                                 </span>
                               )}
                             </span>
-                            <span class="matrix-listing__text">
-                              <span class="matrix-listing__name">{row.label}</span>
-                            </span>
+                            <div class="cell-ok__place">
+                              <span class="matrix-listing__label">{row.label}</span>
+                              <div class="cell-ok__name">{placeName}</div>
+                              <div class="cell-ok__meta prox-cell-meta">{metaLabel}</div>
+                            </div>
+                            <div class="cell-actions" data-cell-actions></div>
                           </div>
                         </th>
-                        <td class="prox-cell-meta">{timeLabel}</td>
                         <td class="matrix-type">
                           <span
                             class="matrix-type__icon"
@@ -470,7 +497,6 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
                             </svg>
                           </span>
                         </td>
-                        <td class="listing-matrix-actions" data-cell-actions></td>
                       </tr>
                     );
                   })}
@@ -488,7 +514,7 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
                       data-distance-m={p.distance_m != null ? String(p.distance_m) : ''}
                       data-maps-url={p.maps_url ?? ''}
                     >
-                      <th scope="row" class="matrix-table__listing">
+                      <th scope="row" class="matrix-table__place">
                         <div class="matrix-listing">
                           <span class="matrix-listing__media" data-prox-thumb>
                             {p.place_id ? (
@@ -508,16 +534,17 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
                               </span>
                             )}
                           </span>
-                          <span class="matrix-listing__text">
-                            <span class="matrix-listing__name">{p.name}</span>
-                          </span>
+                          <div class="cell-ok__place">
+                            <div class="cell-ok__name">{p.name}</div>
+                            <div class="cell-ok__meta prox-cell-meta">
+                              {[formatListingMeta(p.duration_sec, p.distance_m), p.travel_mode]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </div>
+                          </div>
+                          <div class="cell-actions" data-cell-actions></div>
                         </div>
                       </th>
-                      <td class="prox-cell-meta">
-                        {[formatListingMeta(p.duration_sec, p.distance_m), p.travel_mode]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </td>
                       <td class="matrix-type">
                         <span
                           class="matrix-type__icon"
@@ -531,13 +558,12 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
                           </svg>
                         </span>
                       </td>
-                      <td class="listing-matrix-actions" data-listing-place-actions></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            </>
+            </div>
           )
         }
       </div>
@@ -883,48 +909,6 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
   </div>
 
   {hasLocation && <script src="/scripts/listing-map.js" type="module"></script>}
-  <script>
-    import {
-      bindListingGalleries,
-    } from '../../../../../client/listing-gallery';
-
-    bindListingGalleries();
-
-    const root = document.querySelector('[data-hero-gallery]');
-    if (root instanceof HTMLElement) {
-      const trigger = root.querySelector('[data-listing-gallery]');
-      const raw = trigger?.getAttribute('data-photo-urls') || '[]';
-      let urls: string[] = [];
-      try {
-        const parsed = JSON.parse(raw);
-        urls = Array.isArray(parsed) ? parsed.filter((u) => typeof u === 'string') : [];
-      } catch {
-        urls = [];
-      }
-      let index = 0;
-      const img = root.querySelector('[data-hero-gallery-img]');
-      const count = root.querySelector('[data-hero-gallery-count]');
-      function render() {
-        if (img instanceof HTMLImageElement && urls[index]) img.src = urls[index];
-        if (count) count.textContent = `${index + 1} / ${urls.length}`;
-        if (trigger instanceof HTMLElement) {
-          trigger.setAttribute('data-photo-index', String(index));
-        }
-      }
-      root.querySelector('[data-hero-gallery-prev]')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (urls.length === 0) return;
-        index = (index - 1 + urls.length) % urls.length;
-        render();
-      });
-      root.querySelector('[data-hero-gallery-next]')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (urls.length === 0) return;
-        index = (index + 1) % urls.length;
-        render();
-      });
-    }
-  </script>
   <script
     define:vars={{
       listingId: listing.id,
