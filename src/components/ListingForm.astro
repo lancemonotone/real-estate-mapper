@@ -1,6 +1,7 @@
 ---
 import type { Listing } from '../lib/types/database';
 import { listingBadges } from '../lib/listings/badges';
+import PlanNotice from './PlanNotice.astro';
 import {
   resolveListingTourDateInput,
   resolveListingTourTimeInput,
@@ -15,6 +16,8 @@ interface Props {
   autosave?: boolean;
   /** Shown in the Photos fieldset when plan limits visible photos. */
   photoPlanNote?: string | null;
+  planIsOwner?: boolean;
+  planOwnerDisplayName?: string | null;
 }
 
 const {
@@ -25,6 +28,8 @@ const {
   localeId,
   autosave = false,
   photoPlanNote = null,
+  planIsOwner = true,
+  planOwnerDisplayName = null,
 } = Astro.props;
 const tourDateValue = resolveListingTourDateInput(
   tourAssignment,
@@ -80,9 +85,13 @@ const initialPhotoUrls =
     <legend>Photos</legend>
     {
       photoPlanNote && (
-        <p class="listing-form__photo-plan-note muted" role="status">
-          {photoPlanNote}
-        </p>
+        <PlanNotice
+          variant="inline"
+          isOwner={planIsOwner}
+          ownerDisplayName={planOwnerDisplayName}
+        >
+          <p class="plan-notice__text">{photoPlanNote}</p>
+        </PlanNotice>
       )
     }
     <p class="muted listing-form__gallery-hint">

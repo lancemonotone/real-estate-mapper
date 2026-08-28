@@ -3,6 +3,7 @@ import AppLayout from '../../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../../components/DirectionsOverlay.astro';
 import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import ListingForm from '../../../../../components/ListingForm.astro';
+import PlanNotice from '../../../../../components/PlanNotice.astro';
 import PlaceTypePicker from '../../../../../components/PlaceTypePicker.astro';
 import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/listing-map.css';
@@ -10,6 +11,8 @@ import {
   applyListingPhotoVisibility,
   buildTourCalendarContext,
   isListingVisible,
+  loadNestEntitlementUi,
+  PLAN_MESSAGES,
   resolveTourDrop,
   tourCalendarClientConfig,
 } from '../../../../../lib/nest/entitlements';
@@ -31,6 +34,8 @@ const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeI
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
+const user = Astro.locals.user!;
+const entitlementUi = await loadNestEntitlementUi(supabase, locale.nest_id, user.id);
 
 const { data: listingRaw } = await supabase.from('listings').select('*').eq('id', id!).single();
 if (!listingRaw || listingRaw.locale_id !== locale.id) {
@@ -210,9 +215,9 @@ const hiddenPhotoCount = isFreePlan
   : 0;
 const photoPlanNote =
   isFreePlan && hiddenPhotoCount > 0
-    ? `Free plan shows 1 photo on listings. ${hiddenPhotoCount} more saved here. Upgrade Hunt Pass for the full gallery.`
+    ? PLAN_MESSAGES.photoPlanNoteWithHidden(hiddenPhotoCount)
     : isFreePlan
-      ? 'Free plan shows 1 photo per listing. You can save more; extra photos stay hidden until you upgrade.'
+      ? PLAN_MESSAGES.photoPlanNoteDefault
       : null;
 const base = `/app/locales/${locale.id}`;
 const listingTitle = listing.name || 'Listing';
@@ -292,6 +297,7 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
   locale={{ id: locale.id, name: locale.name }}
   localeSection="listings"
   nestId={locale.nest_id}
+  entitlementUi={entitlementUi}
 >
   <div class="locale-hero__heading">
     <div class="locale-hero__title">
@@ -322,9 +328,8 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
                 assignment.hiddenOnPlan ? (
                   <span>
                     {formatTourDate(assignment.tourDate)}
-                    {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}
-                    {' '}
-                    <span class="muted">(hidden on Free)</span>
+                    {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}{' '}
+                    <PlanNotice variant="chip">{PLAN_MESSAGES.tourOnHiddenDate}</PlanNotice>
                   </span>
                 ) : (
                   <a href={`${base}/tours/${assignment.tourDayId}`}>
@@ -637,11 +642,17 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
                 alt=""
               />
               {
-                hiddenPhotoCount > 0 && (
-                  <p class="listing-hero__photo-notice muted" role="status">
-                    {hiddenPhotoCount} more photo{hiddenPhotoCount === 1 ? '' : 's'} saved on
-                    Free. Upgrade Hunt Pass to show the gallery.
-                  </p>
+                hiddenPhotoCount > 0 && entitlementUi && (
+                  <PlanNotice
+                    variant="inline"
+                    isOwner={entitlementUi.isOwner}
+                    ownerDisplayName={entitlementUi.ownerDisplayName}
+                    showActions={true}
+                  >
+                    <p class="plan-notice__text">
+                      {PLAN_MESSAGES.photoHiddenOnListing(hiddenPhotoCount)}
+                    </p>
+                  </PlanNotice>
                 )
               }
             </div>
@@ -756,6 +767,8 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
           localeId={locale.id}
           autosave
           photoPlanNote={photoPlanNote}
+          planIsOwner={entitlementUi?.isOwner ?? true}
+          planOwnerDisplayName={entitlementUi?.ownerDisplayName ?? null}
         />
       </div>
     </div>
@@ -863,10 +876,21 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
             }
           </button>
           {
-            listingTourAddBlocked && (
-              <p class="muted" role="status">
-                {listingTourAddBlocked}
-              </p>
+            listingTourAddBlocked && entitlementUi && (
+              <PlanNotice variant="inline" showActions={false}>
+                <p class="plan-notice__text">{listingTourAddBlocked}</p>
+              </PlanNotice>
+            )
+          }
+          {
+            !listingTourCal.canAddNewTourDay && snapshot.plan === 'free' && entitlementUi && (
+              <PlanNotice
+                variant="inline"
+                isOwner={entitlementUi.isOwner}
+                ownerDisplayName={entitlementUi.ownerDisplayName}
+              >
+                <p class="plan-notice__text">{PLAN_MESSAGES.tourDayCapAmbient('free')}</p>
+              </PlanNotice>
             )
           }
           <p class="alert" id="listing-tour-status" hidden role="alert"></p>

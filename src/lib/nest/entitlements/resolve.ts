@@ -6,6 +6,7 @@ import {
   type EntitlementGate,
   type EntitlementPlan,
 } from './constants';
+import { PLAN_MESSAGES } from './messages';
 import type {
   EntitlementAllow,
   EntitlementDenial,
@@ -171,24 +172,16 @@ export function checkEntitlementGate(
   switch (gate) {
     case 'add_listing': {
       if (context?.localeId && !snapshot.visibleLocaleIds.has(context.localeId)) {
-        return deny('This Locale is hidden on the Free plan. Renew Hunt Pass to access it.');
+        return deny(PLAN_MESSAGES.localeHidden);
       }
       if (snapshot.activeListingCount >= limits.listings) {
-        return deny(
-          snapshot.plan === 'free'
-            ? 'Free plan allows up to 12 listings. Upgrade to Hunt Pass to add more.'
-            : 'Listing limit reached for this Nest. Delete listings or contact support.',
-        );
+        return deny(PLAN_MESSAGES.listingCap(snapshot.plan));
       }
       return { ok: true };
     }
     case 'create_locale': {
       if (snapshot.localeCount >= limits.locales) {
-        return deny(
-          snapshot.plan === 'free'
-            ? 'Free plan allows 1 Locale. Upgrade to Hunt Pass for more.'
-            : 'Locale limit reached for this Nest.',
-        );
+        return deny(PLAN_MESSAGES.localeCap(snapshot.plan));
       }
       return { ok: true };
     }
@@ -197,32 +190,24 @@ export function checkEntitlementGate(
       if (targetStops > 0) return { ok: true };
       const cap = limits.tourDaysWithStops;
       if (cap !== null && snapshot.tourDaysWithStopsCount >= cap) {
-        return deny(
-          snapshot.plan === 'free'
-            ? 'Free plan allows up to 3 tour days. Upgrade to Hunt Pass for more.'
-            : 'Tour day limit reached for this Nest.',
-        );
+        return deny(PLAN_MESSAGES.tourDayCap(snapshot.plan));
       }
       return { ok: true };
     }
     case 'proximity_compute': {
       if (snapshot.plan === 'pro') return { ok: true };
       if (snapshot.proximityDemoAvailable) return { ok: true };
-      return deny(
-        'Free plan includes one proximity demo. Upgrade to Hunt Pass for full proximity compare.',
-      );
+      return deny(PLAN_MESSAGES.proximityDemoCompute);
     }
     case 'proximity_refresh': {
       if (snapshot.plan === 'pro') {
         if (snapshot.proximityRefreshRemaining <= 0) {
-          return deny('Proximity refresh limit reached for this Hunt Pass. Contact support.');
+          return deny(PLAN_MESSAGES.proximityRefreshCap);
         }
         return { ok: true };
       }
       if (snapshot.proximityDemoAvailable) return { ok: true };
-      return deny(
-        'Free plan includes one proximity demo. Upgrade to Hunt Pass for proximity refreshes.',
-      );
+      return deny(PLAN_MESSAGES.proximityDemoRefresh);
     }
     case 'add_photo': {
       const count = context?.photoCount ?? 0;
@@ -231,11 +216,7 @@ export function checkEntitlementGate(
           ? limits.photosStoredPerListing
           : limits.photosPerListing;
       if (count <= storedCap) return { ok: true };
-      return deny(
-        snapshot.plan === 'free'
-          ? `Free plan saves up to ${storedCap} photos per listing. Upgrade to Hunt Pass for the full gallery.`
-          : 'Photo limit reached for this listing.',
-      );
+      return deny(PLAN_MESSAGES.photoStoredCap(storedCap, snapshot.plan));
     }
     default: {
       const _exhaustive: never = gate;

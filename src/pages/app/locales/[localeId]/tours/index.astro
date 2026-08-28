@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
+import PlanNotice from '../../../../../components/PlanNotice.astro';
 import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/locale-map.css';
 import { milesToMeters, nearestAllowedRadiusMiles } from '../../../../../lib/geo/locale-radius';
@@ -9,6 +10,8 @@ import {
   filterListingStops,
   filterVisibleListings,
   filterVisibleTourDays,
+  loadNestEntitlementUi,
+  PLAN_MESSAGES,
   tourCalendarClientConfig,
 } from '../../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../../lib/supabase/nest';
@@ -31,6 +34,8 @@ const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeI
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
+const user = Astro.locals.user!;
+const entitlementUi = await loadNestEntitlementUi(supabase, locale.nest_id, user.id);
 
 const base = `/app/locales/${locale.id}`;
 const toursBase = `${base}/tours`;
@@ -210,6 +215,7 @@ const seed = {
   locale={{ id: locale.id, name: locale.name }}
   localeSection="tours"
   nestId={locale.nest_id}
+  entitlementUi={entitlementUi}
 >
   <header class="compare-header">
     <div class="compare-header__titles">
@@ -351,13 +357,28 @@ const seed = {
         dropBlocked={dropBlocked}
       />
       {
-        !tourCal.canAddNewTourDay && snapshot.plan === 'free' && (
-          <p class="tours-workspace__cap-note muted" role="status">
-            Free plan allows 3 tour days. Empty dates cannot accept new tours until you
-            upgrade Hunt Pass or remove stops from a day.
-          </p>
+        !tourCal.canAddNewTourDay && snapshot.plan === 'free' && entitlementUi && (
+          <PlanNotice
+            variant="inline"
+            isOwner={entitlementUi.isOwner}
+            ownerDisplayName={entitlementUi.ownerDisplayName}
+          >
+            <p class="plan-notice__text">
+              {PLAN_MESSAGES.tourDayCapAmbient('free')}
+            </p>
+          </PlanNotice>
         )
       }
+
+      <div
+        id="tours-drop-hint"
+        class="plan-notice plan-notice--inline tour-week__drop-hint"
+        role="status"
+        aria-live="polite"
+        hidden
+      >
+        <p class="plan-notice__text" data-tours-drop-hint-text></p>
+      </div>
 
       <section class="tours-workspace__day" data-tours-day-panel>
         {
@@ -546,25 +567,28 @@ const seed = {
               ) : null}
             </>
           ) : selectedHiddenTour ? (
-            <div class="stack tours-workspace__hidden-day">
-              <h2 class="tours-workspace__day-title">
-                {formatTourDate(selectedHiddenTour.tour_date)}
-              </h2>
-              <p class="muted" role="status">
-                This tour day is hidden on the Free plan. It has{' '}
-                {selectedHiddenStopCount} stop{selectedHiddenStopCount === 1 ? '' : 's'} saved.
-                Upgrade Hunt Pass to view and edit the route.
+            <PlanNotice
+              variant="inline"
+              isOwner={entitlementUi?.isOwner ?? true}
+              ownerDisplayName={entitlementUi?.ownerDisplayName ?? null}
+            >
+              <p class="plan-notice__text">
+                {PLAN_MESSAGES.tourDayHiddenPanel(selectedHiddenStopCount)}
               </p>
-              <a class="button" href="/app/upgrade">Upgrade Hunt Pass</a>
-            </div>
+            </PlanNotice>
           ) : selectedDate ? (
-            <p class="muted" role="status">
-              {
-                !tourCal.canAddNewTourDay
-                  ? `Free plan allows 3 tour days. You cannot create a new tour on ${formatTourDate(selectedDate)} until you upgrade or remove stops from another day.`
-                  : `No tour on ${formatTourDate(selectedDate)}. Drop listings onto this date to create one.`
-              }
-            </p>
+            <PlanNotice variant="inline" showActions={false}>
+              <p class="plan-notice__text">
+                {
+                  !tourCal.canAddNewTourDay
+                    ? PLAN_MESSAGES.tourDayCapEmptyDate(
+                        formatTourDate(selectedDate),
+                        snapshot.plan,
+                      )
+                    : `No tour on ${formatTourDate(selectedDate)}. Drop listings onto this date to create one.`
+                }
+              </p>
+            </PlanNotice>
           ) : (
             <p class="muted">Select a day on the calendar, or drop a listing onto a date.</p>
           )

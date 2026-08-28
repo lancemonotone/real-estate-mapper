@@ -1,6 +1,6 @@
 import { PLAN_LIMITS } from './constants';
+import { PLAN_MESSAGES } from './messages';
 import type { NestEntitlementSnapshot } from './types';
-
 export type TourCalendarDayRow = { id: string; tour_date: string };
 export type TourCalendarStopRow = { tour_day_id: string; listing_id: string };
 
@@ -36,14 +36,8 @@ export function buildTourCalendarContext(
   const cap = PLAN_LIMITS[snapshot.plan].tourDaysWithStops;
   const canAddNewTourDay = cap === null || snapshot.tourDaysWithStopsCount < cap;
 
-  const capMessage =
-    snapshot.plan === 'free'
-      ? 'Free plan allows up to 3 tour days. Upgrade Hunt Pass to add another day.'
-      : 'Tour day limit reached for this Nest.';
-
-  const hiddenMessage =
-    'This tour day is hidden on the Free plan. Upgrade Hunt Pass to schedule here.';
-
+  const capMessage = PLAN_MESSAGES.tourDayCap(snapshot.plan);
+  const hiddenMessage = PLAN_MESSAGES.tourDayHiddenDrop;
   const stopCountByDayId = new Map<string, number>();
   const listingsByDayId = new Map<string, Set<string>>();
   for (const stop of stops) {

@@ -1,4 +1,6 @@
 ---
+import PlanNotice from './PlanNotice.astro';
+import { PLAN_MESSAGES } from '../lib/nest/entitlements/messages';
 import type { NestEntitlementUi } from '../lib/nest/entitlements/ui-context';
 
 interface Props {
@@ -30,35 +32,30 @@ const showBanner = showHiddenBanner || ui.showExpiryNag;
 
 {
   showBanner && (
-    <div class="nest-entitlement-banner" role="status">
-      <div class="nest-entitlement-banner__content">
-        {showHiddenBanner && (
-          <p class="nest-entitlement-banner__text">
-            {hiddenParts.join(', ')} hidden on the Free plan. Renew Hunt Pass to see
-            everything.
+    <PlanNotice
+      variant="banner"
+      isOwner={ui.isOwner}
+      ownerDisplayName={ui.ownerDisplayName}
+      class="nest-entitlement-banner"
+    >
+      {
+        showHiddenBanner && (
+          <p class="plan-notice__text">
+            {PLAN_MESSAGES.hiddenContentSummary(hiddenParts.join(', '))}
           </p>
-        )}
-        {ui.showExpiryNag && ui.daysUntilExpiry !== null && (
-          <p class="nest-entitlement-banner__text">
+        )
+      }
+      {
+        ui.showExpiryNag && ui.daysUntilExpiry !== null && (
+          <p class="plan-notice__text">
             {
               ui.daysUntilExpiry === 0
-                ? 'Your Hunt Pass ends today.'
-                : `Your Hunt Pass ends in ${ui.daysUntilExpiry} day${ui.daysUntilExpiry === 1 ? '' : 's'}.`
+                ? PLAN_MESSAGES.passExpiresToday
+                : PLAN_MESSAGES.passExpiresIn(ui.daysUntilExpiry)
             }
           </p>
-        )}
-      </div>
-      <div class="nest-entitlement-banner__actions">
-        {
-          ui.isOwner ? (
-            <a class="button" href="/app/upgrade">Upgrade Hunt Pass</a>
-          ) : (
-            <p class="muted nest-entitlement-banner__member">
-              Ask {ui.ownerDisplayName ?? 'the Nest owner'} to upgrade Hunt Pass.
-            </p>
-          )
-        }
-      </div>
-    </div>
+        )
+      }
+    </PlanNotice>
   )
 }

@@ -1,0 +1,57 @@
+---
+interface Props {
+  variant?: 'banner' | 'inline' | 'status' | 'chip';
+  isOwner?: boolean;
+  ownerDisplayName?: string | null;
+  /** When false, omit upgrade / ask-owner actions. Default true for banner and inline. */
+  showActions?: boolean;
+  id?: string;
+  role?: 'status' | 'alert';
+  class?: string;
+}
+
+const {
+  variant = 'inline',
+  isOwner = true,
+  ownerDisplayName = null,
+  showActions = variant === 'banner' || variant === 'inline',
+  id,
+  role = variant === 'status' ? 'alert' : 'status',
+  class: className,
+} = Astro.props;
+---
+
+{
+  variant === 'chip' ? (
+    <span class:list={['plan-notice', 'plan-notice--chip', className]}>
+      <slot />
+    </span>
+  ) : (
+    <div
+      class:list={['plan-notice', `plan-notice--${variant}`, className]}
+      role={role}
+      id={id}
+    >
+      <div class="plan-notice__content">
+        <slot />
+      </div>
+      {
+        showActions && (
+          <div class="plan-notice__actions">
+            {
+              isOwner ? (
+                <a class="button" href="/app/upgrade">
+                  Upgrade Hunt Pass
+                </a>
+              ) : (
+                <p class="muted plan-notice__member">
+                  Ask {ownerDisplayName ?? 'the Nest owner'} to upgrade Hunt Pass.
+                </p>
+              )
+            }
+          </div>
+        )
+      }
+    </div>
+  )
+}

@@ -18,6 +18,33 @@ function showStatus(message, isError = true) {
   el.textContent = message || '';
   el.classList.toggle('alert--error', Boolean(message) && isError);
   el.classList.toggle('is-empty', !message);
+  el.classList.toggle('is-plan-limit', Boolean(message) && isError);
+}
+
+function dropHintEl() {
+  return document.getElementById('tours-drop-hint');
+}
+
+function showDropHint(message, cell) {
+  const hint = dropHintEl();
+  const text = hint?.querySelector('[data-tours-drop-hint-text]');
+  if (!(hint instanceof HTMLElement) || !(text instanceof HTMLElement) || !(cell instanceof HTMLElement)) {
+    return;
+  }
+  text.textContent = message;
+  hint.hidden = false;
+  hint.classList.add('is-visible');
+  const rect = cell.getBoundingClientRect();
+  hint.style.left = `${rect.left + rect.width / 2}px`;
+  hint.style.top = `${rect.bottom + 8}px`;
+  hint.style.transform = 'translateX(-50%) translateY(0)';
+}
+
+function hideDropHint() {
+  const hint = dropHintEl();
+  if (!(hint instanceof HTMLElement)) return;
+  hint.hidden = true;
+  hint.classList.remove('is-visible');
 }
 
 function openOverlay(id) {
@@ -321,8 +348,10 @@ function bindDropTargets(root, signal) {
         if (!decision.ok) {
           cell.classList.add('is-drop-forbidden');
           if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+          showDropHint(decision.message, cell);
           return;
         }
+        hideDropHint();
         cell.classList.add('is-drop-target');
         if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
       },
@@ -332,6 +361,7 @@ function bindDropTargets(root, signal) {
       'dragleave',
       () => {
         cell.classList.remove('is-drop-target', 'is-drop-forbidden');
+        hideDropHint();
       },
       { signal },
     );
@@ -340,6 +370,7 @@ function bindDropTargets(root, signal) {
       (event) => {
         event.preventDefault();
         cell.classList.remove('is-drop-target', 'is-drop-forbidden');
+        hideDropHint();
         const tourDate = cell.getAttribute('data-tour-date');
         if (!tourDate) return;
         const payload = parseDragPayload(event);
@@ -505,6 +536,12 @@ async function boot() {
   const cfg = seed();
   const root = document.querySelector('[data-tours-workspace]');
   if (!cfg || !root) return;
+
+  const dropHint = dropHintEl();
+  if (dropHint instanceof HTMLElement && dropHint.parentElement !== document.body) {
+    document.body.appendChild(dropHint);
+  }
+  document.addEventListener('dragend', hideDropHint, { signal });
 
   if (cfg.needsAutoroute && cfg.selectedTourId) {
     // v2: prior guard was set before optimize succeeded, leaving days stuck when

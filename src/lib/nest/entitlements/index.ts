@@ -6,6 +6,7 @@ export {
   type EntitlementGate,
   type EntitlementPlan,
 } from './constants';
+export { PLAN_MESSAGES } from './messages';
 export {
   assertNestEntitlement,
   incrementProximityRefreshUsed,
