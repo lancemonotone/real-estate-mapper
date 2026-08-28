@@ -8,7 +8,10 @@ import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/listing-map.css';
 import {
   applyListingPhotoVisibility,
+  buildTourCalendarContext,
   isListingVisible,
+  resolveTourDrop,
+  tourCalendarClientConfig,
 } from '../../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../../lib/supabase/nest';
 import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
@@ -89,27 +92,44 @@ const localeTours = (localeToursRaw ?? []).filter((day) =>
   snapshot.visibleTourDayIds.has(day.id),
 );
 
+const allLocaleTourIds = (localeToursRaw ?? []).map((t) => t.id);
+const { data: allLocaleStopsForCal } =
+  allLocaleTourIds.length > 0
+    ? await supabase
+        .from('tour_stops')
+        .select('tour_day_id, listing_id')
+        .in('tour_day_id', allLocaleTourIds)
+    : { data: [] as { tour_day_id: string; listing_id: string }[] };
+
+const listingTourCal = buildTourCalendarContext(
+  snapshot,
+  (localeToursRaw ?? []).map((day) => ({ id: day.id, tour_date: day.tour_date })),
+  allLocaleStopsForCal ?? [],
+);
+
 const tourIds = (localeTours ?? []).map((t) => t.id);
 let assignment: {
   tourDayId: string;
   tourDate: string;
   appointmentTime: string | null;
+  hiddenOnPlan: boolean;
 } | null = null;
-if (tourIds.length > 0) {
+if (allLocaleTourIds.length > 0) {
   const { data: stop } = await supabase
     .from('tour_stops')
     .select('tour_day_id, appointment_time')
     .eq('listing_id', listing.id)
-    .in('tour_day_id', tourIds)
+    .in('tour_day_id', allLocaleTourIds)
     .limit(1)
     .maybeSingle();
   if (stop) {
-    const day = (localeTours ?? []).find((t) => t.id === stop.tour_day_id);
+    const day = (localeToursRaw ?? []).find((t) => t.id === stop.tour_day_id);
     if (day) {
       assignment = {
         tourDayId: day.id,
         tourDate: day.tour_date,
         appointmentTime: (stop.appointment_time as string | null) ?? null,
+        hiddenOnPlan: !snapshot.visibleTourDayIds.has(day.id),
       };
     }
   }
@@ -132,12 +152,21 @@ for (const tour of localeTours ?? []) {
     stopCount: stopCountByDay.get(tour.id) ?? 0,
   };
 }
+const listingTourDropBlocked = Object.fromEntries(
+  Object.entries(listingTourCal.dropBlockedByDate).map(([date, block]) => [
+    date,
+    block.reason,
+  ]),
+) as Record<string, 'cap' | 'hidden'>;
 
 const listingTourDayParam = Astro.url.searchParams.get('tourDay');
 const listingTourSelected =
   listingTourDayParam && /^\d{4}-\d{2}-\d{2}$/.test(listingTourDayParam)
     ? listingTourDayParam
     : assignment?.tourDate ?? toDateKey(new Date());
+const listingTourAddDecision = resolveTourDrop(listingTourCal, listingTourSelected);
+const listingTourAddBlocked =
+  listingTourAddDecision.ok === false ? listingTourAddDecision.message : null;
 const listingTourWeekKeys = weekDateKeys(parseDateKey(listingTourSelected));
 const listingTourWeekLabel = `${formatShortTourDate(listingTourWeekKeys[0]!)} → ${formatShortTourDate(listingTourWeekKeys[6]!)}`;
 const assignmentTourTimeLabel = assignment?.appointmentTime
@@ -169,6 +198,22 @@ const photoUrls =
       ? [photoUrl]
       : [];
 const photoUrlsJson = JSON.stringify(photoUrls);
+const isFreePlan = snapshot.plan === 'free';
+const storedPhotoUrls =
+  listingRaw.photo_urls && listingRaw.photo_urls.length > 0
+    ? listingRaw.photo_urls
+    : listingRaw.photo_url
+      ? [listingRaw.photo_url]
+      : [];
+const hiddenPhotoCount = isFreePlan
+  ? Math.max(0, storedPhotoUrls.length - photoUrls.length)
+  : 0;
+const photoPlanNote =
+  isFreePlan && hiddenPhotoCount > 0
+    ? `Free plan shows 1 photo on listings. ${hiddenPhotoCount} more saved here. Upgrade Hunt Pass for the full gallery.`
+    : isFreePlan
+      ? 'Free plan shows 1 photo per listing. You can save more; extra photos stay hidden until you upgrade.'
+      : null;
 const base = `/app/locales/${locale.id}`;
 const listingTitle = listing.name || 'Listing';
 
@@ -273,10 +318,21 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
           assignment ? (
             <>
               On tour{' '}
-              <a href={`${base}/tours/${assignment.tourDayId}`}>
-                {formatTourDate(assignment.tourDate)}
-                {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}
-              </a>
+              {
+                assignment.hiddenOnPlan ? (
+                  <span>
+                    {formatTourDate(assignment.tourDate)}
+                    {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}
+                    {' '}
+                    <span class="muted">(hidden on Free)</span>
+                  </span>
+                ) : (
+                  <a href={`${base}/tours/${assignment.tourDayId}`}>
+                    {formatTourDate(assignment.tourDate)}
+                    {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}
+                  </a>
+                )
+              }
             </>
           ) : (
             <span class="muted">Not on a tour</span>
@@ -573,54 +629,72 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
     <div class="listing-hero__visual stack">
       {
         photoUrls.length > 0 ? (
-          <div class="listing-hero__gallery" data-hero-gallery>
-            <button
-              type="button"
-              class="listing-hero__photo-btn"
-              data-listing-gallery
-              data-photo-urls={photoUrlsJson}
-              data-photo-index="0"
-              aria-label="Open photo gallery"
-            >
+          isFreePlan ? (
+            <div class="listing-hero__gallery">
               <img
                 class="listing-hero__photo"
                 src={photoUrls[0]}
                 alt=""
-                data-hero-gallery-img
               />
-            </button>
-            {
-              photoUrls.length > 1 && (
-                <div class="listing-hero__gallery-nav">
-                  <button
-                    type="button"
-                    class="secondary icon-btn"
-                    data-hero-gallery-prev
-                    aria-label="Previous photo"
-                    title="Previous photo"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M15 6l-6 6 6 6"></path>
-                    </svg>
-                  </button>
-                  <span class="muted" data-hero-gallery-count>
-                    1 / {photoUrls.length}
-                  </span>
-                  <button
-                    type="button"
-                    class="secondary icon-btn"
-                    data-hero-gallery-next
-                    aria-label="Next photo"
-                    title="Next photo"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M9 6l6 6-6 6"></path>
-                    </svg>
-                  </button>
-                </div>
-              )
-            }
-          </div>
+              {
+                hiddenPhotoCount > 0 && (
+                  <p class="listing-hero__photo-notice muted" role="status">
+                    {hiddenPhotoCount} more photo{hiddenPhotoCount === 1 ? '' : 's'} saved on
+                    Free. Upgrade Hunt Pass to show the gallery.
+                  </p>
+                )
+              }
+            </div>
+          ) : (
+            <div class="listing-hero__gallery" data-hero-gallery>
+              <button
+                type="button"
+                class="listing-hero__photo-btn"
+                data-listing-gallery
+                data-photo-urls={photoUrlsJson}
+                data-photo-index="0"
+                aria-label="Open photo gallery"
+              >
+                <img
+                  class="listing-hero__photo"
+                  src={photoUrls[0]}
+                  alt=""
+                  data-hero-gallery-img
+                />
+              </button>
+              {
+                photoUrls.length > 1 && (
+                  <div class="listing-hero__gallery-nav">
+                    <button
+                      type="button"
+                      class="secondary icon-btn"
+                      data-hero-gallery-prev
+                      aria-label="Previous photo"
+                      title="Previous photo"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M15 6l-6 6 6 6"></path>
+                      </svg>
+                    </button>
+                    <span class="muted" data-hero-gallery-count>
+                      1 / {photoUrls.length}
+                    </span>
+                    <button
+                      type="button"
+                      class="secondary icon-btn"
+                      data-hero-gallery-next
+                      aria-label="Next photo"
+                      title="Next photo"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M9 6l6 6-6 6"></path>
+                      </svg>
+                    </button>
+                  </div>
+                )
+              }
+            </div>
+          )
         ) : (
           <p class="muted">No photo</p>
         )
@@ -676,11 +750,12 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
       </header>
       <div class="listing-overlay__body">
         <ListingForm
-          listing={listing}
+          listing={listingRaw}
           tourAssignment={assignment}
           action="/api/listings/update"
           localeId={locale.id}
           autosave
+          photoPlanNote={photoPlanNote}
         />
       </div>
     </div>
@@ -719,9 +794,17 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
           <div class="stack">
             <p>
               Currently on{' '}
-              <a href={`${base}/tours?day=${assignment.tourDate}`}>
-                {formatTourDate(assignment.tourDate)}
-              </a>
+              {
+                assignment.hiddenOnPlan ? (
+                  <span>
+                    {formatTourDate(assignment.tourDate)} (hidden on Free)
+                  </span>
+                ) : (
+                  <a href={`${base}/tours?day=${assignment.tourDate}`}>
+                    {formatTourDate(assignment.tourDate)}
+                  </a>
+                )
+              }
               .
             </p>
             <form method="post" action="/api/tours/unassign">
@@ -745,6 +828,8 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
           idPrefix="listing-tour-week"
           weekLabel={listingTourWeekLabel}
           jumpValue={listingTourSelected}
+          blockNewTourDays={!listingTourCal.canAddNewTourDay}
+          dropBlocked={listingTourDropBlocked}
         />
         <div class="listing-tour-day">
           <h3 class="listing-tour-day__title">{formatTourDate(listingTourSelected)}</h3>
@@ -763,12 +848,27 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
             type="button"
             class="button"
             data-listing-tour-add
-            disabled={assignment?.tourDate === listingTourSelected}
+            disabled={
+              assignment?.tourDate === listingTourSelected ||
+              Boolean(listingTourAddBlocked)
+            }
+            title={listingTourAddBlocked ?? undefined}
           >
-            {assignment?.tourDate === listingTourSelected
-              ? 'Already on this day'
-              : 'Add to this day'}
+            {
+              assignment?.tourDate === listingTourSelected
+                ? 'Already on this day'
+                : listingTourAddBlocked
+                  ? 'Cannot add to this day'
+                  : 'Add to this day'
+            }
           </button>
+          {
+            listingTourAddBlocked && (
+              <p class="muted" role="status">
+                {listingTourAddBlocked}
+              </p>
+            )
+          }
           <p class="alert" id="listing-tour-status" hidden role="alert"></p>
         </div>
       </div>
@@ -937,6 +1037,7 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
       listingId,
       selectedDate: listingTourSelected,
       listingPath,
+      tourCalendar: tourCalendarClientConfig(listingTourCal),
     };
   </script>
   <DirectionsOverlay />

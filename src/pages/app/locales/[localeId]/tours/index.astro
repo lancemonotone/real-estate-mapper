@@ -5,9 +5,11 @@ import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/locale-map.css';
 import { milesToMeters, nearestAllowedRadiusMiles } from '../../../../../lib/geo/locale-radius';
 import {
+  buildTourCalendarContext,
   filterListingStops,
   filterVisibleListings,
   filterVisibleTourDays,
+  tourCalendarClientConfig,
 } from '../../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../../lib/supabase/nest';
 import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
@@ -47,16 +49,30 @@ const { data: toursRaw } = await supabase
   .eq('locale_id', locale.id)
   .order('tour_date', { ascending: true });
 
-const tours = filterVisibleTourDays(toursRaw ?? [], snapshot);
-const tourDayIds = tours.map((t) => t.id);
-const { data: allStops } =
-  tourDayIds.length > 0
+const allTourDayIds = (toursRaw ?? []).map((t) => t.id);
+const { data: allLocaleStopsRaw } =
+  allTourDayIds.length > 0
     ? await supabase
         .from('tour_stops')
         .select('*, listings(*)')
-        .in('tour_day_id', tourDayIds)
+        .in('tour_day_id', allTourDayIds)
         .order('sort_order', { ascending: true, nullsFirst: false })
     : { data: [] as never[] };
+
+const tourCal = buildTourCalendarContext(
+  snapshot,
+  (toursRaw ?? []).map((day) => ({ id: day.id, tour_date: day.tour_date })),
+  (allLocaleStopsRaw ?? []).map((stop) => ({
+    tour_day_id: stop.tour_day_id,
+    listing_id: stop.listing_id,
+  })),
+);
+
+const tours = filterVisibleTourDays(toursRaw ?? [], snapshot);
+const visibleTourDayIdSet = new Set(tours.map((t) => t.id));
+const allStops = (allLocaleStopsRaw ?? []).filter((stop) =>
+  visibleTourDayIdSet.has(stop.tour_day_id),
+);
 
 const allStopsFiltered = filterListingStops(allStops ?? [], snapshot);
 
@@ -82,7 +98,7 @@ const weekAnchor = selectedDate ? parseDateKey(selectedDate) : new Date();
 const weekKeys = weekDateKeys(weekAnchor);
 const weekLabel = `${formatShortTourDate(weekKeys[0]!)} → ${formatShortTourDate(weekKeys[6]!)}`;
 
-const assignedIds = new Set(allStopsFiltered.map((s) => s.listing_id));
+const assignedIds = tourCal.assignedListingIds;
 
 const { data: listings } = await supabase
   .from('listings')
@@ -96,6 +112,18 @@ const unassigned = visibleListings.filter((l) => !assignedIds.has(l.id));
 const railExpanded = unassigned.length > 0;
 
 const selectedTour = selectedDate ? tours.find((t) => t.tour_date === selectedDate) ?? null : null;
+const selectedHiddenTour =
+  selectedDate && !selectedTour
+    ? ((toursRaw ?? []).find(
+        (day) =>
+          day.tour_date === selectedDate &&
+          !snapshot.visibleTourDayIds.has(day.id) &&
+          (tourCal.allDaysByDate[selectedDate]?.stopCount ?? 0) > 0,
+      ) ?? null)
+    : null;
+const selectedHiddenStopCount = selectedHiddenTour
+  ? (tourCal.allDaysByDate[selectedHiddenTour.tour_date]?.stopCount ?? 0)
+  : 0;
 const selectedStops = selectedTour ? (stopsByDay.get(selectedTour.id) ?? []) : [];
 const hasCustomStart =
   selectedTour?.start_lat != null && selectedTour?.start_lng != null;
@@ -157,6 +185,10 @@ const needsAutoroute = Boolean(
     (selectedStops.length >= 2 || hasCustomEnd),
 );
 
+const dropBlocked = Object.fromEntries(
+  Object.entries(tourCal.dropBlockedByDate).map(([date, block]) => [date, block.reason]),
+) as Record<string, 'cap' | 'hidden'>;
+
 const seed = {
   localeId: locale.id,
   toursBase,
@@ -165,6 +197,7 @@ const seed = {
   needsAutoroute,
   selectedTourId: selectedTour?.id ?? null,
   routeStopSignature: routeSignatureCurrent,
+  tourCalendar: tourCalendarClientConfig(tourCal),
 };
 ---
 <AppLayout
@@ -314,7 +347,17 @@ const seed = {
         selectedDate={selectedDate}
         weekLabel={weekLabel}
         jumpValue={selectedDate ?? weekKeys[0]!}
+        blockNewTourDays={!tourCal.canAddNewTourDay}
+        dropBlocked={dropBlocked}
       />
+      {
+        !tourCal.canAddNewTourDay && snapshot.plan === 'free' && (
+          <p class="tours-workspace__cap-note muted" role="status">
+            Free plan allows 3 tour days. Empty dates cannot accept new tours until you
+            upgrade Hunt Pass or remove stops from a day.
+          </p>
+        )
+      }
 
       <section class="tours-workspace__day" data-tours-day-panel>
         {
@@ -502,10 +545,25 @@ const seed = {
                 <p class="muted">No stops on this day. Drop listings here from the rail.</p>
               ) : null}
             </>
+          ) : selectedHiddenTour ? (
+            <div class="stack tours-workspace__hidden-day">
+              <h2 class="tours-workspace__day-title">
+                {formatTourDate(selectedHiddenTour.tour_date)}
+              </h2>
+              <p class="muted" role="status">
+                This tour day is hidden on the Free plan. It has{' '}
+                {selectedHiddenStopCount} stop{selectedHiddenStopCount === 1 ? '' : 's'} saved.
+                Upgrade Hunt Pass to view and edit the route.
+              </p>
+              <a class="button" href="/app/upgrade">Upgrade Hunt Pass</a>
+            </div>
           ) : selectedDate ? (
-            <p class="muted">
-              No tour on {formatTourDate(selectedDate)}. Drop listings onto this date to create
-              one.
+            <p class="muted" role="status">
+              {
+                !tourCal.canAddNewTourDay
+                  ? `Free plan allows 3 tour days. You cannot create a new tour on ${formatTourDate(selectedDate)} until you upgrade or remove stops from another day.`
+                  : `No tour on ${formatTourDate(selectedDate)}. Drop listings onto this date to create one.`
+              }
             </p>
           ) : (
             <p class="muted">Select a day on the calendar, or drop a listing onto a date.</p>

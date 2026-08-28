@@ -226,10 +226,14 @@ export function checkEntitlementGate(
     }
     case 'add_photo': {
       const count = context?.photoCount ?? 0;
-      if (count <= limits.photosPerListing) return { ok: true };
+      const storedCap =
+        'photosStoredPerListing' in limits
+          ? limits.photosStoredPerListing
+          : limits.photosPerListing;
+      if (count <= storedCap) return { ok: true };
       return deny(
         snapshot.plan === 'free'
-          ? 'Free plan allows up to 8 photos per listing. Upgrade to Hunt Pass for more.'
+          ? `Free plan saves up to ${storedCap} photos per listing. Upgrade to Hunt Pass for the full gallery.`
           : 'Photo limit reached for this listing.',
       );
     }

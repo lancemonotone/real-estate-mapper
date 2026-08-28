@@ -14,6 +14,7 @@ const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeI
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
+const showListingGallery = snapshot.plan !== 'free';
 
 const base = `/app/locales/${locale.id}`;
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
@@ -188,20 +189,26 @@ const criterionRows = criteria ?? [];
                     >
                       <div class="matrix-listing">
                         {photo ? (
-                          <button
-                            type="button"
-                            class="matrix-listing__media"
-                            data-listing-gallery
-                            data-photo-urls={JSON.stringify(
-                              listing.photo_urls?.length
-                                ? listing.photo_urls
-                                : [photo],
-                            )}
-                            data-photo-index="0"
-                            aria-label={`Photos: ${title}`}
-                          >
-                            <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
-                          </button>
+                          showListingGallery ? (
+                            <button
+                              type="button"
+                              class="matrix-listing__media"
+                              data-listing-gallery
+                              data-photo-urls={JSON.stringify(
+                                listing.photo_urls?.length
+                                  ? listing.photo_urls
+                                  : [photo],
+                              )}
+                              data-photo-index="0"
+                              aria-label={`Photos: ${title}`}
+                            >
+                              <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
+                            </button>
+                          ) : (
+                            <span class="matrix-listing__media">
+                              <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
+                            </span>
+                          )
                         ) : (
                           <span class="matrix-listing__thumb matrix-listing__thumb--empty" aria-hidden="true">
                             No photo

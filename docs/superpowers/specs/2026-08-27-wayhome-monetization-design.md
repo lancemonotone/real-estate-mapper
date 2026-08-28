@@ -70,7 +70,7 @@ When a Nest is Free and **over** any Free cap, apply **strict hide** (data is ne
 1. **Locales:** only the **oldest 1** Locale is visible; newer Locales are hidden.
 2. **Listings:** within **visible** Locales only, show the **oldest 12** listings; hide newer excess. Listings in hidden Locales are hidden (they do not consume visible slots).
 3. **Tour days:** show the **oldest 3** tour days (with ≥1 stop); hide newer excess.
-4. **Photos:** per visible listing, show the **oldest 8** photos; hide newer excess.
+4. **Photos:** per visible listing, show **1** photo on Free; allow saving up to **30** per listing (extras stored but hidden). Hunt Pass shows full gallery (up to 30).
 
 **UX:** banner for owner — e.g. “2 Locales and 28 listings hidden. Renew Hunt Pass to see everything.”
 
@@ -177,7 +177,7 @@ Billing is not shippable without customer-visible copy that matches enforced lim
 ### Pricing page content (v1 outline)
 
 - **Headline:** hunt together; one Nest, one Pass when you need the full toolkit.
-- **Free:** 12 listings, 3 tour days, 1 Locale, map + route optimize on visible listings, 1 proximity demo, 8 photos per listing.
+- **Free:** 12 listings, 3 tour days, 1 Locale, map + route optimize on visible listings, 1 proximity demo, 1 photo shown per listing (up to 30 saved).
 - **Hunt Pass — $29 / 90 days:** 100 listings, unlimited tour days, 5 Locales, proximity compare + 60 refreshes, higher photo cap. Per Nest; Nest owner purchases.
 - **Not included (v1):** agent Pro, monthly sub, ads.
 - **CTA:** owner → Upgrade; logged-out → sign up.

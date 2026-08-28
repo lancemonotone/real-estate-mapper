@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyHuntPassActivation,
+  buildTourCalendarContext,
   checkEntitlementGate,
   isNestPro,
   resolveNestEntitlements,
   resolveNestPlan,
+  resolveTourDrop,
   sliceVisiblePhotoUrls,
-} from '../src/lib/nest/entitlements/resolve';
+} from '../src/lib/nest/entitlements';
 
 const baseBilling = {
   pass_started_at: null,
@@ -199,7 +201,59 @@ describe('nest entitlements', () => {
 
   it('slices photo urls to plan limit', () => {
     const urls = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
-    expect(sliceVisiblePhotoUrls(urls, 'free')).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+    expect(sliceVisiblePhotoUrls(urls, 'free')).toEqual(['a']);
     expect(sliceVisiblePhotoUrls(urls, 'pro').length).toBe(9);
+  });
+});
+
+describe('tour calendar entitlements', () => {
+  it('blocks drops on hidden days and empty days when at cap', () => {
+    const snapshot = resolveNestEntitlements({
+      billing: {
+        pass_started_at: null,
+        pass_expires_at: null,
+        proximity_demo_used_at: null,
+        proximity_refresh_granted: 0,
+        proximity_refresh_used: 0,
+      },
+      locales: [{ id: 'loc-1', created_at: '2026-01-01T00:00:00Z' }],
+      listings: [],
+      tourDays: [
+        { id: 'd-1', locale_id: 'loc-1', created_at: '2026-01-05T00:00:00Z', stop_count: 1 },
+        { id: 'd-2', locale_id: 'loc-1', created_at: '2026-01-06T00:00:00Z', stop_count: 1 },
+        { id: 'd-3', locale_id: 'loc-1', created_at: '2026-01-07T00:00:00Z', stop_count: 1 },
+        { id: 'd-4', locale_id: 'loc-1', created_at: '2026-01-08T00:00:00Z', stop_count: 2 },
+      ],
+    });
+
+    const ctx = buildTourCalendarContext(
+      snapshot,
+      [
+        { id: 'd-1', tour_date: '2026-09-09' },
+        { id: 'd-2', tour_date: '2026-09-10' },
+        { id: 'd-3', tour_date: '2026-09-12' },
+        { id: 'd-4', tour_date: '2026-09-11' },
+      ],
+      [
+        { tour_day_id: 'd-1', listing_id: 'l-1' },
+        { tour_day_id: 'd-2', listing_id: 'l-2' },
+        { tour_day_id: 'd-3', listing_id: 'l-3' },
+        { tour_day_id: 'd-4', listing_id: 'l-4' },
+        { tour_day_id: 'd-4', listing_id: 'l-5' },
+      ],
+    );
+
+    expect(ctx.canAddNewTourDay).toBe(false);
+    expect(ctx.assignedListingIds).toEqual(new Set(['l-1', 'l-2', 'l-3', 'l-4', 'l-5']));
+    expect(ctx.assignedOnHiddenDayIds).toEqual(new Set(['l-4', 'l-5']));
+    expect(resolveTourDrop(ctx, '2026-09-11')).toEqual({
+      ok: false,
+      message: ctx.hiddenMessage,
+    });
+    expect(resolveTourDrop(ctx, '2026-09-15')).toEqual({
+      ok: false,
+      message: ctx.capMessage,
+    });
+    expect(resolveTourDrop(ctx, '2026-09-09')).toEqual({ ok: true, action: 'merge' });
   });
 });

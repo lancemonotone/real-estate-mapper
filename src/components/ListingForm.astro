@@ -13,6 +13,8 @@ interface Props {
   submitLabel?: string;
   localeId?: string;
   autosave?: boolean;
+  /** Shown in the Photos fieldset when plan limits visible photos. */
+  photoPlanNote?: string | null;
 }
 
 const {
@@ -22,6 +24,7 @@ const {
   submitLabel = 'Save listing',
   localeId,
   autosave = false,
+  photoPlanNote = null,
 } = Astro.props;
 const tourDateValue = resolveListingTourDateInput(
   tourAssignment,
@@ -75,6 +78,13 @@ const initialPhotoUrls =
 
   <fieldset class="listing-form__section listing-form__gallery" data-gallery-form>
     <legend>Photos</legend>
+    {
+      photoPlanNote && (
+        <p class="listing-form__photo-plan-note muted" role="status">
+          {photoPlanNote}
+        </p>
+      )
+    }
     <p class="muted listing-form__gallery-hint">
       Drag to reorder. First photo is the primary thumb.
     </p>

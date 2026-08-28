@@ -2522,6 +2522,18 @@ body.directions-overlay-open {
   gap: 0.65rem;
 }
 
+.listing-hero__photo-notice {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.listing-form__photo-plan-note {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
 .listing-hero__links {
   display: flex;
   flex-wrap: wrap;
@@ -4075,6 +4087,16 @@ body.directions-overlay-open {
   container-name: tours-main;
 }
 
+.tours-workspace__cap-note {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.tours-workspace__hidden-day {
+  gap: 0.75rem;
+}
+
 .tours-workspace__map {
   min-inline-size: 0;
 
@@ -4316,6 +4338,22 @@ body.directions-overlay-open {
 
   &.is-drop-target {
     outline: 2px dashed var(--accent, #2563eb);
+  }
+
+  &.is-drop-forbidden {
+    outline: 2px dashed color-mix(in oklab, var(--fg) 35%, transparent);
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+
+  &.tour-week__cell--drop-blocked {
+    border-style: dashed;
+    opacity: 0.72;
+  }
+
+  &.tour-week__cell--drop-hidden {
+    border-color: color-mix(in oklab, var(--fg) 28%, transparent);
+    opacity: 0.8;
   }
 
   @container tours-main (max-width: 36rem) {

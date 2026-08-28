@@ -2,6 +2,7 @@
  * Listing page “add to tour” week calendar — always merge, no conflict dialog.
  */
 import { bindTourWeekJumpPopover } from './tour-week-jump-popover.js';
+
 function seed() {
   return window.__WAYHOME_LISTING_TOUR_CAL__ ?? null;
 }
@@ -41,7 +42,34 @@ function weekShift(root, deltaWeeks) {
   reloadWithDay(key);
 }
 
+function resolveDropForDate(tourDate) {
+  const cfg = seed()?.tourCalendar;
+  if (!cfg) return { ok: true };
+
+  const blocked = cfg.dropBlockedByDate?.[tourDate];
+  if (blocked) {
+    return { ok: false, message: blocked.message };
+  }
+
+  const meta = cfg.allDaysByDate?.[tourDate];
+  const stopCount = meta?.stopCount ?? 0;
+  if (stopCount > 0 && !meta.visible) {
+    return { ok: false, message: cfg.hiddenMessage };
+  }
+
+  if (stopCount === 0 && !cfg.canAddNewTourDay) {
+    return { ok: false, message: cfg.capMessage };
+  }
+
+  return { ok: true };
+}
+
 async function assignToDay(tourDate) {
+  const decision = resolveDropForDate(tourDate);
+  if (!decision.ok) {
+    throw new Error(decision.message);
+  }
+
   const cfg = seed();
   if (!cfg?.localeId || !cfg?.listingId) throw new Error('Missing listing tour config');
   const res = await fetch('/api/tours/calendar-action', {
@@ -73,7 +101,6 @@ function boot() {
   const root = document.querySelector('[data-listing-tour-calendar]');
   if (!cfg || !root) return;
 
-  // Listing overlay does not move whole days — disable day-dot drag.
   root.querySelectorAll('[data-tour-day-dot]').forEach((dot) => {
     dot.removeAttribute('draggable');
     dot.removeAttribute('title');
@@ -120,7 +147,6 @@ function boot() {
     { signal },
   );
 
-  // Hide the tours-workspace info control if present; listing uses a simpler flow.
   root.querySelector('[data-tour-week-info]')?.setAttribute('hidden', '');
 
   root.querySelectorAll('[data-tour-date]').forEach((cell) => {

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
+import { applyCalendarAction } from '../../../lib/tours/calendar-action';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -20,22 +21,20 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const locale = await getLocaleForNestMember(supabase, localeId);
   if (!locale) return new Response('Locale not found', { status: 404 });
 
-  const { data: tourDay, error } = await supabase
-    .from('tour_days')
-    .upsert(
-      { locale_id: localeId, tour_date: tourDate },
-      { onConflict: 'locale_id,tour_date' },
-    )
-    .select('id')
-    .single();
+  const result = await applyCalendarAction(supabase, localeId, {
+    type: 'assign',
+    listingIds: [listingId],
+    tourDate,
+    mode: 'merge',
+  });
 
-  if (error || !tourDay) return new Response(error?.message ?? 'Failed', { status: 400 });
+  if (!result.ok) {
+    return new Response(result.error, { status: result.status });
+  }
 
-  const { error: stopError } = await supabase.from('tour_stops').upsert(
-    { tour_day_id: tourDay.id, listing_id: listingId, is_start: false },
-    { onConflict: 'tour_day_id,listing_id' },
-  );
-  if (stopError) return new Response(stopError.message, { status: 400 });
+  if (!result.tourDayId) {
+    return redirect(`/app/locales/${localeId}/tours?day=${tourDate}`);
+  }
 
-  return redirect(`/app/locales/${localeId}/tours/${tourDay.id}`);
+  return redirect(`/app/locales/${localeId}/tours/${result.tourDayId}`);
 };

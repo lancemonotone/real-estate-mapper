@@ -152,13 +152,46 @@ function cellStopCount(cell) {
   return Number(cell?.getAttribute('data-stop-count') || '0');
 }
 
+function resolveDropForDate(tourDate) {
+  const cfg = seed()?.tourCalendar;
+  if (!cfg) {
+    const cell = document.querySelector(`[data-tour-date="${tourDate}"]`);
+    return cellStopCount(cell) > 0
+      ? { ok: true, action: 'merge' }
+      : { ok: true, action: 'assign-new' };
+  }
+
+  const blocked = cfg.dropBlockedByDate?.[tourDate];
+  if (blocked) {
+    return { ok: false, message: blocked.message };
+  }
+
+  const meta = cfg.allDaysByDate?.[tourDate];
+  const stopCount = meta?.stopCount ?? 0;
+  if (stopCount > 0) {
+    if (!meta.visible) {
+      return { ok: false, message: cfg.hiddenMessage };
+    }
+    return { ok: true, action: 'merge' };
+  }
+
+  if (!cfg.canAddNewTourDay) {
+    return { ok: false, message: cfg.capMessage };
+  }
+
+  return { ok: true, action: 'assign-new' };
+}
+
 function handleDropOnDate(tourDate, payload) {
-  const cell = document.querySelector(`[data-tour-date="${tourDate}"]`);
-  const occupied = cellStopCount(cell) > 0;
+  const decision = resolveDropForDate(tourDate);
+  if (!decision.ok) {
+    showStatus(decision.message, true);
+    return;
+  }
 
   if (payload.kind === 'day') {
     if (payload.fromDate === tourDate) return;
-    if (occupied) {
+    if (decision.action === 'merge') {
       setPendingConflict({
         kind: 'moveDay',
         fromDate: payload.fromDate,
@@ -177,7 +210,7 @@ function handleDropOnDate(tourDate, payload) {
       : [];
   if (!listingIds.length) return;
 
-  if (occupied) {
+  if (decision.action === 'merge') {
     setPendingConflict({ kind: 'assign', listingIds, toDate: tourDate });
     return;
   }
@@ -281,14 +314,24 @@ function bindDropTargets(root, signal) {
       'dragover',
       (event) => {
         event.preventDefault();
+        const tourDate = cell.getAttribute('data-tour-date');
+        if (!tourDate) return;
+        const decision = resolveDropForDate(tourDate);
+        cell.classList.remove('is-drop-target', 'is-drop-forbidden');
+        if (!decision.ok) {
+          cell.classList.add('is-drop-forbidden');
+          if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+          return;
+        }
         cell.classList.add('is-drop-target');
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
       },
       { signal },
     );
     cell.addEventListener(
       'dragleave',
       () => {
-        cell.classList.remove('is-drop-target');
+        cell.classList.remove('is-drop-target', 'is-drop-forbidden');
       },
       { signal },
     );
@@ -296,7 +339,7 @@ function bindDropTargets(root, signal) {
       'drop',
       (event) => {
         event.preventDefault();
-        cell.classList.remove('is-drop-target');
+        cell.classList.remove('is-drop-target', 'is-drop-forbidden');
         const tourDate = cell.getAttribute('data-tour-date');
         if (!tourDate) return;
         const payload = parseDragPayload(event);

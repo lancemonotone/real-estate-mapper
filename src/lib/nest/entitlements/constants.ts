@@ -8,13 +8,17 @@ export const PLAN_LIMITS = {
     locales: 1,
     listings: 12,
     tourDaysWithStops: 3,
-    photosPerListing: 8,
+    /** Photos shown in list/detail UI on Free. */
+    photosPerListing: 1,
+    /** Photos that may be saved on a listing (not all shown on Free). */
+    photosStoredPerListing: 30,
   },
   pro: {
     locales: 5,
     listings: 100,
     tourDaysWithStops: null as number | null,
     photosPerListing: 30,
+    photosStoredPerListing: 30,
   },
 } as const;
 

@@ -12,6 +12,10 @@ interface Props {
   weekLabel?: string;
   /** ISO date for the week jump picker value (usually week start or selected day). */
   jumpValue?: string;
+  /** When true, empty cells cannot accept the first stop on a new tour day. */
+  blockNewTourDays?: boolean;
+  /** Per-date drop blocks (hidden tour days). */
+  dropBlocked?: Record<string, 'cap' | 'hidden'>;
 }
 
 const {
@@ -21,6 +25,8 @@ const {
   idPrefix = 'tour-week',
   weekLabel = 'Week',
   jumpValue = weekKeys[0] ?? '',
+  blockNewTourDays = false,
+  dropBlocked = {},
 } = Astro.props;
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -120,6 +126,8 @@ function dayNum(key: string): string {
         const meta = daysByDate[key];
         const selected = selectedDate === key;
         const hasTour = Boolean(meta && meta.stopCount > 0);
+        const dropBlockedReason =
+          dropBlocked[key] ?? (!hasTour && blockNewTourDays ? 'cap' : undefined);
         return (
           <button
             type="button"
@@ -127,13 +135,17 @@ function dayNum(key: string): string {
               'tour-week__cell',
               selected && 'is-selected',
               hasTour && 'has-tour',
+              dropBlockedReason === 'cap' && 'tour-week__cell--drop-blocked',
+              dropBlockedReason === 'hidden' && 'tour-week__cell--drop-hidden',
             ]}
             role="gridcell"
             data-tour-date={key}
             data-tour-day-id={meta?.id ?? ''}
             data-stop-count={meta?.stopCount ?? 0}
+            data-drop-blocked={dropBlockedReason ?? undefined}
             aria-pressed={selected ? 'true' : 'false'}
-            aria-label={`${weekdayLabels[i]} ${key}${hasTour ? `, ${meta!.stopCount} stops` : ''}`}
+            aria-disabled={dropBlockedReason ? 'true' : undefined}
+            aria-label={`${weekdayLabels[i]} ${key}${hasTour ? `, ${meta!.stopCount} stops` : ''}${dropBlockedReason === 'cap' ? ', tour day limit reached' : ''}${dropBlockedReason === 'hidden' ? ', hidden on Free plan' : ''}`}
           >
             <span class="tour-week__weekday">{weekdayLabels[i]}</span>
             <span class="tour-week__daynum">{dayNum(key)}</span>

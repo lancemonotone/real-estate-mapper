@@ -23,6 +23,14 @@ export {
   isLocaleVisible,
   isTourDayVisible,
 } from './visibility';
+export {
+  buildTourCalendarContext,
+  resolveTourDrop,
+  tourCalendarClientConfig,
+  type TourCalendarContext,
+  type TourDropBlockReason,
+  type TourDropDecision,
+} from './tour-calendar';
 export { loadNestEntitlementUi, type NestEntitlementUi } from './ui-context';
 export {
   applyHuntPassActivation,

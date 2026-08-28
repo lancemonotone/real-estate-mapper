@@ -1,0 +1,24 @@
+---
+description: Do not use em dashes in user-facing content
+alwaysApply: true
+---
+
+# No em dashes in content
+
+Do **not** use em dashes (`—`, Unicode U+2014) in user-facing copy:
+
+- UI strings, banners, labels, tooltips, placeholders
+- Error and success messages
+- Page titles and headings shown to users
+- Marketing and help text shipped in the product
+
+**Use instead:**
+
+- Two sentences (period between)
+- A comma or colon
+- Parentheses
+- ` · ` or ` | ` for title separators (e.g. `Compare · Dunedin`, not `Compare — Dunedin`)
+
+**Out of scope:** CSS/code comments and internal design docs unless the task is explicitly to edit that prose.
+
+When touching existing user-facing strings that contain em dashes, replace them as part of the same edit.
