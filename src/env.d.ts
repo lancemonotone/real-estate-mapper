@@ -20,6 +20,7 @@ interface ImportMetaEnv {
   readonly PUBLIC_GOOGLE_MAPS_MAP_ID: string;
   readonly PUBLIC_SITE_URL: string;
   readonly PUBLIC_DEV_TOOLS?: string;
+  readonly DEV_TOOLS?: string;
 }
 
 interface ImportMeta {

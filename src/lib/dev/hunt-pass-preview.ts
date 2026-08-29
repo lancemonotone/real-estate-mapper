@@ -3,9 +3,18 @@ import type { Database } from '../types/database';
 
 type Client = SupabaseClient<Database>;
 
-/** Dev tools are available in Astro dev or when explicitly enabled for staging. */
+function envFlag(name: string): boolean {
+  const fromImportMeta = (import.meta.env as Record<string, string | undefined>)[name];
+  const fromProcess =
+    typeof process !== 'undefined' ? process.env[name] : undefined;
+  return (fromImportMeta ?? fromProcess) === 'true';
+}
+
+/** Dev tools are available in Astro dev or when explicitly enabled on the host. */
 export function isDevToolsEnabled(): boolean {
-  return import.meta.env.DEV || import.meta.env.PUBLIC_DEV_TOOLS === 'true';
+  return (
+    import.meta.env.DEV || envFlag('PUBLIC_DEV_TOOLS') || envFlag('DEV_TOOLS')
+  );
 }
 
 export async function loadDevHuntPassPreviewForUser(
