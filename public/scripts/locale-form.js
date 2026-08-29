@@ -109,8 +109,22 @@ function bootLocaleForm() {
     pushMapUpdate({ title });
   });
 
+  if (cfg.createBlocked && errorEl) {
+    errorEl.hidden = false;
+    errorEl.textContent = cfg.blockedMessage || 'Locale limit reached.';
+    errorEl.classList.add('is-plan-limit');
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (cfg.createBlocked) {
+      if (errorEl) {
+        errorEl.hidden = false;
+        errorEl.textContent = cfg.blockedMessage || 'Locale limit reached.';
+        errorEl.classList.add('is-plan-limit');
+      }
+      return;
+    }
     const fd = new FormData(form);
     const mode = cfg.mode === 'edit' ? 'edit' : 'create';
     const listing_prefs = readListingPrefs(fd);
@@ -146,6 +160,7 @@ function bootLocaleForm() {
       if (errorEl) {
         errorEl.hidden = false;
         errorEl.textContent = data.error ?? 'Save failed';
+        errorEl.classList.toggle('is-plan-limit', data.code === 'plan_limit');
       }
       return;
     }

@@ -1,7 +1,8 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import NestMemberList from '../../components/NestMemberList.astro';
-import { loadNestEntitlements } from '../../lib/nest/entitlements';
+import PlanNotice from '../../components/PlanNotice.astro';
+import { loadNestEntitlements, isLocaleCapReached, PLAN_MESSAGES } from '../../lib/nest/entitlements';
 import { loadNestEntitlementUi } from '../../lib/nest/entitlements/ui-context';
 import {
   ensureNestForUser,
@@ -71,6 +72,13 @@ const localeRows = visibleLocales.map((locale) => {
       : `${locale.center_lat.toFixed(2)}, ${locale.center_lng.toFixed(2)}`);
   return { locale, needsSetup, listingCount, radiusMiles, center };
 });
+
+const localeCapReached = entitlementSnapshot
+  ? isLocaleCapReached(entitlementSnapshot)
+  : false;
+const localeCapMessage = entitlementSnapshot
+  ? PLAN_MESSAGES.localeCap(entitlementSnapshot.plan)
+  : '';
 ---
 <AppLayout
   title={nestName}
@@ -138,16 +146,43 @@ const localeRows = visibleLocales.map((locale) => {
       aria-labelledby="nest-tab-locales"
       data-nest-tab-panel="locales"
     >
-      <div class="nest-tabs__panel-head">
-        <a class="button locale-hero__add" href="/app/locales/new">New Locale</a>
+      <div class="nest-tabs__panel-head stack">
+        {
+          localeCapReached && entitlementUi && entitlementSnapshot && (
+            <PlanNotice
+              variant="inline"
+              isOwner={entitlementUi.isOwner}
+              ownerDisplayName={entitlementUi.ownerDisplayName}
+            >
+              <p class="plan-notice__text">{localeCapMessage}</p>
+            </PlanNotice>
+          )
+        }
+        {
+          localeCapReached ? (
+            <button type="button" class="button locale-hero__add" disabled>
+              New Locale
+            </button>
+          ) : (
+            <a class="button locale-hero__add" href="/app/locales/new">New Locale</a>
+          )
+        }
       </div>
       {
         localeRows.length === 0 ? (
           <div class="listings-empty glass panel stack nest-empty">
             <p class="muted">No Locales yet. Create one to start collecting listings.</p>
-            <a class="button" href="/app/locales/new">
-              Create your first Locale
-            </a>
+            {
+              localeCapReached ? (
+                <button type="button" class="button" disabled>
+                  Create your first Locale
+                </button>
+              ) : (
+                <a class="button" href="/app/locales/new">
+                  Create your first Locale
+                </a>
+              )
+            }
           </div>
         ) : (
           <ul class="stack nest-locale-list">

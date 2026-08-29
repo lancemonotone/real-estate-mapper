@@ -88,14 +88,11 @@ export function proximityRefreshRemaining(billing: NestBillingRow, plan: Entitle
   return Math.max(0, billing.proximity_refresh_granted - billing.proximity_refresh_used);
 }
 
-export function proximityDemoAvailable(billing: NestBillingRow, plan: EntitlementPlan): boolean {
-  if (plan === 'pro') return true;
-  return billing.proximity_demo_used_at === null;
-}
-
-export function sliceVisiblePhotoUrls(urls: string[], plan: EntitlementPlan): string[] {
-  const limit = PLAN_LIMITS[plan].photosPerListing;
-  return urls.slice(0, limit);
+export function countRouteSearchColumnsForCap(
+  criteria: Array<{ locale_id: string }>,
+  visibleLocaleIds: Set<string>,
+): number {
+  return criteria.filter((row) => visibleLocaleIds.has(row.locale_id)).length;
 }
 
 export function resolveNestEntitlements(input: {
@@ -103,6 +100,7 @@ export function resolveNestEntitlements(input: {
   locales: LocaleRow[];
   listings: ListingRow[];
   tourDays: TourDayRow[];
+  routeSearchCriteria?: Array<{ locale_id: string }>;
   now?: Date;
 }): NestEntitlementSnapshot {
   const plan = resolveNestPlan(input.billing, input.now);
@@ -148,9 +146,17 @@ export function resolveNestEntitlements(input: {
       plan,
     ),
     proximityRefreshRemaining: proximityRefreshRemaining(input.billing, plan),
-    proximityDemoAvailable: proximityDemoAvailable(input.billing, plan),
+    routeSearchColumnCount: countRouteSearchColumnsForCap(
+      input.routeSearchCriteria ?? [],
+      visibleLocaleIds,
+    ),
     photosPerListingLimit: PLAN_LIMITS[plan].photosPerListing,
   };
+}
+
+export function sliceVisiblePhotoUrls(urls: string[], plan: EntitlementPlan): string[] {
+  const limit = PLAN_LIMITS[plan].photosPerListing;
+  return urls.slice(0, limit);
 }
 
 function deny(message: string): EntitlementDenial {
@@ -194,20 +200,27 @@ export function checkEntitlementGate(
       }
       return { ok: true };
     }
+    case 'add_route_search_column': {
+      if (context?.localeId && !snapshot.visibleLocaleIds.has(context.localeId)) {
+        return deny(PLAN_MESSAGES.localeHidden);
+      }
+      const cap = limits.routeSearchColumns;
+      if (cap !== null && snapshot.routeSearchColumnCount >= cap) {
+        return deny(PLAN_MESSAGES.routeSearchColumnCap(snapshot.plan));
+      }
+      return { ok: true };
+    }
     case 'proximity_compute': {
-      if (snapshot.plan === 'pro') return { ok: true };
-      if (snapshot.proximityDemoAvailable) return { ok: true };
-      return deny(PLAN_MESSAGES.proximityDemoCompute);
+      return { ok: true };
     }
     case 'proximity_refresh': {
       if (snapshot.plan === 'pro') {
         if (snapshot.proximityRefreshRemaining <= 0) {
-          return deny(PLAN_MESSAGES.proximityRefreshCap);
+          return deny(PLAN_MESSAGES.routeSearchRefreshCap);
         }
         return { ok: true };
       }
-      if (snapshot.proximityDemoAvailable) return { ok: true };
-      return deny(PLAN_MESSAGES.proximityDemoRefresh);
+      return deny(PLAN_MESSAGES.routeSearchRefreshRequiresPass);
     }
     case 'add_photo': {
       const count = context?.photoCount ?? 0;

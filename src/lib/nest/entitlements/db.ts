@@ -17,7 +17,7 @@ export async function loadNestBilling(
   const { data, error } = await supabase
     .from('nests')
     .select(
-      'pass_started_at, pass_expires_at, proximity_demo_used_at, proximity_refresh_granted, proximity_refresh_used',
+      'pass_started_at, pass_expires_at, proximity_refresh_granted, proximity_refresh_used',
     )
     .eq('id', nestId)
     .maybeSingle();
@@ -28,7 +28,6 @@ export async function loadNestBilling(
   return {
     pass_started_at: data.pass_started_at,
     pass_expires_at: data.pass_expires_at,
-    proximity_demo_used_at: data.proximity_demo_used_at,
     proximity_refresh_granted: data.proximity_refresh_granted,
     proximity_refresh_used: data.proximity_refresh_used,
   };
@@ -106,11 +105,23 @@ export async function loadNestEntitlements(
 
   const tourDays = await loadTourDaysWithStopCounts(supabase, localeIds);
 
+  let routeSearchCriteria: Array<{ locale_id: string }> = [];
+  if (localeIds.length > 0) {
+    const { data: criteria, error: criteriaError } = await supabase
+      .from('proximity_criteria')
+      .select('locale_id')
+      .in('locale_id', localeIds);
+
+    if (criteriaError) throw new Error(criteriaError.message);
+    routeSearchCriteria = criteria ?? [];
+  }
+
   return resolveNestEntitlements({
     billing,
     locales: localeRows,
     listings: listingRows,
     tourDays,
+    routeSearchCriteria,
   });
 }
 
@@ -139,20 +150,6 @@ export async function assertNestEntitlement(
   const result = checkEntitlementGate(snapshot, gate, context);
   if (!result.ok) return { denial: result };
   return snapshot;
-}
-
-export async function recordProximityDemoUsed(
-  supabase: Client,
-  nestId: string,
-  now = new Date(),
-): Promise<void> {
-  const { error } = await supabase
-    .from('nests')
-    .update({ proximity_demo_used_at: now.toISOString() })
-    .eq('id', nestId)
-    .is('proximity_demo_used_at', null);
-
-  if (error) throw new Error(error.message);
 }
 
 export async function incrementProximityRefreshUsed(

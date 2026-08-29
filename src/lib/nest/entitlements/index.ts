@@ -12,7 +12,6 @@ export {
   incrementProximityRefreshUsed,
   loadNestBilling,
   loadNestEntitlements,
-  recordProximityDemoUsed,
 } from './db';
 export { recordProximityApiUsage } from './proximity-usage';
 export {
@@ -34,11 +33,18 @@ export {
 } from './tour-calendar';
 export { loadNestEntitlementUi, type NestEntitlementUi } from './ui-context';
 export {
+  buildRouteSearchPlanContext,
+  isListingCapReached,
+  isLocaleCapReached,
+  isRouteSearchColumnCapReached,
+  routeSearchPlanClientConfig,
+  type RouteSearchPlanContext,
+} from './plan-surface';
+export {
   applyHuntPassActivation,
   checkEntitlementGate,
   entitlementDenialResponse,
   isNestPro,
-  proximityDemoAvailable,
   proximityRefreshRemaining,
   resolveNestEntitlements,
   resolveNestPlan,

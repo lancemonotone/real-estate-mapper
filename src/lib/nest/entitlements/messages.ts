@@ -41,13 +41,23 @@ export const PLAN_MESSAGES = {
 
   localeHidden: 'This Locale is hidden on the Free plan. Renew Hunt Pass to access it.',
 
-  proximityDemoCompute:
-    'Free plan includes one proximity demo. Upgrade Hunt Pass for full proximity compare.',
+  routeSearchColumnCap(plan: EntitlementPlan): string {
+    return plan === 'free'
+      ? 'Free plan includes one route search column. Upgrade Hunt Pass to add more columns and refreshes.'
+      : 'Route search column limit reached for this Nest.';
+  },
 
-  proximityDemoRefresh:
-    'Free plan includes one proximity demo. Upgrade Hunt Pass for proximity refreshes.',
+  routeSearchColumnAmbientAvailable:
+    'Free plan includes one route search column. Compare travel times from every listing to one shared destination.',
 
-  proximityRefreshCap: 'Proximity refresh limit reached for this Hunt Pass. Contact support.',
+  routeSearchColumnAmbientAtCap:
+    'Free plan allows one route search column. Upgrade Hunt Pass to add more columns and refreshes.',
+
+  routeSearchRefreshRequiresPass:
+    'Route search refreshes require Hunt Pass. Upgrade to refresh travel times.',
+
+  routeSearchRefreshCap:
+    'Route search refresh limit reached for this Hunt Pass. Contact support.',
 
   photoStoredCap(storedCap: number, plan: EntitlementPlan): string {
     return plan === 'free'

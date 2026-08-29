@@ -1155,6 +1155,14 @@ button.tour-stop-set-start {
   line-height: 1.35;
 }
 
+.cell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block-start: 0.35rem;
+}
+
 .nearest-fields__or {
   margin: 0;
   text-align: center;
@@ -2448,14 +2456,6 @@ body.directions-overlay-open {
   display: block;
 }
 
-.cell-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-  margin-block-start: 0.35rem;
-}
-
 .listing-hero {
   --hero-gap: 1.25rem;
 
@@ -2964,25 +2964,45 @@ body.directions-overlay-open {
       max-inline-size: var(--travel-col);
     }
 
-    /* Equal row height + bottom-pinned actions across columns. */
+    /* Equal row height: listing + proximity cells share tallest column. */
+    & tbody th.matrix-table__listing,
     & tbody td {
       block-size: 1px;
       vertical-align: top;
     }
 
+    & tbody .matrix-table__listing > .matrix-listing {
+      block-size: 100%;
+      min-block-size: 100%;
+      box-sizing: border-box;
+    }
+
     & tbody td .cell-ok {
-      display: grid;
-      grid-template-rows: 1fr auto;
+      --cell-ok-edge: 0.35rem;
+      --cell-ok-place-pad: 0.5rem 0.55rem 0.25rem;
+      --cell-actions-pad: 0.14rem 0.18rem;
+      --cell-actions-gap: 0.2rem;
+
+      display: flex;
+      flex-direction: column;
       block-size: 100%;
       min-block-size: 100%;
       min-inline-size: 0;
+      padding-block-end: var(--cell-ok-edge);
+      padding-inline: var(--cell-ok-edge);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-md);
+      background: var(--glass-wash-strong);
+      overflow: visible;
     }
 
     & tbody td .cell-ok__place {
       display: flex;
       flex-direction: column;
       gap: 0.15rem;
+      flex: 1 1 auto;
       min-block-size: 0;
+      padding: var(--cell-ok-place-pad);
     }
 
     & tbody td .cell-ok__meta {
@@ -2997,8 +3017,23 @@ body.directions-overlay-open {
     }
 
     & tbody td .cell-actions {
+      flex: 0 0 auto;
+      align-self: stretch;
       flex-wrap: nowrap;
-      margin-block-start: 0;
+      justify-content: flex-end;
+      gap: var(--cell-actions-gap);
+      margin-block-start: auto;
+      padding: var(--cell-actions-pad);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-sm);
+      background: var(--glass-strong);
+      box-shadow: 0 2px 8px color-mix(in oklab, var(--bg-0, #000) 28%, transparent);
+    }
+
+    & tbody tr.is-map-hover td .cell-ok {
+      background: var(--map-hover-bg);
+      outline: 1px solid var(--map-hover-border);
+      outline-offset: -1px;
     }
 
     @media (min-width: 1024px) {
@@ -3584,6 +3619,25 @@ body.directions-overlay-open {
 
 .prox-result__status.is-error {
   color: var(--danger, #f87171);
+}
+
+.prox-result__status.is-plan-limit,
+.cell-status.is-plan-limit,
+.alert.is-plan-limit {
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius, 0.75rem);
+  border: 1px solid color-mix(in oklab, var(--accent, #0d9488) 35%, transparent);
+  background: color-mix(in oklab, var(--accent, #0d9488) 8%, transparent);
+  color: inherit;
+}
+
+.alert.is-plan-limit {
+  margin: 0;
+}
+
+.muted.is-plan-limit {
+  display: block;
+  margin: 0;
 }
 
 .listing-tour-picks {

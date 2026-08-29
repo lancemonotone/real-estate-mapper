@@ -40,13 +40,11 @@ if (!url || !key) {
 
 const supabase = createClient(url, key);
 
-const FREE = { locales: 1, listings: 12, tourDays: 3, photos: 1 };
+const FREE = { locales: 1, listings: 12, tourDays: 3, photos: 1, routeSearchColumns: 1 };
 
 const { data: nests, error: nestError } = await supabase
   .from('nests')
-  .select(
-    'id, name, pass_expires_at, proximity_demo_used_at, created_at',
-  )
+  .select('id, name, pass_expires_at, created_at')
   .order('created_at', { ascending: true });
 
 if (nestError) {
@@ -134,6 +132,16 @@ for (const nest of nests ?? []) {
     plan === 'free' ? FREE.tourDays : null,
   );
 
+  let routeSearchColumnCount = 0;
+  if (visibleLocaleIds.size > 0) {
+    const visibleIds = [...visibleLocaleIds];
+    const { count } = await supabase
+      .from('proximity_criteria')
+      .select('id', { count: 'exact', head: true })
+      .in('locale_id', visibleIds);
+    routeSearchColumnCount = count ?? 0;
+  }
+
   const activeListings = listings.filter((l) => !l.archived_at);
   const activeVisibleCount = activeInVisibleLocales.filter((l) =>
     visibleListingIds.has(l.id),
@@ -145,7 +153,7 @@ for (const nest of nests ?? []) {
         nest: { id: nest.id, name: nest.name },
         plan,
         pass_expires_at: nest.pass_expires_at,
-        proximity_demo_used: Boolean(nest.proximity_demo_used_at),
+        route_search_columns: routeSearchColumnCount,
         totals: {
           locales: locales?.length ?? 0,
           active_listings: activeListings.length,
@@ -167,8 +175,8 @@ for (const nest of nests ?? []) {
           create_locale: plan === 'free' && (locales?.length ?? 0) >= FREE.locales,
           new_tour_day:
             plan === 'free' && withStops.length >= FREE.tourDays,
-          proximity_compute:
-            plan === 'free' && Boolean(nest.proximity_demo_used_at),
+          add_route_search_column:
+            plan === 'free' && routeSearchColumnCount >= FREE.routeSearchColumns,
         },
         visible_locales: (locales ?? [])
           .filter((l) => visibleLocaleIds.has(l.id))

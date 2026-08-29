@@ -1,15 +1,53 @@
 ---
 import AppLayout from '../../../layouts/AppLayout.astro';
 import LocaleListingPrefsFields from '../../../components/LocaleListingPrefsFields.astro';
+import PlanNotice from '../../../components/PlanNotice.astro';
 import '../../../styles/locale-map.css';
 import {
   DEFAULT_LOCALE_RADIUS_MILES,
   LOCALE_RADIUS_MILES_OPTIONS,
   milesToMeters,
 } from '../../../lib/geo/locale-radius';
+import {
+  isLocaleCapReached,
+  loadNestEntitlements,
+  loadNestEntitlementUi,
+  PLAN_MESSAGES,
+} from '../../../lib/nest/entitlements';
+import { ensureNestForUser, getPrimaryNestId } from '../../../lib/supabase/nest';
+
+const user = Astro.locals.user!;
+const supabase = Astro.locals.supabase!;
+
+let nestId = await getPrimaryNestId(supabase, user.id);
+if (!nestId) {
+  nestId = await ensureNestForUser(supabase, user.id);
+}
+
+const snapshot = await loadNestEntitlements(supabase, nestId);
+const entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id);
+const localeCapReached = snapshot ? isLocaleCapReached(snapshot) : false;
+const localeCapMessage = snapshot ? PLAN_MESSAGES.localeCap(snapshot.plan) : '';
 ---
-<AppLayout title="New Locale" crumbs={[{ href: '/app', label: 'Home' }, { label: 'New Locale' }]}>
+<AppLayout
+  title="New Locale"
+  crumbs={[{ href: '/app', label: 'Home' }, { label: 'New Locale' }]}
+  nestId={nestId}
+  entitlementUi={entitlementUi}
+>
   <h1>New Locale</h1>
+
+  {
+    localeCapReached && entitlementUi && snapshot && (
+      <PlanNotice
+        variant="inline"
+        isOwner={entitlementUi.isOwner}
+        ownerDisplayName={entitlementUi.ownerDisplayName}
+      >
+        <p class="plan-notice__text">{localeCapMessage}</p>
+      </PlanNotice>
+    )
+  }
 
   <section class="locale-browse">
     <div class="locale-browse__list stack">
@@ -57,7 +95,13 @@ import {
           >
             <label>
               Name
-              <input name="name" id="locale-name" required placeholder="e.g. Tampa Bay" />
+              <input
+                name="name"
+                id="locale-name"
+                required
+                placeholder="e.g. Tampa Bay"
+                disabled={localeCapReached}
+              />
             </label>
             <label>
               Center place
@@ -66,11 +110,12 @@ import {
                 id="locale-place"
                 required
                 placeholder="City, neighborhood, or address"
+                disabled={localeCapReached}
               />
             </label>
             <label>
               Radius
-              <select name="radius_miles" id="locale-radius" required>
+              <select name="radius_miles" id="locale-radius" required disabled={localeCapReached}>
                 {
                   LOCALE_RADIUS_MILES_OPTIONS.map((m) => (
                     <option value={m} selected={m === DEFAULT_LOCALE_RADIUS_MILES}>
@@ -93,7 +138,7 @@ import {
             <LocaleListingPrefsFields prefs={null} showTitle={false} />
           </div>
 
-          <button type="submit">Create Locale</button>
+          <button type="submit" disabled={localeCapReached}>Create Locale</button>
         </form>
       </div>
 
@@ -113,8 +158,18 @@ import {
     </div>
   </section>
 
-  <script>
-    window.__WAYHOME_LOCALE_FORM__ = { mode: 'create', initialHasCenter: false };
+  <script
+    define:vars={{
+      localeCapReached,
+      localeCapMessage,
+    }}
+  >
+    window.__WAYHOME_LOCALE_FORM__ = {
+      mode: 'create',
+      initialHasCenter: false,
+      createBlocked: localeCapReached,
+      blockedMessage: localeCapReached ? localeCapMessage : null,
+    };
   </script>
   <script src="/scripts/locale-map.js" type="module"></script>
   <script src="/scripts/nest-tabs.js" type="module"></script>

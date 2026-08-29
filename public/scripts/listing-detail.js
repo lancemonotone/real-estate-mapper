@@ -97,7 +97,9 @@ function initListingDetail() {
     el.addEventListener(
       'click',
       () => {
+        const cap = window.__WAYHOME_LISTING_CAP__;
         const name = el.getAttribute('data-listing-overlay-open');
+        if (cap?.blocked && name === 'new') return;
         if (name === 'place') {
           window.dispatchEvent(
             new CustomEvent('listing-place-picker', {

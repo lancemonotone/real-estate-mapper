@@ -1,5 +1,9 @@
 import { mountPlaceSearch } from './place-search.js';
 import {
+  isPlanLimitResponse,
+  proxResultStatusClass,
+} from './plan-limit.js';
+import {
   mountAllPlaceTypePickers,
   readPlaceTypeValue,
   setPlaceTypeValue,
@@ -149,7 +153,7 @@ function openRouteOverlay({ origin, destination, travelMode, title, durationLabe
   });
 }
 
-function setProxResultStatus(message, { error = false } = {}) {
+function setProxResultStatus(message, { error = false, planLimit = false } = {}) {
   const el = document.getElementById('prox-result');
   if (!el) return;
   el.replaceChildren();
@@ -159,7 +163,7 @@ function setProxResultStatus(message, { error = false } = {}) {
   }
   el.hidden = false;
   const status = document.createElement('p');
-  status.className = error ? 'prox-result__status is-error' : 'prox-result__status';
+  status.className = proxResultStatusClass({ error, planLimit });
   status.textContent = message;
   el.appendChild(status);
 }
@@ -175,8 +179,11 @@ function renderProxResult(result) {
   el.hidden = false;
   if (result.status !== 'ok') {
     const status = document.createElement('p');
-    status.className = 'prox-result__status is-error';
-    status.textContent = [result.status, result.error_message].filter(Boolean).join(' — ');
+    status.className = proxResultStatusClass({
+      error: true,
+      planLimit: Boolean(result.plan_limit),
+    });
+    status.textContent = [result.status, result.error_message].filter(Boolean).join('. ');
     el.appendChild(status);
     return;
   }
@@ -1089,7 +1096,10 @@ function initProximityPanel() {
         });
         const data = await res.json();
         if (!res.ok) {
-          setProxResultStatus(data.error || 'Failed', { error: true });
+          setProxResultStatus(data.error || 'Failed', {
+            error: true,
+            planLimit: isPlanLimitResponse(res, data),
+          });
           return;
         }
         lastResult = data.result;
@@ -1132,7 +1142,10 @@ function initProximityPanel() {
         });
         const data = await res.json();
         if (!res.ok) {
-          setProxResultStatus(data.error || 'Failed', { error: true });
+          setProxResultStatus(data.error || 'Failed', {
+            error: true,
+            planLimit: isPlanLimitResponse(res, data),
+          });
           return;
         }
         lastResult = data.result;

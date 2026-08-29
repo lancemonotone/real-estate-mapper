@@ -3,17 +3,27 @@ import AppLayout from '../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
 import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
 import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
+import PlanNotice from '../../../../components/PlanNotice.astro';
 import { placeTypeLabel } from '../../../../lib/proximity/place-types';
 import { textQueryCacheKey } from '../../../../lib/proximity/text-query';
-import { filterVisibleListings } from '../../../../lib/nest/entitlements';
+import {
+  buildRouteSearchPlanContext,
+  filterVisibleListings,
+  loadNestEntitlementUi,
+  routeSearchPlanClientConfig,
+} from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
+const user = Astro.locals.user!;
 const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
+const entitlementUi = await loadNestEntitlementUi(supabase, locale.nest_id, user.id);
+const routeSearchPlan = buildRouteSearchPlanContext(snapshot);
+const routeSearchPlanClient = routeSearchPlanClientConfig(routeSearchPlan);
 const showListingGallery = snapshot.plan !== 'free';
 
 const base = `/app/locales/${locale.id}`;
@@ -62,6 +72,7 @@ const criterionRows = criteria ?? [];
   locale={{ id: locale.id, name: locale.name }}
   localeSection="travel"
   nestId={locale.nest_id}
+  entitlementUi={entitlementUi}
 >
   {
     listingRows.length === 0 ? (
@@ -70,10 +81,16 @@ const criterionRows = criteria ?? [];
       <>
         {criterionRows.length === 0 ? (
           <p class="muted compare-empty-hint">
-            No travel columns yet.{' '}
-            <button type="button" class="linkish" data-compare-column-open>
-              Add a column
-            </button>{' '}
+            No route search columns yet.{' '}
+            {
+              routeSearchPlan.canAddColumn ? (
+                <button type="button" class="linkish" data-compare-column-open>
+                  Add a column
+                </button>
+              ) : (
+                <span>Add a column (Hunt Pass required)</span>
+              )
+            }{' '}
             to start comparing times.
           </p>
         ) : null}
@@ -87,6 +104,18 @@ const criterionRows = criteria ?? [];
               <p class="muted compare-header__sub">
                 Drive, walk, bike, or transit times from each listing to shared destinations.
               </p>
+              {
+                routeSearchPlan.ambientMessage && entitlementUi && (
+                  <PlanNotice
+                    variant="inline"
+                    isOwner={entitlementUi.isOwner}
+                    ownerDisplayName={entitlementUi.ownerDisplayName}
+                    showActions={!routeSearchPlan.canAddColumn}
+                  >
+                    <p class="plan-notice__text">{routeSearchPlan.ambientMessage}</p>
+                  </PlanNotice>
+                )
+              }
             </div>
             <div class="matrix-panel__actions compare-header__actions">
               <button
@@ -109,6 +138,7 @@ const criterionRows = criteria ?? [];
                 data-compare-column-open
                 aria-label="Add column"
                 title="Add column"
+                disabled={!routeSearchPlan.canAddColumn}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path d="M12 5v14"></path>
@@ -275,7 +305,7 @@ const criterionRows = criteria ?? [];
     <div class="compare-column-overlay__backdrop" data-compare-column-close></div>
     <div class="compare-column-overlay__panel glass">
       <header class="compare-column-overlay__header">
-        <h2 id="compare-column-title">Add travel column</h2>
+        <h2 id="compare-column-title">Add route search column</h2>
         <button
           type="button"
           class="secondary icon-btn"
@@ -289,6 +319,17 @@ const criterionRows = criteria ?? [];
           </svg>
         </button>
       </header>
+      {
+        !routeSearchPlan.canAddColumn && entitlementUi && (
+          <PlanNotice
+            variant="inline"
+            isOwner={entitlementUi.isOwner}
+            ownerDisplayName={entitlementUi.ownerDisplayName}
+          >
+            <p class="plan-notice__text">{routeSearchPlan.addColumnBlockedMessage}</p>
+          </PlanNotice>
+        )
+      }
       <form id="criterion-form" class="criterion-form stack">
         <input type="hidden" name="locale_id" value={locale.id} />
         <label>
@@ -343,7 +384,7 @@ const criterionRows = criteria ?? [];
             <option value="TRANSIT">Transit</option>
           </select>
         </label>
-        <button type="submit">Add column</button>
+        <button type="submit" disabled={!routeSearchPlan.canAddColumn}>Add column</button>
       </form>
       <p id="criterion-status" class="muted"></p>
     </div>
@@ -432,7 +473,11 @@ const criterionRows = criteria ?? [];
             </label>
           </div>
           <div class="prox-actions">
-            <button type="button" id="compare-prox-run" title="Find nearby places and drive times">
+            <button
+              type="button"
+              id="compare-prox-run"
+              title="Find nearby places and drive times"
+            >
               Find route
             </button>
             <button
@@ -476,11 +521,17 @@ const criterionRows = criteria ?? [];
       localeId: locale.id,
       mapKey: browserKey,
       mapId,
+      routeSearchPlanClient,
     }}
   >
     window.__WAYHOME_LOCALE_ID__ = localeId;
     window.__WAYHOME_MAPS__ = { mapKey, mapId };
-    window.__WAYHOME_COMPARE__ = { localeId, mapKey, mapId };
+    window.__WAYHOME_COMPARE__ = {
+      localeId,
+      mapKey,
+      mapId,
+      routeSearchPlan: routeSearchPlanClient,
+    };
   </script>
   <DirectionsOverlay />
   <script src="/scripts/directions-overlay.js" type="module"></script>

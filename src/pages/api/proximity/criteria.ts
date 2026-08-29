@@ -6,6 +6,10 @@ import {
 import { PLACE_TYPE_CATALOG, type PlaceTypeKey } from '../../../lib/proximity/place-types';
 import { normalizeTextQuery } from '../../../lib/proximity/text-query';
 import type { ProximityCriterionKind, TravelMode } from '../../../lib/types/database';
+import {
+  assertNestEntitlement,
+  entitlementDenialResponse,
+} from '../../../lib/nest/entitlements';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 function isPlaceTypeKey(key: string): key is PlaceTypeKey {
@@ -64,6 +68,16 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   if (!localeId) {
     return new Response(JSON.stringify({ error: 'locale_id required' }), { status: 400 });
   }
+
+  const { data: localeRow, error: localeLookupError } = await supabase
+    .from('locales')
+    .select('nest_id')
+    .eq('id', localeId)
+    .single();
+  if (localeLookupError || !localeRow) {
+    return new Response(JSON.stringify({ error: 'Locale not found' }), { status: 404 });
+  }
+
   if (!label && !findOrCreate) {
     return new Response(JSON.stringify({ error: 'label required' }), { status: 400 });
   }
@@ -151,6 +165,16 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+  }
+
+  const entitlement = await assertNestEntitlement(
+    supabase,
+    localeRow.nest_id,
+    'add_route_search_column',
+    { localeId },
+  );
+  if ('denial' in entitlement) {
+    return entitlementDenialResponse(entitlement.denial);
   }
 
   const resolvedLabel =

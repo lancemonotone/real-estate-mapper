@@ -3,7 +3,6 @@ import type { EntitlementPlan } from './constants';
 export type NestBillingRow = {
   pass_started_at: string | null;
   pass_expires_at: string | null;
-  proximity_demo_used_at: string | null;
   proximity_refresh_granted: number;
   proximity_refresh_used: number;
 };
@@ -42,7 +41,7 @@ export type NestEntitlementSnapshot = {
   localeCount: number;
   tourDaysWithStopsCount: number;
   proximityRefreshRemaining: number;
-  proximityDemoAvailable: boolean;
+  routeSearchColumnCount: number;
   photosPerListingLimit: number;
 };
 

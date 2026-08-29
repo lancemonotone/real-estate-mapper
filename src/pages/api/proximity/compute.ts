@@ -109,7 +109,6 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
 
   try {
     const result = await computeProximityResult(supabase, listingId, criterionId);
-    await recordProximityApiUsage(supabase, locale.nest_id, entitlement, 'compute');
     return new Response(JSON.stringify({ result }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

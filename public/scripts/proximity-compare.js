@@ -1,5 +1,11 @@
 import { mountPlaceSearch } from './place-search.js';
 import {
+  isPlanLimitResponse,
+  proxResultStatusClass,
+  readRouteSearchPlanConfig,
+  criterionStatusClass,
+} from './plan-limit.js';
+import {
   mountAllPlaceTypePickers,
   readPlaceTypeValue,
   setPlaceTypeValue,
@@ -285,7 +291,9 @@ function renderCell(td, result) {
   td.appendChild(status);
   if (result.error_message) {
     const err = document.createElement('div');
-    err.className = 'cell-status';
+    err.className = result.plan_limit
+      ? 'cell-status is-plan-limit'
+      : 'cell-status';
     err.textContent = result.error_message;
     td.appendChild(err);
   }
@@ -320,6 +328,7 @@ async function computeCell(td) {
       renderCell(td, {
         status: 'error',
         error_message: data.error || `HTTP ${res.status}`,
+        plan_limit: isPlanLimitResponse(res, data),
       });
       return;
     }
@@ -380,6 +389,8 @@ function initCompareColumnOverlay(signal) {
   if (!(overlay instanceof HTMLElement)) return;
 
   const open = () => {
+    const plan = readRouteSearchPlanConfig(window.__WAYHOME_COMPARE__);
+    if (plan && !plan.canAddColumn) return;
     if (overlay.parentElement !== document.body) {
       document.body.appendChild(overlay);
     }
@@ -428,6 +439,14 @@ function initCriterionForm(signal) {
     'submit',
     async (e) => {
       e.preventDefault();
+      const plan = readRouteSearchPlanConfig(window.__WAYHOME_COMPARE__);
+      if (plan && !plan.canAddColumn) {
+        if (status) {
+          status.className = criterionStatusClass({ planLimit: true });
+          status.textContent = plan.addColumnBlockedMessage;
+        }
+        return;
+      }
       const fd = new FormData(form);
       const uiKind = String(fd.get('kind') || '');
       const body = {
@@ -473,7 +492,12 @@ function initCriterionForm(signal) {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (status) status.textContent = data.error || 'Failed to add column';
+        if (status) {
+          status.className = criterionStatusClass({
+            planLimit: isPlanLimitResponse(res, data),
+          });
+          status.textContent = data.error || 'Failed to add column';
+        }
         return;
       }
       location.reload();
@@ -528,7 +552,7 @@ function cellPickerOrigin() {
   return { lat, lng };
 }
 
-function setCompareProxStatus(message, { error = false } = {}) {
+function setCompareProxStatus(message, { error = false, planLimit = false } = {}) {
   const el = document.getElementById('compare-prox-result');
   if (!el) return;
   el.replaceChildren();
@@ -538,7 +562,7 @@ function setCompareProxStatus(message, { error = false } = {}) {
   }
   el.hidden = false;
   const status = document.createElement('p');
-  status.className = error ? 'prox-result__status is-error' : 'prox-result__status';
+  status.className = proxResultStatusClass({ error, planLimit });
   status.textContent = message;
   el.appendChild(status);
 }
@@ -554,8 +578,11 @@ function renderCompareProxResult(result) {
   el.hidden = false;
   if (result.status !== 'ok') {
     const status = document.createElement('p');
-    status.className = 'prox-result__status is-error';
-    status.textContent = [result.status, result.error_message].filter(Boolean).join(' — ');
+    status.className = proxResultStatusClass({
+      error: true,
+      planLimit: Boolean(result.plan_limit),
+    });
+    status.textContent = [result.status, result.error_message].filter(Boolean).join('. ');
     el.appendChild(status);
     return;
   }
@@ -984,7 +1011,10 @@ function initCellPlacePicker(signal) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setCompareProxStatus(data.error || 'Failed', { error: true });
+        setCompareProxStatus(data.error || 'Failed', {
+          error: true,
+          planLimit: isPlanLimitResponse(res, data),
+        });
         return;
       }
       cellPickerLastResult = data.result;
