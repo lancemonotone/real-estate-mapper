@@ -22,7 +22,9 @@ import { formatMoney, formatSqft } from '../../../../lib/listings/format-attribu
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
 const user = Astro.locals.user!;
-const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+const localeContext = localeId
+  ? await getVisibleLocaleContext(supabase, localeId, Astro.locals.devHuntPassPreview ?? false)
+  : null;
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;

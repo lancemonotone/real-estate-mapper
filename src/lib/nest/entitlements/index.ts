@@ -42,7 +42,9 @@ export {
 } from './plan-surface';
 export {
   applyHuntPassActivation,
+  checkAddTourDaysWithStopsBatch,
   checkEntitlementGate,
+  devHuntPassPreviewBilling,
   entitlementDenialResponse,
   isNestPro,
   proximityRefreshRemaining,

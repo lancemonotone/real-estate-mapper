@@ -81,6 +81,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const entitlement = await assertNestEntitlement(supabase, nestId, 'add_photo', {
     photoCount: photos.photo_urls.length,
+    userId: user.id,
   });
   if ('denial' in entitlement) {
     return fail(request, entitlement.denial.message, 403);
@@ -135,6 +136,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     id,
     tour.tourDate,
     tour.appointmentTime,
+    user.id,
   );
   if (!tourSync.ok) return fail(request, tourSync.error, 400);
 

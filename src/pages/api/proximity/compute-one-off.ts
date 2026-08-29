@@ -5,6 +5,15 @@ import {
 } from '../../../lib/proximity/compute-core';
 import { PLACE_TYPE_CATALOG, type PlaceTypeKey } from '../../../lib/proximity/place-types';
 import type { TravelMode } from '../../../lib/types/database';
+import {
+  assertNestEntitlement,
+  entitlementDenialResponse,
+  ENTITLEMENT_ERROR_CODE,
+  isListingVisible,
+  isLocaleVisible,
+  PLAN_MESSAGES,
+} from '../../../lib/nest/entitlements';
+import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 function isPlaceTypeKey(key: string): key is PlaceTypeKey {
@@ -56,6 +65,50 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       JSON.stringify({ error: 'travel_mode must be DRIVE, WALK, BICYCLE, or TRANSIT' }),
       { status: 400 },
     );
+  }
+
+  const locale = await getLocaleForNestMember(supabase, localeId);
+  if (!locale) {
+    return new Response(JSON.stringify({ error: 'Locale not found' }), { status: 404 });
+  }
+
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('id, locale_id')
+    .eq('id', listingId)
+    .single();
+  if (listingError || !listing) {
+    return new Response(JSON.stringify({ error: 'Listing not found' }), { status: 404 });
+  }
+  if (listing.locale_id !== localeId) {
+    return new Response(
+      JSON.stringify({ error: 'Listing not in this Locale' }),
+      { status: 400 },
+    );
+  }
+
+  const entitlement = await assertNestEntitlement(
+    supabase,
+    locale.nest_id,
+    'proximity_compute',
+    { userId: user.id },
+  );
+  if ('denial' in entitlement) {
+    return entitlementDenialResponse(entitlement.denial);
+  }
+  if (!isLocaleVisible(entitlement, localeId)) {
+    return entitlementDenialResponse({
+      ok: false,
+      code: ENTITLEMENT_ERROR_CODE,
+      message: PLAN_MESSAGES.localeHidden,
+    });
+  }
+  if (!isListingVisible(entitlement, listingId)) {
+    return entitlementDenialResponse({
+      ok: false,
+      code: ENTITLEMENT_ERROR_CODE,
+      message: PLAN_MESSAGES.listingHidden,
+    });
   }
 
   let input: OneOffCriterionInput;

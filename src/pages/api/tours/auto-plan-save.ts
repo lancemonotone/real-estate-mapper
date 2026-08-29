@@ -1,4 +1,10 @@
 import type { APIRoute } from 'astro';
+import {
+  checkAddTourDaysWithStopsBatch,
+  entitlementDenialResponse,
+  loadNestEntitlements,
+} from '../../../lib/nest/entitlements';
+import { loadDevHuntPassPreviewForUser } from '../../../lib/dev/hunt-pass-preview';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 
@@ -25,6 +31,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   const locale = await getLocaleForNestMember(supabase, body.localeId);
   if (!locale) return Response.json({ error: 'Locale not found' }, { status: 404 });
+
+  const devHuntPassPreview = await loadDevHuntPassPreviewForUser(supabase, user.id);
+  const snapshot = await loadNestEntitlements(supabase, locale.nest_id, { devHuntPassPreview });
+  if (!snapshot) return Response.json({ error: 'Nest not found' }, { status: 404 });
+
+  const batchCheck = checkAddTourDaysWithStopsBatch(snapshot, body.groups.length);
+  if (!batchCheck.ok) {
+    return entitlementDenialResponse(batchCheck);
+  }
 
   for (const [i, group] of body.groups.entries()) {
     if (!group.tourDate || !/^\d{4}-\d{2}-\d{2}$/.test(group.tourDate)) {

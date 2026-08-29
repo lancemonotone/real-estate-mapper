@@ -34,6 +34,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const entitlement = await assertNestEntitlement(supabase, locale.nest_id, 'add_listing', {
     localeId,
+    userId: user.id,
   });
   if ('denial' in entitlement) {
     return entitlementDenialResponse(entitlement.denial);
@@ -111,6 +112,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     listing.id,
     tour.tourDate,
     tour.appointmentTime,
+    user.id,
   );
   if (!tourSync.ok) return new Response(tourSync.error, { status: 400 });
 

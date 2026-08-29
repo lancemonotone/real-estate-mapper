@@ -41,6 +41,8 @@ export const PLAN_MESSAGES = {
 
   localeHidden: 'This Locale is hidden on the Free plan. Renew Hunt Pass to access it.',
 
+  listingHidden: 'This listing is hidden on the Free plan. Renew Hunt Pass to access it.',
+
   routeSearchColumnCap(plan: EntitlementPlan): string {
     return plan === 'free'
       ? 'Free plan includes one route search column. Upgrade Hunt Pass to add more columns and refreshes.'
@@ -53,11 +55,18 @@ export const PLAN_MESSAGES = {
   routeSearchColumnAmbientAtCap:
     'Free plan allows one route search column. Upgrade Hunt Pass to add more columns and refreshes.',
 
+  routeSearchFreeCompareSummary:
+    'Free plan includes one route search column. Refreshes require Hunt Pass. Upgrade to add columns and refresh travel times.',
+
   routeSearchRefreshRequiresPass:
     'Route search refreshes require Hunt Pass. Upgrade to refresh travel times.',
 
   routeSearchRefreshCap:
     'Route search refresh limit reached for this Hunt Pass. Contact support.',
+
+  routeSearchRefreshRemaining(remaining: number, granted: number): string {
+    return `${remaining} of ${granted} route search refreshes left on this Hunt Pass.`;
+  },
 
   photoStoredCap(storedCap: number, plan: EntitlementPlan): string {
     return plan === 'free'

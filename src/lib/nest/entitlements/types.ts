@@ -43,6 +43,8 @@ export type NestEntitlementSnapshot = {
   proximityRefreshRemaining: number;
   routeSearchColumnCount: number;
   photosPerListingLimit: number;
+  /** True when limits come from the dev Hunt Pass preview toggle. */
+  devHuntPassPreview?: boolean;
 };
 
 export type EntitlementDenial = {

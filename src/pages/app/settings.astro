@@ -2,6 +2,7 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import NestMemberList from '../../components/NestMemberList.astro';
 import { generateInviteToken } from '../../lib/crypto/invite-token';
+import { isDevToolsEnabled } from '../../lib/dev/hunt-pass-preview';
 import { getPrimaryNestId, listNestMembers } from '../../lib/supabase/nest';
 import type { NestMemberProfile } from '../../lib/types/database';
 import { listUiThemes, resolveUiThemeId } from '../../lib/ui/themes';
@@ -11,6 +12,7 @@ const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
 const nestId = await getPrimaryNestId(supabase, user.id);
 const themes = listUiThemes();
+const devToolsEnabled = isDevToolsEnabled();
 
 let inviteUrl: string | null = null;
 let errorMessage = '';
@@ -18,11 +20,12 @@ let notice = '';
 
 const { data: profile } = await supabase
   .from('profiles')
-  .select('ui_theme_id, ui_show_borders')
+  .select('ui_theme_id, ui_show_borders, dev_hunt_pass_preview')
   .eq('id', user.id)
   .maybeSingle();
 const currentThemeId = resolveUiThemeId(profile?.ui_theme_id);
 const bordersOn = resolveUiBorders(profile?.ui_show_borders) === 'on';
+const huntPassPreviewOn = Boolean(profile?.dev_hunt_pass_preview);
 
 let nestMembers: NestMemberProfile[] = [];
 if (nestId) {
@@ -41,7 +44,7 @@ if (!nestId) {
     errorMessage = error.message;
   } else {
     inviteUrl = `${Astro.url.origin}/invite/${raw}`;
-    notice = 'Invite link rotated. Copy it now — the raw token is not stored.';
+    notice = 'Invite link rotated. Copy it now. The raw token is not stored.';
   }
 }
 
@@ -51,7 +54,8 @@ const swatchVars: Record<string, { primary: string; accent: string }> = {
   sand: { primary: '#fbbf24', accent: '#fdba74' },
 };
 
-const defaultTab: 'theme' | 'members' | 'invite' = inviteUrl || notice ? 'invite' : 'theme';
+type SettingsTab = 'theme' | 'members' | 'invite' | 'developer';
+const defaultTab: SettingsTab = inviteUrl || notice ? 'invite' : 'theme';
 ---
 <AppLayout title="Settings" crumbs={[{ href: '/app', label: 'Home' }, { label: 'Settings' }]}>
   <h1>Settings</h1>
@@ -110,6 +114,25 @@ const defaultTab: 'theme' | 'members' | 'invite' = inviteUrl || notice ? 'invite
       >
         Invite
       </button>
+      {
+        devToolsEnabled && (
+          <button
+            type="button"
+            class:list={[
+              'button secondary locale-nav__link',
+              defaultTab === 'developer' && 'locale-nav__link--active',
+            ]}
+            id="settings-tab-developer"
+            role="tab"
+            aria-selected={defaultTab === 'developer' ? 'true' : 'false'}
+            aria-controls="settings-panel-developer"
+            tabindex={defaultTab === 'developer' ? 0 : -1}
+            data-nest-tab="developer"
+          >
+            Developer
+          </button>
+        )
+      }
     </nav>
 
     <div
@@ -224,6 +247,36 @@ const defaultTab: 'theme' | 'members' | 'invite' = inviteUrl || notice ? 'invite
         }
       </section>
     </div>
+
+    {
+      devToolsEnabled && (
+        <div
+          id="settings-panel-developer"
+          class="nest-tabs__panel"
+          role="tabpanel"
+          aria-labelledby="settings-tab-developer"
+          data-nest-tab-panel="developer"
+          hidden={defaultTab !== 'developer' ? true : undefined}
+        >
+          <section class="stack developer-section">
+            <p class="muted">
+              Preview Hunt Pass limits and visibility without billing. Only available in dev or when
+              PUBLIC_DEV_TOOLS is enabled.
+            </p>
+            <label class="theme-borders">
+              <input
+                type="checkbox"
+                id="dev-hunt-pass-preview"
+                name="dev_hunt_pass_preview"
+                checked={huntPassPreviewOn}
+              />
+              <span>Hunt Pass preview</span>
+            </label>
+            <p id="dev-preview-status" class="theme-status muted" aria-live="polite"></p>
+          </section>
+        </div>
+      )
+    }
   </div>
 
   <script src="/scripts/nest-tabs.js" type="module"></script>
@@ -275,6 +328,33 @@ const defaultTab: 'theme' | 'members' | 'invite' = inviteUrl || notice ? 'invite
         if (status) status.textContent = '';
       } catch {
         if (status) status.textContent = 'Could not save border preference';
+      }
+    });
+
+    const devPreview = document.getElementById('dev-hunt-pass-preview');
+    const devPreviewStatus = document.getElementById('dev-preview-status');
+    devPreview?.addEventListener('change', async () => {
+      if (!(devPreview instanceof HTMLInputElement)) return;
+      const dev_hunt_pass_preview = devPreview.checked;
+      if (devPreviewStatus) devPreviewStatus.textContent = 'Saving…';
+      try {
+        const res = await fetch('/api/profile/dev-hunt-pass-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dev_hunt_pass_preview }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          devPreview.checked = !dev_hunt_pass_preview;
+          if (devPreviewStatus) {
+            devPreviewStatus.textContent = data.error || 'Could not save preview setting';
+          }
+          return;
+        }
+        window.location.reload();
+      } catch {
+        devPreview.checked = !dev_hunt_pass_preview;
+        if (devPreviewStatus) devPreviewStatus.textContent = 'Could not save preview setting';
       }
     });
   </script>

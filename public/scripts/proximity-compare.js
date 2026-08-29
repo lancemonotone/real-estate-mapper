@@ -1,9 +1,11 @@
 import { mountPlaceSearch } from './place-search.js';
 import {
   isPlanLimitResponse,
+  patchRouteSearchRefreshBudget,
   proxResultStatusClass,
   readRouteSearchPlanConfig,
   criterionStatusClass,
+  syncRouteSearchRefreshUi,
 } from './plan-limit.js';
 import {
   mountAllPlaceTypePickers,
@@ -143,6 +145,59 @@ function applyExcludeResults(results) {
     );
     if (td) renderCell(td, result);
   }
+}
+
+function initRefreshStaleButton(signal) {
+  const btn = document.querySelector('[data-compare-refresh-stale]');
+  if (!(btn instanceof HTMLButtonElement)) return;
+
+  btn.addEventListener(
+    'click',
+    async () => {
+      const plan = readRouteSearchPlanConfig(window.__WAYHOME_COMPARE__);
+      if (plan && !plan.canRefresh) return;
+
+      const localeId = localeIdFromPage();
+      if (!localeId) return;
+
+      const prevLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Refreshing…';
+
+      try {
+        const res = await fetch('/api/proximity/compute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locale_id: localeId, refresh_stale: true }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || `HTTP ${res.status}`);
+          return;
+        }
+
+        applyExcludeResults(data.results);
+
+        if (typeof data.refresh_remaining === 'number') {
+          const nextPlan = patchRouteSearchRefreshBudget(
+            window.__WAYHOME_COMPARE__,
+            data.refresh_remaining,
+          );
+          if (nextPlan && window.__WAYHOME_COMPARE__?.routeSearchPlan) {
+            Object.assign(window.__WAYHOME_COMPARE__.routeSearchPlan, nextPlan);
+            syncRouteSearchRefreshUi(nextPlan);
+          }
+        }
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Refresh failed');
+      } finally {
+        btn.textContent = prevLabel;
+        const current = readRouteSearchPlanConfig(window.__WAYHOME_COMPARE__);
+        btn.disabled = Boolean(current && !current.canRefresh);
+      }
+    },
+    { signal },
+  );
 }
 
 async function excludePlaceFromCell(td, result) {
@@ -1129,6 +1184,7 @@ function bootComparePage() {
     signal,
   );
   initCompareColumnOverlay(signal);
+  initRefreshStaleButton(signal);
   initCriterionForm(signal);
   initDeleteButtons(signal);
   initCellPlacePicker(signal);

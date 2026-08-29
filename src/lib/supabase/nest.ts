@@ -151,11 +151,14 @@ export type VisibleLocaleContext = {
 export async function getVisibleLocaleContext(
   supabase: Client,
   localeId: string,
+  devHuntPassPreview = false,
 ): Promise<VisibleLocaleContext | null> {
   const locale = await getLocaleForNestMember(supabase, localeId);
   if (!locale) return null;
 
-  const snapshot = await loadNestEntitlements(supabase, locale.nest_id);
+  const snapshot = await loadNestEntitlements(supabase, locale.nest_id, {
+    devHuntPassPreview,
+  });
   if (!snapshot || !snapshot.visibleLocaleIds.has(localeId)) return null;
 
   return { locale, snapshot };

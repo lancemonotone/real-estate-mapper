@@ -11,6 +11,7 @@ export async function recordProximityApiUsage(
   snapshot: NestEntitlementSnapshot,
   kind: 'compute' | 'refresh',
 ): Promise<void> {
+  if (snapshot.devHuntPassPreview) return;
   if (snapshot.plan === 'pro' && kind === 'refresh') {
     await incrementProximityRefreshUsed(supabase, nestId);
   }

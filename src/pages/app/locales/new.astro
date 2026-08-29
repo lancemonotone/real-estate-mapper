@@ -24,8 +24,9 @@ if (!nestId) {
   nestId = await ensureNestForUser(supabase, user.id);
 }
 
-const snapshot = await loadNestEntitlements(supabase, nestId);
-const entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id);
+const devPreview = Astro.locals.devHuntPassPreview ?? false;
+const snapshot = await loadNestEntitlements(supabase, nestId, { devHuntPassPreview: devPreview });
+const entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id, devPreview);
 const localeCapReached = snapshot ? isLocaleCapReached(snapshot) : false;
 const localeCapMessage = snapshot ? PLAN_MESSAGES.localeCap(snapshot.plan) : '';
 ---

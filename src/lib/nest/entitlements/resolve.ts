@@ -26,6 +26,18 @@ export function resolveNestPlan(billing: NestBillingRow, now = new Date()): Enti
   return isNestPro(billing, now) ? 'pro' : 'free';
 }
 
+/** Synthetic billing for developer Hunt Pass preview (no Stripe). */
+export function devHuntPassPreviewBilling(now = new Date()): NestBillingRow {
+  const expires = new Date(now);
+  expires.setUTCDate(expires.getUTCDate() + HUNT_PASS_DAYS);
+  return {
+    pass_started_at: now.toISOString(),
+    pass_expires_at: expires.toISOString(),
+    proximity_refresh_granted: PROXIMITY_REFRESH_PER_PASS,
+    proximity_refresh_used: 0,
+  };
+}
+
 function selectOldestIds<T extends { id: string; created_at: string }>(
   rows: T[],
   limit: number | null,
@@ -236,6 +248,21 @@ export function checkEntitlementGate(
       return _exhaustive;
     }
   }
+}
+
+/** Preflight batch tour-day creates (auto-plan save, fill date range). */
+export function checkAddTourDaysWithStopsBatch(
+  snapshot: NestEntitlementSnapshot,
+  additionalNewDaysWithStops: number,
+): EntitlementAllow | EntitlementDenial {
+  if (additionalNewDaysWithStops <= 0) return { ok: true };
+  const limits = PLAN_LIMITS[snapshot.plan];
+  const cap = limits.tourDaysWithStops;
+  if (cap === null) return { ok: true };
+  if (snapshot.tourDaysWithStopsCount + additionalNewDaysWithStops > cap) {
+    return deny(PLAN_MESSAGES.tourDayCap(snapshot.plan));
+  }
+  return { ok: true };
 }
 
 export type HuntPassActivation = {

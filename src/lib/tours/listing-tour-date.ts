@@ -128,17 +128,23 @@ export async function syncListingTour(
   listingId: string,
   tourDate: string | null,
   appointmentTime: string | null,
+  userId?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const current = await getListingTourAssignment(supabase, localeId, listingId);
   const storedTime = normalizeStoredAppointmentTime(appointmentTime);
 
   if (!tourDate) {
     if (!current) return { ok: true };
-    const result = await applyCalendarAction(supabase, localeId, {
-      type: 'unassign',
-      listingIds: [listingId],
-      tourDayId: current.tourDayId,
-    });
+    const result = await applyCalendarAction(
+      supabase,
+      localeId,
+      {
+        type: 'unassign',
+        listingIds: [listingId],
+        tourDayId: current.tourDayId,
+      },
+      { userId },
+    );
     if (!result.ok) return { ok: false, error: result.error };
     return { ok: true };
   }
@@ -146,21 +152,31 @@ export async function syncListingTour(
   let tourDayId = current?.tourDayId ?? null;
 
   if (tourDate !== current?.tourDate) {
-    const result = await applyCalendarAction(supabase, localeId, {
-      type: 'assign',
-      listingIds: [listingId],
-      tourDate,
-      mode: 'merge',
-    });
+    const result = await applyCalendarAction(
+      supabase,
+      localeId,
+      {
+        type: 'assign',
+        listingIds: [listingId],
+        tourDate,
+        mode: 'merge',
+      },
+      { userId },
+    );
     if (!result.ok) return { ok: false, error: result.error };
     tourDayId = result.tourDayId;
   } else if (!tourDayId) {
-    const result = await applyCalendarAction(supabase, localeId, {
-      type: 'assign',
-      listingIds: [listingId],
-      tourDate,
-      mode: 'merge',
-    });
+    const result = await applyCalendarAction(
+      supabase,
+      localeId,
+      {
+        type: 'assign',
+        listingIds: [listingId],
+        tourDate,
+        mode: 'merge',
+      },
+      { userId },
+    );
     if (!result.ok) return { ok: false, error: result.error };
     tourDayId = result.tourDayId;
   }

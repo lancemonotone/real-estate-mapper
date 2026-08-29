@@ -76,7 +76,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const locale = await getLocaleForNestMember(supabase, body.localeId);
   if (!locale) return Response.json({ error: 'Locale not found' }, { status: 404 });
 
-  const result = await applyCalendarAction(supabase, body.localeId, action);
+  const result = await applyCalendarAction(supabase, body.localeId, action, { userId: user.id });
   if (!result.ok) {
     return Response.json({ error: result.error }, { status: result.status });
   }

@@ -5,6 +5,7 @@ export type Profile = {
   display_name: string | null;
   ui_theme_id: string | null;
   ui_show_borders: boolean;
+  dev_hunt_pass_preview: boolean;
   created_at: string;
 };
 

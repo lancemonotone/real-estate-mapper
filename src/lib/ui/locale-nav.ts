@@ -1,6 +1,6 @@
 export type LocaleNavSection =
   | 'listings'
   | 'travel'
-  | 'attributes'
+  | 'compare'
   | 'tours'
   | 'edit';

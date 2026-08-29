@@ -21,12 +21,17 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const locale = await getLocaleForNestMember(supabase, localeId);
   if (!locale) return new Response('Locale not found', { status: 404 });
 
-  const result = await applyCalendarAction(supabase, localeId, {
-    type: 'assign',
-    listingIds: [listingId],
-    tourDate,
-    mode: 'merge',
-  });
+  const result = await applyCalendarAction(
+    supabase,
+    localeId,
+    {
+      type: 'assign',
+      listingIds: [listingId],
+      tourDate,
+      mode: 'merge',
+    },
+    { userId: user.id },
+  );
 
   if (!result.ok) {
     return new Response(result.error, { status: result.status });

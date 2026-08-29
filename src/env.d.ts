@@ -7,6 +7,7 @@ declare namespace App {
   interface Locals {
     user?: User;
     supabase?: SupabaseClient<Database>;
+    devHuntPassPreview?: boolean;
   }
 }
 
@@ -18,6 +19,7 @@ interface ImportMetaEnv {
   readonly PUBLIC_GOOGLE_MAPS_BROWSER_KEY: string;
   readonly PUBLIC_GOOGLE_MAPS_MAP_ID: string;
   readonly PUBLIC_SITE_URL: string;
+  readonly PUBLIC_DEV_TOOLS?: string;
 }
 
 interface ImportMeta {

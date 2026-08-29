@@ -1,121 +1,148 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
-import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
 import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
-import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
-import PlanNotice from '../../../../components/PlanNotice.astro';
-import { placeTypeLabel } from '../../../../lib/proximity/place-types';
-import { textQueryCacheKey } from '../../../../lib/proximity/text-query';
-import {
-  buildRouteSearchPlanContext,
-  filterVisibleListings,
-  loadNestEntitlementUi,
-  routeSearchPlanClientConfig,
-} from '../../../../lib/nest/entitlements';
+import { filterVisibleListings } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
+import {
+  formatAmenities,
+  formatMoney,
+  formatNumber,
+  formatSqft,
+} from '../../../../lib/listings/format-attributes';
+import type { Listing } from '../../../../lib/types/database';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
-const user = Astro.locals.user!;
-const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+const localeContext = localeId
+  ? await getVisibleLocaleContext(supabase, localeId, Astro.locals.devHuntPassPreview ?? false)
+  : null;
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
-const entitlementUi = await loadNestEntitlementUi(supabase, locale.nest_id, user.id);
-const routeSearchPlan = buildRouteSearchPlanContext(snapshot);
-const routeSearchPlanClient = routeSearchPlanClientConfig(routeSearchPlan);
 const showListingGallery = snapshot.plan !== 'free';
 
 const base = `/app/locales/${locale.id}`;
-const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
-const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, phone, lat, lng, photo_url, photo_urls, is_favorite')
+  .select(
+    'id, name, address, phone, photo_url, photo_urls, price_monthly, deposit, fees_monthly, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite',
+  )
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
-const { data: criteria } = await supabase
-  .from('proximity_criteria')
-  .select('*')
-  .eq('locale_id', locale.id)
-  .order('sort_order', { ascending: true })
-  .order('created_at', { ascending: true });
+const rows = filterVisibleListings(listings ?? [], snapshot) as Pick<
+  Listing,
+  | 'id'
+  | 'name'
+  | 'address'
+  | 'phone'
+  | 'photo_url'
+  | 'photo_urls'
+  | 'price_monthly'
+  | 'deposit'
+  | 'fees_monthly'
+  | 'sqft'
+  | 'beds'
+  | 'baths'
+  | 'pet_rent_monthly'
+  | 'pet_deposit'
+  | 'amenities'
+  | 'is_favorite'
+>[];
 
-const visibleListings = filterVisibleListings(listings ?? [], snapshot);
+type Row = (typeof rows)[number];
 
-const listingIds = visibleListings.map((l) => l.id);
-const { data: results } =
-  listingIds.length > 0
-    ? await supabase
-        .from('proximity_results')
-        .select('*')
-        .in('listing_id', listingIds)
-    : { data: [] as never[] };
-
-const resultMap = new Map<string, (typeof results)[number]>();
-for (const row of results ?? []) {
-  resultMap.set(`${row.listing_id}:${row.criterion_id}`, row);
-}
-
-const listingRows = visibleListings;
-const criterionRows = criteria ?? [];
+const columns: {
+  label: string;
+  sortType: 'text' | 'number';
+  sortValue: (l: Row) => string;
+  cell: (l: Row) => string;
+  wide?: boolean;
+}[] = [
+  {
+    label: 'Price',
+    sortType: 'number',
+    sortValue: (l) => (l.price_monthly == null ? '' : String(l.price_monthly)),
+    cell: (l) => formatMoney(l.price_monthly),
+  },
+  {
+    label: 'Deposit',
+    sortType: 'number',
+    sortValue: (l) => (l.deposit == null ? '' : String(l.deposit)),
+    cell: (l) => formatMoney(l.deposit),
+  },
+  {
+    label: 'Fees',
+    sortType: 'number',
+    sortValue: (l) => (l.fees_monthly == null ? '' : String(l.fees_monthly)),
+    cell: (l) => formatMoney(l.fees_monthly),
+  },
+  {
+    label: 'Sq ft',
+    sortType: 'number',
+    sortValue: (l) => (l.sqft == null ? '' : String(l.sqft)),
+    cell: (l) => formatSqft(l.sqft),
+  },
+  {
+    label: 'Beds',
+    sortType: 'number',
+    sortValue: (l) => (l.beds == null ? '' : String(l.beds)),
+    cell: (l) => formatNumber(l.beds),
+  },
+  {
+    label: 'Baths',
+    sortType: 'number',
+    sortValue: (l) => (l.baths == null ? '' : String(l.baths)),
+    cell: (l) => formatNumber(l.baths),
+  },
+  {
+    label: 'Pet rent',
+    sortType: 'number',
+    sortValue: (l) => (l.pet_rent_monthly == null ? '' : String(l.pet_rent_monthly)),
+    cell: (l) => formatMoney(l.pet_rent_monthly),
+  },
+  {
+    label: 'Pet deposit',
+    sortType: 'number',
+    sortValue: (l) => (l.pet_deposit == null ? '' : String(l.pet_deposit)),
+    cell: (l) => formatMoney(l.pet_deposit),
+  },
+  {
+    label: 'Amenities',
+    sortType: 'text',
+    sortValue: (l) => (l.amenities ?? []).join(', '),
+    cell: (l) => formatAmenities(l.amenities),
+    wide: true,
+  },
+];
 ---
 <AppLayout
-  title={`Travel Times — ${locale.name}`}
+  title={`Compare — ${locale.name}`}
   crumbs={[
     { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
-    { label: 'Travel Times' },
+    { label: 'Compare' },
   ]}
   locale={{ id: locale.id, name: locale.name }}
-  localeSection="travel"
+  localeSection="compare"
   nestId={locale.nest_id}
-  entitlementUi={entitlementUi}
 >
   {
-    listingRows.length === 0 ? (
+    rows.length === 0 ? (
       <p class="muted">No listings in this Locale yet.</p>
     ) : (
       <>
-        {criterionRows.length === 0 ? (
-          <p class="muted compare-empty-hint">
-            No route search columns yet.{' '}
-            {
-              routeSearchPlan.canAddColumn ? (
-                <button type="button" class="linkish" data-compare-column-open>
-                  Add a column
-                </button>
-              ) : (
-                <span>Add a column (Hunt Pass required)</span>
-              )
-            }{' '}
-            to start comparing times.
-          </p>
-        ) : null}
         <p class="muted compare-empty-hint" data-matrix-favorite-empty hidden>
           No favorited listings. Heart a listing or turn off the favorites filter.
         </p>
         <div class="matrix-panel">
           <div class="matrix-panel__header">
             <div class="matrix-panel__titles compare-header__titles">
-              <h1 class="compare-header__title">Travel Times</h1>
+              <h1 class="compare-header__title">Compare</h1>
               <p class="muted compare-header__sub">
-                Drive, walk, bike, or transit times from each listing to shared destinations.
+                Listing details side by side. Click a column header to sort.
               </p>
-              {
-                routeSearchPlan.ambientMessage && entitlementUi && (
-                  <PlanNotice
-                    variant="inline"
-                    isOwner={entitlementUi.isOwner}
-                    ownerDisplayName={entitlementUi.ownerDisplayName}
-                    showActions={!routeSearchPlan.canAddColumn}
-                  >
-                    <p class="plan-notice__text">{routeSearchPlan.ambientMessage}</p>
-                  </PlanNotice>
-                )
-              }
             </div>
             <div class="matrix-panel__actions compare-header__actions">
               <button
@@ -132,410 +159,112 @@ const criterionRows = criteria ?? [];
                   ></path>
                 </svg>
               </button>
-              <button
-                type="button"
-                class="button icon-btn compare-header__add"
-                data-compare-column-open
-                aria-label="Add column"
-                title="Add column"
-                disabled={!routeSearchPlan.canAddColumn}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M12 5v14"></path>
-                  <path d="M5 12h14"></path>
-                </svg>
-              </button>
             </div>
           </div>
           <div class="matrix-scroll">
-          <table
-            class="data matrix-table matrix-table--travel"
-            id="compare-table"
-            data-sortable
-            style={`--data-cols: ${Math.max(criterionRows.length, 1)}`}
-          >
-            <thead>
-              <tr>
-                <th class="matrix-table__listing" data-sort-type="text">
-                  <button type="button" class="matrix-sort">Listing</button>
+        <table
+          class="data matrix-table matrix-table--wrap"
+          data-sortable
+          style={`--data-cols: ${columns.length}`}
+        >
+          <thead>
+            <tr>
+              <th class="matrix-table__listing" data-sort-type="text">
+                <button type="button" class="matrix-sort">
+                  Listing
+                </button>
+              </th>
+              {columns.map((col) => (
+                <th
+                  class:list={[col.wide ? 'matrix-table__wide' : 'matrix-table__compact']}
+                  data-sort-type={col.sortType}
+                >
+                  <button type="button" class="matrix-sort">
+                    {col.label}
+                  </button>
                 </th>
-                {criterionRows.map((c) => (
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((listing) => {
+              const title = listing.name || listing.address || listing.id;
+              const photo = listing.photo_url;
+              return (
+                <tr
+                  data-listing-id={listing.id}
+                  data-favorite={listing.is_favorite ? '1' : '0'}
+                >
                   <th
-                    data-criterion-id={c.id}
-                    data-place-type-key={
-                      c.kind === 'place_type'
-                        ? c.place_type_key ?? ''
-                        : c.kind === 'text_query' && c.text_query
-                          ? textQueryCacheKey(c.text_query)
-                          : ''
-                    }
-                    data-travel-mode={c.travel_mode}
-                    data-sort-type="number"
+                    scope="row"
+                    class="matrix-table__listing"
+                    data-sort-value={title}
                   >
-                    <div class="matrix-criterion-head">
-                      <div class="matrix-criterion-head__top">
-                        <button type="button" class="matrix-sort matrix-criterion-head__label">
-                          {c.label}
-                        </button>
-                        <button
-                          type="button"
-                          class="secondary icon-btn delete-criterion"
-                          data-criterion-id={c.id}
-                          aria-label={`Delete ${c.label}`}
-                          title={`Delete ${c.label}`}
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M6 6l12 12"></path>
-                            <path d="M18 6L6 18"></path>
-                          </svg>
-                        </button>
-                      </div>
-                      <small class="muted matrix-criterion-head__meta">
-                        {c.kind === 'place_type'
-                          ? `Nearest · ${placeTypeLabel(c.place_type_key ?? '')}`
-                          : c.kind === 'text_query'
-                            ? `Nearest · ${c.text_query ?? c.label}`
-                            : 'Shared place'} ·{' '}
-                        {c.travel_mode}
-                      </small>
+                    <div class="matrix-listing">
+                      {photo ? (
+                        showListingGallery ? (
+                          <button
+                            type="button"
+                            class="matrix-listing__media"
+                            data-listing-gallery
+                            data-photo-urls={JSON.stringify(
+                              listing.photo_urls?.length
+                                ? listing.photo_urls
+                                : [photo],
+                            )}
+                            data-photo-index="0"
+                            aria-label={`Photos: ${title}`}
+                          >
+                            <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
+                          </button>
+                        ) : (
+                          <span class="matrix-listing__media">
+                            <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
+                          </span>
+                        )
+                      ) : (
+                        <span class="matrix-listing__thumb matrix-listing__thumb--empty" aria-hidden="true">
+                          No photo
+                        </span>
+                      )}
+                      <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
+                        <span class="matrix-listing__name">{title}</span>
+                        {listing.address && listing.name ? (
+                          <span class="muted matrix-listing__address">{listing.address}</span>
+                        ) : null}
+                        {listing.phone ? (
+                          <span class="muted matrix-listing__phone">{listing.phone}</span>
+                        ) : null}
+                      </a>
+                      <FavoriteHeart
+                        listingId={listing.id}
+                        favorited={Boolean(listing.is_favorite)}
+                      />
                     </div>
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {listingRows.map((listing) => {
-                const title = listing.name || listing.address || listing.id;
-                const photo = listing.photo_url;
-                return (
-                  <tr
-                    data-listing-id={listing.id}
-                    data-favorite={listing.is_favorite ? '1' : '0'}
-                  >
-                    <th
-                      scope="row"
-                      class="matrix-table__listing"
-                      data-sort-value={title}
+                  {columns.map((col) => (
+                    <td
+                      class:list={[col.wide ? 'matrix-table__wide' : 'matrix-table__compact']}
+                      data-sort-value={col.sortValue(listing)}
                     >
-                      <div class="matrix-listing">
-                        {photo ? (
-                          showListingGallery ? (
-                            <button
-                              type="button"
-                              class="matrix-listing__media"
-                              data-listing-gallery
-                              data-photo-urls={JSON.stringify(
-                                listing.photo_urls?.length
-                                  ? listing.photo_urls
-                                  : [photo],
-                              )}
-                              data-photo-index="0"
-                              aria-label={`Photos: ${title}`}
-                            >
-                              <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
-                            </button>
-                          ) : (
-                            <span class="matrix-listing__media">
-                              <img class="matrix-listing__thumb" src={photo} alt="" loading="lazy" />
-                            </span>
-                          )
-                        ) : (
-                          <span class="matrix-listing__thumb matrix-listing__thumb--empty" aria-hidden="true">
-                            No photo
-                          </span>
-                        )}
-                        <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
-                          <span class="matrix-listing__name">{title}</span>
-                          {listing.address && listing.name ? (
-                            <span class="muted matrix-listing__address">{listing.address}</span>
-                          ) : null}
-                          {listing.phone ? (
-                            <span class="muted matrix-listing__phone">{listing.phone}</span>
-                          ) : null}
-                        </a>
-                        <FavoriteHeart
-                          listingId={listing.id}
-                          favorited={Boolean(listing.is_favorite)}
-                        />
-                      </div>
-                    </th>
-                    {criterionRows.map((c) => {
-                      const row = resultMap.get(`${listing.id}:${c.id}`);
-                      const sortValue =
-                        row?.status === 'ok' && row.duration_sec != null
-                          ? String(row.duration_sec)
-                          : '';
-                      return (
-                        <td
-                          data-listing-id={listing.id}
-                          data-criterion-id={c.id}
-                          data-listing-lat={listing.lat != null ? String(listing.lat) : ''}
-                          data-listing-lng={listing.lng != null ? String(listing.lng) : ''}
-                          data-travel-mode={c.travel_mode}
-                          data-status={row?.status ?? ''}
-                          data-sort-value={sortValue}
-                        >
-                          {row ? (
-                            <span class="seeded" data-seeded="1" hidden>
-                              {JSON.stringify(row)}
-                            </span>
-                          ) : null}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        </div>
+                      {col.wide ? (
+                        <div class="matrix-amenities-cell">{col.cell(listing)}</div>
+                      ) : (
+                        col.cell(listing)
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      </div>
       </>
     )
   }
 
-  <div
-    id="compare-column-overlay"
-    class="compare-column-overlay"
-    hidden
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="compare-column-title"
-  >
-    <div class="compare-column-overlay__backdrop" data-compare-column-close></div>
-    <div class="compare-column-overlay__panel glass">
-      <header class="compare-column-overlay__header">
-        <h2 id="compare-column-title">Add route search column</h2>
-        <button
-          type="button"
-          class="secondary icon-btn"
-          data-compare-column-close
-          aria-label="Close"
-          title="Close"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
-        </button>
-      </header>
-      {
-        !routeSearchPlan.canAddColumn && entitlementUi && (
-          <PlanNotice
-            variant="inline"
-            isOwner={entitlementUi.isOwner}
-            ownerDisplayName={entitlementUi.ownerDisplayName}
-          >
-            <p class="plan-notice__text">{routeSearchPlan.addColumnBlockedMessage}</p>
-          </PlanNotice>
-        )
-      }
-      <form id="criterion-form" class="criterion-form stack">
-        <input type="hidden" name="locale_id" value={locale.id} />
-        <label>
-          Label
-          <input type="text" name="label" required placeholder="e.g. Beach drive" />
-        </label>
-        <label>
-          Kind
-          <select name="kind" id="criterion-kind">
-            <option value="nearest">Nearest</option>
-            <option value="fixed_pin">Shared place</option>
-          </select>
-        </label>
-        <div id="nearest-fields" class="stack">
-          <label>
-            Place type
-            <PlaceTypePicker name="place_type_key" value="" />
-          </label>
-          <p class="muted nearest-fields__or">or</p>
-          <label>
-            Search phrase
-            <input
-              type="text"
-              name="text_query"
-              id="criterion-text-query"
-              placeholder="e.g. coffee shop"
-              autocomplete="off"
-            />
-          </label>
-        </div>
-        <div id="pin-fields" class="pin-fields stack" hidden>
-          <div class="place-search" id="compare-place-search">
-            <label>
-              Place or address
-              <input
-                type="search"
-                data-place-search-input
-                placeholder="Place, address, or search phrase…"
-                autocomplete="off"
-              />
-            </label>
-            <ul class="place-search__results stack" data-place-search-results hidden></ul>
-            <p class="alert" data-place-search-error hidden></p>
-          </div>
-        </div>
-        <label>
-          Travel mode
-          <select name="travel_mode">
-            <option value="DRIVE">Drive</option>
-            <option value="WALK">Walk</option>
-            <option value="BICYCLE">Bicycle</option>
-            <option value="TRANSIT">Transit</option>
-          </select>
-        </label>
-        <button type="submit" disabled={!routeSearchPlan.canAddColumn}>Add column</button>
-      </form>
-      <p id="criterion-status" class="muted"></p>
-    </div>
-  </div>
-
-  <!-- Change cell location (same flow as listing Travel Times edit) -->
-  <div
-    id="compare-place-overlay"
-    class="compare-column-overlay"
-    hidden
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="compare-place-overlay-title"
-  >
-    <div class="compare-column-overlay__backdrop" data-compare-place-close></div>
-    <div
-      class="compare-column-overlay__panel glass listing-overlay__panel listing-overlay__panel--place"
-    >
-      <header class="compare-column-overlay__header">
-        <h2 id="compare-place-overlay-title">Change location</h2>
-        <button
-          type="button"
-          class="secondary icon-btn"
-          data-compare-place-close
-          aria-label="Close"
-          title="Close"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
-        </button>
-      </header>
-      <div class="place-picker">
-        <div class="place-picker__form proximity-panel stack">
-          <p class="muted prox-lede" id="compare-prox-lede">
-            Find a nearby type or search a place, then save.
-          </p>
-          <div class="prox-fields stack">
-            <label>
-              Mode
-              <select id="compare-prox-mode-kind">
-                <option value="nearest">Nearest</option>
-                <option value="search">Search place</option>
-              </select>
-            </label>
-            <div id="compare-prox-nearest-fields" class="stack">
-              <label>
-                Place type
-                <PlaceTypePicker id="compare-prox-place-type" value="" />
-              </label>
-              <p class="muted nearest-fields__or">or</p>
-              <label>
-                Search phrase
-                <input
-                  type="text"
-                  id="compare-prox-text-query"
-                  placeholder="e.g. coffee shop"
-                  autocomplete="off"
-                />
-              </label>
-            </div>
-            <div id="compare-prox-search-fields" class="stack" hidden>
-              <div class="place-search" id="compare-prox-place-search">
-                <label>
-                  Place or address
-                  <input
-                    type="search"
-                    data-place-search-input
-                    placeholder="Place, address, or search phrase…"
-                    autocomplete="off"
-                  />
-                </label>
-                <ul class="place-search__results stack" data-place-search-results hidden></ul>
-                <p class="alert" data-place-search-error hidden></p>
-              </div>
-            </div>
-            <label>
-              Travel mode
-              <select id="compare-prox-mode">
-                <option value="DRIVE">Drive</option>
-                <option value="WALK">Walk</option>
-                <option value="BICYCLE">Bicycle</option>
-                <option value="TRANSIT">Transit</option>
-              </select>
-            </label>
-          </div>
-          <div class="prox-actions">
-            <button
-              type="button"
-              id="compare-prox-run"
-              title="Find nearby places and drive times"
-            >
-              Find route
-            </button>
-            <button
-              type="button"
-              id="compare-prox-save"
-              class="secondary"
-              hidden
-              title="Save this location"
-            >
-              Save
-            </button>
-          </div>
-          <div id="compare-prox-choices" class="prox-choices stack" hidden></div>
-          <div id="compare-prox-result" class="prox-result" hidden></div>
-        </div>
-        <div class="place-picker__map-col">
-          <div id="compare-prox-picker-map" class="place-picker__map map-well"></div>
-          <p id="compare-prox-picker-map-meta" class="place-picker__map-meta muted" hidden></p>
-          <a
-            id="compare-prox-picker-maps-link"
-            class="secondary icon-btn place-picker__maps-link"
-            href="#"
-            target="_blank"
-            rel="noopener"
-            hidden
-            aria-label="Open in Google Maps"
-            title="Open in Google Maps"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
-              <path d="M12 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
-            </svg>
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script
-    define:vars={{
-      localeId: locale.id,
-      mapKey: browserKey,
-      mapId,
-      routeSearchPlanClient,
-    }}
-  >
-    window.__WAYHOME_LOCALE_ID__ = localeId;
-    window.__WAYHOME_MAPS__ = { mapKey, mapId };
-    window.__WAYHOME_COMPARE__ = {
-      localeId,
-      mapKey,
-      mapId,
-      routeSearchPlan: routeSearchPlanClient,
-    };
-  </script>
-  <DirectionsOverlay />
-  <script src="/scripts/directions-overlay.js" type="module"></script>
   <script src="/scripts/matrix-sort.js" type="module"></script>
   <script src="/scripts/matrix-favorite-filter.js" type="module"></script>
-  <script src="/scripts/proximity-compare.js" type="module"></script>
 </AppLayout>

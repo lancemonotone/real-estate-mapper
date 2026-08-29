@@ -171,7 +171,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     supabase,
     localeRow.nest_id,
     'add_route_search_column',
-    { localeId },
+    { localeId, userId: user.id },
   );
   if ('denial' in entitlement) {
     return entitlementDenialResponse(entitlement.denial);

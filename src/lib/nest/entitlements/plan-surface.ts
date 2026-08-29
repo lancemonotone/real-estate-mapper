@@ -1,4 +1,4 @@
-import { PLAN_LIMITS, type EntitlementPlan } from './constants';
+import { PLAN_LIMITS, PROXIMITY_REFRESH_PER_PASS, type EntitlementPlan } from './constants';
 import { PLAN_MESSAGES } from './messages';
 import type { NestEntitlementSnapshot } from './types';
 
@@ -22,7 +22,13 @@ export type RouteSearchPlanContext = {
   columnCap: number | null;
   ambientMessage: string | null;
   addColumnBlockedMessage: string;
+  canRefresh: boolean;
+  refreshRemaining: number;
+  refreshGranted: number;
+  refreshStatusMessage: string | null;
+  refreshAmbientMessage: string | null;
   refreshBlockedMessage: string;
+  refreshCapBlockedMessage: string;
 };
 
 export function buildRouteSearchPlanContext(
@@ -37,6 +43,27 @@ export function buildRouteSearchPlanContext(
       ? PLAN_MESSAGES.routeSearchColumnAmbientAvailable
       : PLAN_MESSAGES.routeSearchColumnAmbientAtCap;
   }
+
+  const refreshGranted =
+    snapshot.plan === 'pro'
+      ? snapshot.billing.proximity_refresh_granted || PROXIMITY_REFRESH_PER_PASS
+      : 0;
+  const refreshRemaining = snapshot.proximityRefreshRemaining;
+  const canRefresh = snapshot.plan === 'pro' && refreshRemaining > 0;
+
+  let refreshStatusMessage: string | null = null;
+  let refreshAmbientMessage: string | null = null;
+  if (snapshot.plan === 'free') {
+    refreshAmbientMessage = PLAN_MESSAGES.routeSearchRefreshRequiresPass;
+  } else if (refreshRemaining > 0) {
+    refreshStatusMessage = PLAN_MESSAGES.routeSearchRefreshRemaining(
+      refreshRemaining,
+      refreshGranted,
+    );
+  } else {
+    refreshStatusMessage = PLAN_MESSAGES.routeSearchRefreshCap;
+  }
+
   return {
     plan: snapshot.plan,
     canAddColumn,
@@ -44,7 +71,13 @@ export function buildRouteSearchPlanContext(
     columnCap,
     ambientMessage,
     addColumnBlockedMessage: PLAN_MESSAGES.routeSearchColumnCap(snapshot.plan),
+    canRefresh,
+    refreshRemaining,
+    refreshGranted,
+    refreshStatusMessage,
+    refreshAmbientMessage,
     refreshBlockedMessage: PLAN_MESSAGES.routeSearchRefreshRequiresPass,
+    refreshCapBlockedMessage: PLAN_MESSAGES.routeSearchRefreshCap,
   };
 }
 
@@ -55,6 +88,12 @@ export function routeSearchPlanClientConfig(ctx: RouteSearchPlanContext) {
     columnCount: ctx.columnCount,
     columnCap: ctx.columnCap,
     addColumnBlockedMessage: ctx.addColumnBlockedMessage,
+    canRefresh: ctx.canRefresh,
+    refreshRemaining: ctx.refreshRemaining,
+    refreshGranted: ctx.refreshGranted,
+    refreshStatusMessage: ctx.refreshStatusMessage,
+    refreshAmbientMessage: ctx.refreshAmbientMessage,
     refreshBlockedMessage: ctx.refreshBlockedMessage,
+    refreshCapBlockedMessage: ctx.refreshCapBlockedMessage,
   };
 }

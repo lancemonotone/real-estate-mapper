@@ -26,7 +26,11 @@ if (!tour || (localeId && tour.locale_id !== localeId)) {
   return new Response('Not found', { status: 404 });
 }
 
-const localeContext = await getVisibleLocaleContext(supabase, tour.locale_id);
+const localeContext = await getVisibleLocaleContext(
+  supabase,
+  tour.locale_id,
+  Astro.locals.devHuntPassPreview ?? false,
+);
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;

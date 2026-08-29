@@ -36,10 +36,16 @@ const {
 } = Astro.props;
 const user = Astro.locals.user;
 const supabase = Astro.locals.supabase;
+const devHuntPassPreview = Astro.locals.devHuntPassPreview ?? false;
 
 let entitlementUi = entitlementUiProp ?? null;
 if (!entitlementUi && nestId && user && supabase) {
-  entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id);
+  entitlementUi = await loadNestEntitlementUi(
+    supabase,
+    nestId,
+    user.id,
+    Astro.locals.devHuntPassPreview ?? false,
+  );
 }
 
 let themeId = resolveUiThemeId(null);
@@ -83,6 +89,17 @@ if (user && supabase) {
         )
       }
       <nav class="app-header__nav" aria-label="App">
+        {
+          devHuntPassPreview && (
+            <a
+              class="badge badge--accent app-header__dev-preview"
+              href="/app/settings"
+              title="Hunt Pass preview is on. Open Settings to turn off."
+            >
+              Hunt Pass preview
+            </a>
+          )
+        }
         <a
           class="secondary icon-btn"
           href="/app/settings"

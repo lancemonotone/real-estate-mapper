@@ -64,6 +64,12 @@ h2 {
   -webkit-backdrop-filter: var(--glass-backdrop-blur) var(--glass-backdrop-sat);
 }
 
+html:has(.app-shell) {
+  --app-chrome-sticky-block: calc(var(--space-page) + 4rem);
+  --app-sticky-inset: calc(var(--app-chrome-sticky-block) + 0.35rem);
+  scroll-padding-block-start: var(--app-sticky-inset);
+}
+
 .app-shell {
   --shell-pad: var(--space-page);
 
@@ -659,6 +665,31 @@ table.compare {
     flex-shrink: 0;
     align-self: flex-end;
   }
+}
+
+.compare-header__refresh-status {
+  margin: 0;
+  flex: 1 1 10rem;
+  min-inline-size: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  text-align: end;
+
+  &.is-plan-limit {
+    padding: 0.45rem 0.65rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in oklab, var(--accent, #0d9488) 35%, transparent);
+    background: color-mix(in oklab, var(--accent, #0d9488) 8%, transparent);
+    text-align: start;
+  }
+}
+
+.compare-header__refresh {
+  --control-pad-block: 0.45rem;
+  --control-pad-inline: 0.75rem;
+  --control-descender: 0.12em;
+
+  flex-shrink: 0;
 }
 
 .compare-header__add.icon-btn {
@@ -1871,7 +1902,8 @@ tr[data-map-listing].is-map-hover > .matrix-table__place .matrix-listing {
 
   @media (min-width: 768px) {
     position: sticky;
-    inset-block-start: 1rem;
+    inset-block-start: var(--app-sticky-inset);
+    align-self: start;
   }
 }
 
@@ -2656,6 +2688,10 @@ body.directions-overlay-open {
   & .compare-header__sub {
     margin: 0;
     margin-block-start: 0.25rem;
+  }
+
+  & .plan-notice {
+    margin-block-start: 0.4rem;
   }
 
   & .matrix-type-legend {
@@ -3973,6 +4009,9 @@ body.directions-overlay-open {
       var(--tours-rail-w)
       minmax(0, var(--tours-center-fr))
       minmax(0, var(--tours-map-fr));
+    grid-template-areas:
+      "rail center map"
+      "rail center map";
   }
 
   /* Rail open: widen unscheduled; shrink center; keep map share */
@@ -4008,6 +4047,10 @@ body.directions-overlay-open {
   border-radius: 0.75rem;
   padding: var(--tours-rail-pad);
   background: color-mix(in oklab, var(--bg-1, var(--bg-0)) 80%, transparent);
+
+  @media (min-width: 1024px) {
+    grid-area: rail;
+  }
 
   &.is-collapsed {
     /* Match week-nav icon-btn top: no panel chrome when icon-only */
@@ -4141,30 +4184,49 @@ body.directions-overlay-open {
   align-items: center;
 }
 
-.tours-workspace__main {
+.tours-workspace__center {
   min-inline-size: 0;
   display: grid;
   gap: 0.85rem;
-  container-type: inline-size;
-  container-name: tours-main;
+  align-content: start;
+
+  @media (min-width: 1024px) {
+    grid-area: center;
+    grid-template-rows: auto minmax(0, 1fr);
+    position: sticky;
+    inset-block-start: var(--app-sticky-inset);
+    align-self: start;
+    z-index: 12;
+    max-block-size: calc(100dvh - var(--app-sticky-inset) - 0.75rem);
+    overflow: hidden;
+  }
 }
 
-.tours-workspace__cap-note {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.4;
+.tours-workspace__week {
+  display: grid;
+  gap: 0.85rem;
 }
 
-.tours-workspace__hidden-day {
-  gap: 0.75rem;
+.tours-workspace__day {
+  min-inline-size: 0;
+  min-block-size: 0;
+
+  @media (min-width: 1024px) {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .tours-workspace__map {
   min-inline-size: 0;
 
   @media (min-width: 1024px) {
+    grid-area: map;
     position: sticky;
-    inset-block-start: 1rem;
+    inset-block-start: var(--app-sticky-inset);
+    align-self: start;
+    z-index: 10;
   }
 
   & .map-well {
@@ -4176,6 +4238,16 @@ body.directions-overlay-open {
       --tours-map-h: min(70dvh, 36rem);
     }
   }
+}
+
+.tours-workspace__hidden-day {
+  gap: 0.75rem;
+}
+
+.tours-workspace__cap-note {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
 }
 
 .tours-workspace__day-head {
@@ -4368,6 +4440,9 @@ body.directions-overlay-open {
 }
 
 .tour-week__grid {
+  container-type: inline-size;
+  container-name: tours-main;
+
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.35rem;
@@ -4461,60 +4536,59 @@ body.directions-overlay-open {
 }
 
 .plan-notice {
-  --plan-notice-pad: 0.85rem 1rem;
-  --plan-notice-gap: 0.75rem;
+  --plan-notice-pad: 0.65rem 0.85rem;
+  --plan-notice-gap: 0.5rem;
 
   display: flex;
   flex-direction: column;
   gap: var(--plan-notice-gap);
   padding: var(--plan-notice-pad);
-  border-radius: var(--radius, 0.75rem);
+  border-radius: var(--radius-sm);
   border: 1px solid color-mix(in oklab, var(--accent, #0d9488) 35%, transparent);
   background: color-mix(in oklab, var(--accent, #0d9488) 8%, transparent);
+
+  & + .plan-notice {
+    margin-block-start: 0.4rem;
+  }
 
   & .plan-notice__content {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.2rem;
     min-inline-size: 0;
   }
 
   & .plan-notice__text {
     margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.4;
+    font-size: 0.85rem;
+    line-height: 1.35;
   }
 
   & .plan-notice__actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+
+    & .button {
+      --control-pad-block: 0.32rem;
+      --control-pad-inline: 0.6rem;
+      --control-descender: 0.1em;
+
+      font-size: 0.82rem;
+    }
   }
 
   & .plan-notice__member {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: 0.82rem;
+    line-height: 1.35;
   }
 
   &.plan-notice--banner {
-    @media (min-width: 1024px) {
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-
-      & .plan-notice__actions {
-        flex-shrink: 0;
-      }
-    }
-  }
-
-  &.plan-notice--inline {
     --plan-notice-pad: 0.65rem 0.85rem;
-    --plan-notice-gap: 0.5rem;
 
-    @media (min-width: 768px) {
+    @media (min-width: 1024px) {
       flex-direction: row;
       align-items: center;
       justify-content: space-between;
@@ -4526,13 +4600,29 @@ body.directions-overlay-open {
     }
   }
 
+  &.plan-notice--inline {
+    --plan-notice-pad: 0.4rem 0.65rem;
+    --plan-notice-gap: 0.4rem;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+
+      & .plan-notice__actions {
+        flex-shrink: 0;
+      }
+    }
+  }
+
   &.plan-notice--status {
-    --plan-notice-pad: 0.55rem 0.75rem;
+    --plan-notice-pad: 0.45rem 0.65rem;
     --plan-notice-gap: 0;
 
     border-color: color-mix(in oklab, var(--danger, #dc2626) 35%, transparent);
     background: color-mix(in oklab, var(--danger, #dc2626) 8%, transparent);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     line-height: 1.35;
   }
 

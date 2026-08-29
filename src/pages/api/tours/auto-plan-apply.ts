@@ -27,6 +27,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     body.localeId,
     body.startDate,
     body.endDate,
+    user.id,
   );
 
   if (!result.ok) {

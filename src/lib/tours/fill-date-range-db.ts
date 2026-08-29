@@ -1,4 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  checkAddTourDaysWithStopsBatch,
+  loadNestEntitlements,
+} from '../nest/entitlements';
+import { loadDevHuntPassPreviewForUser } from '../dev/hunt-pass-preview';
 import { getLocaleForNestMember } from '../supabase/nest';
 import {
   AUTO_PLAN_MAX_PER_CLUSTER,
@@ -149,6 +154,7 @@ export async function applyFillDateRange(
   localeId: string,
   startDate: string,
   endDate: string,
+  userId?: string,
 ) {
   const preview = await buildFillPreview(supabase, localeId, startDate, endDate);
   if (!preview.ok) return preview;
@@ -164,6 +170,29 @@ export async function applyFillDateRange(
           ? 'No unscheduled geocoded listings to place.'
           : 'Nothing to apply — all eligible listings overflowed or none left.',
     };
+  }
+
+  const locale = await getLocaleForNestMember(supabase, localeId);
+  if (!locale) {
+    return { ok: false as const, error: 'Locale not found', status: 404 };
+  }
+
+  const devHuntPassPreview = userId
+    ? await loadDevHuntPassPreviewForUser(supabase, userId)
+    : false;
+  const snapshot = await loadNestEntitlements(supabase, locale.nest_id, {
+    devHuntPassPreview,
+  });
+  if (!snapshot) {
+    return { ok: false as const, error: 'Nest not found', status: 404 };
+  }
+
+  const newTourDaysWithStops = preview.assignments.filter(
+    (assignment) => assignment.existingCount === 0 && assignment.listingIds.length > 0,
+  ).length;
+  const batchCheck = checkAddTourDaysWithStopsBatch(snapshot, newTourDaysWithStops);
+  if (!batchCheck.ok) {
+    return { ok: false as const, error: batchCheck.message, status: 403 };
   }
 
   const touched: string[] = [];

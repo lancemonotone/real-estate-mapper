@@ -28,8 +28,11 @@ const { data: nest } = await supabase
   .single();
 
 const locales = await listLocalesForNest(supabase, nestId);
-const entitlementSnapshot = await loadNestEntitlements(supabase, nestId);
-const entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id);
+const devPreview = Astro.locals.devHuntPassPreview ?? false;
+const entitlementSnapshot = await loadNestEntitlements(supabase, nestId, {
+  devHuntPassPreview: devPreview,
+});
+const entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id, devPreview);
 const visibleLocales = entitlementSnapshot
   ? locales.filter((locale) => entitlementSnapshot.visibleLocaleIds.has(locale.id))
   : locales;

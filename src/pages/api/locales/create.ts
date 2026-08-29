@@ -72,7 +72,9 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   let nestId = await getPrimaryNestId(supabase, user.id);
   if (!nestId) nestId = await ensureNestForUser(supabase, user.id);
 
-  const entitlement = await assertNestEntitlement(supabase, nestId, 'create_locale');
+  const entitlement = await assertNestEntitlement(supabase, nestId, 'create_locale', {
+    userId: user.id,
+  });
   if ('denial' in entitlement) {
     return entitlementDenialResponse(entitlement.denial);
   }

@@ -1,4 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
+import { loadDevHuntPassPreviewForUser } from './lib/dev/hunt-pass-preview';
 import { createSupabaseServerClient } from './lib/supabase/server';
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -27,5 +28,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   context.locals.user = user;
   context.locals.supabase = supabase;
+  context.locals.devHuntPassPreview = await loadDevHuntPassPreviewForUser(supabase, user.id);
   return next();
 });

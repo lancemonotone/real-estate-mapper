@@ -3,7 +3,9 @@ import {
   applyHuntPassActivation,
   buildRouteSearchPlanContext,
   buildTourCalendarContext,
+  checkAddTourDaysWithStopsBatch,
   checkEntitlementGate,
+  devHuntPassPreviewBilling,
   isListingCapReached,
   isLocaleCapReached,
   isRouteSearchColumnCapReached,
@@ -289,5 +291,88 @@ describe('nest entitlements', () => {
     });
     expect(atCap.canAddColumn).toBe(false);
     expect(atCap.ambientMessage).toContain('allows one route search column');
+  });
+
+  it('builds route search refresh budget context', () => {
+    const free = buildRouteSearchPlanContext(
+      resolveNestEntitlements({
+        billing: baseBilling,
+        locales: [{ id: 'loc-1', created_at: '2026-01-01T00:00:00Z' }],
+        listings: [],
+        tourDays: [],
+        routeSearchCriteria: [{ locale_id: 'loc-1' }],
+      }),
+    );
+    expect(free.canRefresh).toBe(false);
+    expect(free.refreshAmbientMessage).toContain('Hunt Pass');
+
+    const pro = buildRouteSearchPlanContext(
+      resolveNestEntitlements({
+        billing: {
+          ...baseBilling,
+          pass_expires_at: '2026-12-01T00:00:00Z',
+          proximity_refresh_granted: 60,
+          proximity_refresh_used: 41,
+        },
+        locales: [{ id: 'loc-1', created_at: '2026-01-01T00:00:00Z' }],
+        listings: [],
+        tourDays: [],
+      }),
+    );
+    expect(pro.canRefresh).toBe(true);
+    expect(pro.refreshRemaining).toBe(19);
+    expect(pro.refreshStatusMessage).toContain('19 of 60');
+
+    const exhausted = buildRouteSearchPlanContext(
+      resolveNestEntitlements({
+        billing: {
+          ...baseBilling,
+          pass_expires_at: '2026-12-01T00:00:00Z',
+          proximity_refresh_granted: 60,
+          proximity_refresh_used: 60,
+        },
+        locales: [],
+        listings: [],
+        tourDays: [],
+      }),
+    );
+    expect(exhausted.canRefresh).toBe(false);
+    expect(exhausted.refreshStatusMessage).toContain('refresh limit reached');
+  });
+
+  it('blocks batch tour day creates when Free cap would be exceeded', () => {
+    const snapshot = resolveNestEntitlements({
+      billing: baseBilling,
+      locales: [{ id: 'loc-1', created_at: '2026-01-01T00:00:00Z' }],
+      listings: [],
+      tourDays: [
+        { id: 'd-1', locale_id: 'loc-1', created_at: '2026-01-02T00:00:00Z', stop_count: 1 },
+        { id: 'd-2', locale_id: 'loc-1', created_at: '2026-01-03T00:00:00Z', stop_count: 2 },
+        { id: 'd-3', locale_id: 'loc-1', created_at: '2026-01-04T00:00:00Z', stop_count: 1 },
+      ],
+    });
+
+    expect(checkAddTourDaysWithStopsBatch(snapshot, 0).ok).toBe(true);
+    expect(checkAddTourDaysWithStopsBatch(snapshot, 1).ok).toBe(false);
+    expect(checkAddTourDaysWithStopsBatch(snapshot, 2).ok).toBe(false);
+  });
+
+  it('treats developer Hunt Pass preview billing as Pro', () => {
+    const billing = devHuntPassPreviewBilling(new Date('2026-08-27T00:00:00Z'));
+    expect(isNestPro(billing, new Date('2026-08-27T00:00:00Z'))).toBe(true);
+    expect(resolveNestPlan(billing, new Date('2026-08-27T00:00:00Z'))).toBe('pro');
+
+    const snapshot = resolveNestEntitlements({
+      billing,
+      locales: [
+        { id: 'loc-1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'loc-2', created_at: '2026-02-01T00:00:00Z' },
+      ],
+      listings: [],
+      tourDays: [],
+    });
+    expect(snapshot.visibleLocaleIds.size).toBe(2);
+    expect(snapshot.plan).toBe('pro');
+    expect(snapshot.proximityRefreshRemaining).toBeGreaterThan(0);
   });
 });

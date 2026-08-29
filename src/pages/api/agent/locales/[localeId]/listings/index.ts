@@ -10,6 +10,7 @@ import {
   filterVisibleListings,
 } from '../../../../../../lib/nest/entitlements';
 import { loadNestEntitlements } from '../../../../../../lib/nest/entitlements/db';
+import { loadDevHuntPassPreviewForUser } from '../../../../../../lib/dev/hunt-pass-preview';
 import { getLocaleForNestMember } from '../../../../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../../../../lib/supabase/server';
 
@@ -55,7 +56,8 @@ export const GET: APIRoute = async ({ params, request, cookies, locals }) => {
     });
   }
 
-  const snapshot = await loadNestEntitlements(supabase, locale.nest_id);
+  const devHuntPassPreview = await loadDevHuntPassPreviewForUser(supabase, user.id);
+  const snapshot = await loadNestEntitlements(supabase, locale.nest_id, { devHuntPassPreview });
   const visible = snapshot
     ? filterVisibleListings(data ?? [], snapshot)
     : (data ?? []);
@@ -136,7 +138,7 @@ export const PUT: APIRoute = async ({ params, request, cookies, locals }) => {
       supabase,
       locale.nest_id,
       'add_listing',
-      { localeId },
+      { localeId, userId: user.id },
     );
     if ('denial' in entitlement) {
       return entitlementDenialResponse(entitlement.denial);

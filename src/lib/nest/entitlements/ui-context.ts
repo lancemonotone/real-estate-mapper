@@ -28,8 +28,9 @@ export async function loadNestEntitlementUi(
   supabase: Client,
   nestId: string,
   userId: string,
+  devHuntPassPreview = false,
 ): Promise<NestEntitlementUi | null> {
-  const snapshot = await loadNestEntitlements(supabase, nestId);
+  const snapshot = await loadNestEntitlements(supabase, nestId, { devHuntPassPreview });
   if (!snapshot) return null;
 
   const { data: member, error: memberError } = await supabase
@@ -49,7 +50,7 @@ export async function loadNestEntitlementUi(
   let showExpiryNag = false;
   const passExpiresAt = snapshot.billing.pass_expires_at;
 
-  if (passExpiresAt && isNestPro(snapshot.billing)) {
+  if (passExpiresAt && isNestPro(snapshot.billing) && !snapshot.devHuntPassPreview) {
     const ms = new Date(passExpiresAt).getTime() - Date.now();
     daysUntilExpiry = Math.ceil(ms / 86_400_000);
     showExpiryNag = daysUntilExpiry >= 0 && daysUntilExpiry <= 7;

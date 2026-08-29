@@ -1,14 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/database';
 import { ENTITLEMENT_ERROR_CODE } from './constants';
+import { loadDevHuntPassPreviewForUser } from '../../dev/hunt-pass-preview';
 import {
   checkEntitlementGate,
+  devHuntPassPreviewBilling,
   resolveNestEntitlements,
   type EntitlementGate,
 } from './resolve';
 import type { EntitlementDenial, NestBillingRow, NestEntitlementSnapshot } from './types';
 
 type Client = SupabaseClient<Database>;
+
+export type LoadNestEntitlementsOptions = {
+  devHuntPassPreview?: boolean;
+};
 
 export async function loadNestBilling(
   supabase: Client,
@@ -71,6 +77,7 @@ async function loadTourDaysWithStopCounts(
 export async function loadNestEntitlements(
   supabase: Client,
   nestId: string,
+  options?: LoadNestEntitlementsOptions,
 ): Promise<NestEntitlementSnapshot | null> {
   const billing = await loadNestBilling(supabase, nestId);
   if (!billing) return null;
@@ -116,27 +123,48 @@ export async function loadNestEntitlements(
     routeSearchCriteria = criteria ?? [];
   }
 
-  return resolveNestEntitlements({
+  const input = {
     billing,
     locales: localeRows,
     listings: listingRows,
     tourDays,
     routeSearchCriteria,
-  });
+  };
+
+  if (!options?.devHuntPassPreview) {
+    return resolveNestEntitlements(input);
+  }
+
+  return {
+    ...resolveNestEntitlements({
+      ...input,
+      billing: devHuntPassPreviewBilling(),
+    }),
+    devHuntPassPreview: true,
+  };
 }
+
+export type AssertNestEntitlementContext = {
+  listingId?: string;
+  localeId?: string;
+  photoCount?: number;
+  targetTourDayStopCount?: number;
+  userId?: string;
+  devHuntPassPreview?: boolean;
+};
 
 export async function assertNestEntitlement(
   supabase: Client,
   nestId: string,
   gate: EntitlementGate,
-  context?: {
-    listingId?: string;
-    localeId?: string;
-    photoCount?: number;
-    targetTourDayStopCount?: number;
-  },
+  context?: AssertNestEntitlementContext,
 ): Promise<NestEntitlementSnapshot | { denial: EntitlementDenial }> {
-  const snapshot = await loadNestEntitlements(supabase, nestId);
+  let devHuntPassPreview = context?.devHuntPassPreview ?? false;
+  if (!devHuntPassPreview && context?.userId) {
+    devHuntPassPreview = await loadDevHuntPassPreviewForUser(supabase, context.userId);
+  }
+
+  const snapshot = await loadNestEntitlements(supabase, nestId, { devHuntPassPreview });
   if (!snapshot) {
     return {
       denial: {

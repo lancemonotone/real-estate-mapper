@@ -162,6 +162,7 @@ async function assignListings(
   opts?: {
     copyEndpointsFromDayId?: string;
     clearTargetEndpoints?: boolean;
+    userId?: string;
   },
 ): Promise<CalendarActionOk | CalendarActionErr> {
   if (listingIds.length === 0) {
@@ -202,7 +203,7 @@ async function assignListings(
     supabase,
     localeRow.nest_id,
     'add_tour_day_with_stops',
-    { targetTourDayStopCount: existingCount },
+    { targetTourDayStopCount: existingCount, userId: opts?.userId },
   );
   if ('denial' in entitlement) {
     return {
@@ -299,6 +300,7 @@ export async function applyCalendarAction(
   supabase: SupabaseClient,
   localeId: string,
   action: CalendarAction,
+  opts?: { userId?: string },
 ): Promise<CalendarActionOk | CalendarActionErr> {
   try {
     switch (action.type) {
@@ -309,6 +311,7 @@ export async function applyCalendarAction(
           action.listingIds,
           action.tourDate,
           action.mode,
+          { userId: opts?.userId },
         );
 
       case 'unassign': {
@@ -384,6 +387,7 @@ export async function applyCalendarAction(
 
         return await assignListings(supabase, localeId, listingIds, action.toDate, action.mode, {
           copyEndpointsFromDayId: fromDay.id,
+          userId: opts?.userId,
         });
       }
 

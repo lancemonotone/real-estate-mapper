@@ -30,7 +30,9 @@ import {
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
-const localeContext = localeId ? await getVisibleLocaleContext(supabase, localeId) : null;
+const localeContext = localeId
+  ? await getVisibleLocaleContext(supabase, localeId, Astro.locals.devHuntPassPreview ?? false)
+  : null;
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
@@ -346,38 +348,40 @@ const seed = {
       </div>
     </aside>
 
-    <div class="tours-workspace__main">
-      <TourWeekCalendar
-        weekKeys={weekKeys}
-        daysByDate={daysByDate}
-        selectedDate={selectedDate}
-        weekLabel={weekLabel}
-        jumpValue={selectedDate ?? weekKeys[0]!}
-        blockNewTourDays={!tourCal.canAddNewTourDay}
-        dropBlocked={dropBlocked}
-      />
-      {
-        !tourCal.canAddNewTourDay && snapshot.plan === 'free' && entitlementUi && (
-          <PlanNotice
-            variant="inline"
-            isOwner={entitlementUi.isOwner}
-            ownerDisplayName={entitlementUi.ownerDisplayName}
-          >
-            <p class="plan-notice__text">
-              {PLAN_MESSAGES.tourDayCapAmbient('free')}
-            </p>
-          </PlanNotice>
-        )
-      }
+    <div class="tours-workspace__center">
+      <div class="tours-workspace__week">
+        <TourWeekCalendar
+          weekKeys={weekKeys}
+          daysByDate={daysByDate}
+          selectedDate={selectedDate}
+          weekLabel={weekLabel}
+          jumpValue={selectedDate ?? weekKeys[0]!}
+          blockNewTourDays={!tourCal.canAddNewTourDay}
+          dropBlocked={dropBlocked}
+        />
+        {
+          !tourCal.canAddNewTourDay && snapshot.plan === 'free' && entitlementUi && (
+            <PlanNotice
+              variant="inline"
+              isOwner={entitlementUi.isOwner}
+              ownerDisplayName={entitlementUi.ownerDisplayName}
+            >
+              <p class="plan-notice__text">
+                {PLAN_MESSAGES.tourDayCapAmbient('free')}
+              </p>
+            </PlanNotice>
+          )
+        }
 
-      <div
-        id="tours-drop-hint"
-        class="plan-notice plan-notice--inline tour-week__drop-hint"
-        role="status"
-        aria-live="polite"
-        hidden
-      >
-        <p class="plan-notice__text" data-tours-drop-hint-text></p>
+        <div
+          id="tours-drop-hint"
+          class="plan-notice plan-notice--inline tour-week__drop-hint"
+          role="status"
+          aria-live="polite"
+          hidden
+        >
+          <p class="plan-notice__text" data-tours-drop-hint-text></p>
+        </div>
       </div>
 
       <section class="tours-workspace__day" data-tours-day-panel>

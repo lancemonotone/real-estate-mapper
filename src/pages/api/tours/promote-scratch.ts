@@ -1,4 +1,8 @@
 import type { APIRoute } from 'astro';
+import {
+  assertNestEntitlement,
+  entitlementDenialResponse,
+} from '../../../lib/nest/entitlements';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { routeSignatureForListingIds } from '../../../lib/tours/route-signature';
@@ -38,6 +42,32 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       { error: 'startListingId or customStart required' },
       { status: 400 },
     );
+  }
+
+  const { data: existingDay } = await supabase
+    .from('tour_days')
+    .select('id')
+    .eq('locale_id', body.localeId)
+    .eq('tour_date', body.tourDate)
+    .maybeSingle();
+
+  let existingStopCount = 0;
+  if (existingDay) {
+    const { count } = await supabase
+      .from('tour_stops')
+      .select('*', { count: 'exact', head: true })
+      .eq('tour_day_id', existingDay.id);
+    existingStopCount = count ?? 0;
+  }
+
+  const entitlement = await assertNestEntitlement(
+    supabase,
+    locale.nest_id,
+    'add_tour_day_with_stops',
+    { targetTourDayStopCount: existingStopCount, userId: user.id },
+  );
+  if ('denial' in entitlement) {
+    return entitlementDenialResponse(entitlement.denial);
   }
 
   const { data: tourDay, error } = await supabase

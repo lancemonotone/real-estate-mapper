@@ -55,6 +55,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     supabase,
     locale.nest_id,
     'proximity_refresh',
+    { userId: user.id },
   );
   if ('denial' in entitlement) {
     return entitlementDenialResponse(entitlement.denial);

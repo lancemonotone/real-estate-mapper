@@ -51,6 +51,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
       supabase,
       locale.nest_id,
       'proximity_refresh',
+      { userId: user.id },
     );
     if ('denial' in entitlement) {
       return entitlementDenialResponse(entitlement.denial);
@@ -59,7 +60,8 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     try {
       const results = await computeStaleForLocale(supabase, localeId);
       await recordProximityApiUsage(supabase, locale.nest_id, entitlement, 'refresh');
-      return new Response(JSON.stringify({ results }), {
+      const refreshRemaining = Math.max(0, entitlement.proximityRefreshRemaining - 1);
+      return new Response(JSON.stringify({ results, refresh_remaining: refreshRemaining }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -102,6 +104,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     supabase,
     locale.nest_id,
     'proximity_compute',
+    { userId: user.id },
   );
   if ('denial' in entitlement) {
     return entitlementDenialResponse(entitlement.denial);
