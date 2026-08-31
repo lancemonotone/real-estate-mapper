@@ -119,6 +119,7 @@ const listingTourCal = buildTourCalendarContext(
   (localeToursRaw ?? []).map((day) => ({ id: day.id, tour_date: day.tour_date })),
   allLocaleStopsForCal ?? [],
 );
+const listingTourCalendarClient = tourCalendarClientConfig(listingTourCal);
 
 const tourIds = (localeTours ?? []).map((t) => t.id);
 let assignment: {
@@ -1056,6 +1057,7 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
       localeLng: locale.center_lng,
       listingTourSelected,
       listingPath: `${base}/listings/${listing.id}`,
+      listingTourCalendarClient,
     }}
   >
     window.__WAYHOME_LISTING_PROX__ = {
@@ -1073,7 +1075,7 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
       listingId,
       selectedDate: listingTourSelected,
       listingPath,
-      tourCalendar: tourCalendarClientConfig(listingTourCal),
+      tourCalendar: listingTourCalendarClient,
     };
   </script>
   <DirectionsOverlay />
