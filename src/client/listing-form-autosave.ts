@@ -48,7 +48,7 @@ async function saveForm(form: HTMLFormElement): Promise<void> {
 
 export function bindListingFormAutosave(root: ParentNode = document): void {
   root.querySelectorAll<HTMLFormElement>('form[data-listing-autosave]').forEach((form) => {
-    if (form.dataset.listingAutosaveBound === '1') return;
+    if (form.dataset.listingAutosaveBound === '1' && form.isConnected) return;
     form.dataset.listingAutosaveBound = '1';
 
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -107,4 +107,16 @@ export function bindListingFormAutosave(root: ParentNode = document): void {
 
 export function listingAutosaveNeedsReload(form: HTMLFormElement | null): boolean {
   return Boolean(form?.dataset.listingAutosaved === '1');
+}
+
+export function bootListingFormAutosave(root: ParentNode = document): void {
+  bindListingFormAutosave(root);
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('astro:page-load', () => bootListingFormAutosave());
+  document.addEventListener('wayhome:listing-forms-bind', (e) => {
+    const detail = (e as CustomEvent<{ root?: ParentNode }>).detail;
+    bootListingFormAutosave(detail?.root ?? document);
+  });
 }

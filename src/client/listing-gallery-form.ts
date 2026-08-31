@@ -56,7 +56,7 @@ function addUrls(list: HTMLElement, raw: string) {
 
 export function bindListingGalleryForm(root: ParentNode = document): void {
   root.querySelectorAll<HTMLElement>('[data-gallery-form]').forEach((form) => {
-    if (form.dataset.galleryFormBound === '1') return;
+    if (form.dataset.galleryFormBound === '1' && form.isConnected) return;
     form.dataset.galleryFormBound = '1';
     const list = form.querySelector<HTMLElement>('[data-gallery-list]');
     if (!list) return;
@@ -141,5 +141,17 @@ export function bindListingGalleryForm(root: ParentNode = document): void {
     });
 
     syncHiddenInputs(list);
+  });
+}
+
+export function bootListingGalleryForms(root: ParentNode = document): void {
+  bindListingGalleryForm(root);
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('astro:page-load', () => bootListingGalleryForms());
+  document.addEventListener('wayhome:listing-forms-bind', (e) => {
+    const detail = (e as CustomEvent<{ root?: ParentNode }>).detail;
+    bootListingGalleryForms(detail?.root ?? document);
   });
 }

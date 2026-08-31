@@ -25,6 +25,8 @@ import {
   formatMoney,
   formatNumber,
   formatSqft,
+  sumListingMonthlyTotal,
+  sumListingMoveInTotal,
 } from '../../../../../lib/listings/format-attributes';
 import { textQueryCacheKey } from '../../../../../lib/proximity/text-query';
 
@@ -271,18 +273,61 @@ const mapPlaces = [
 ];
 
 const mapPlacesJson = JSON.stringify(mapPlaces);
-const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
-  listing.price_monthly != null && { label: 'Price / mo', value: formatMoney(listing.price_monthly) },
-  listing.beds != null && { label: 'Beds', value: formatNumber(listing.beds) },
-  listing.baths != null && { label: 'Baths', value: formatNumber(listing.baths) },
-  listing.sqft != null && { label: 'Sq ft', value: formatSqft(listing.sqft) },
-  listing.deposit != null && { label: 'Deposit', value: formatMoney(listing.deposit) },
-  listing.fees_monthly != null && { label: 'Fees / mo', value: formatMoney(listing.fees_monthly) },
+const monthlyTotal = sumListingMonthlyTotal(listing);
+const moveInTotal = sumListingMoveInTotal(listing);
+
+type ListingFact = { label: string; value: string; prewrap?: boolean; hint?: string };
+
+function listingFacts(
+  entries: Array<ListingFact | false | null | undefined>,
+): ListingFact[] {
+  return entries.filter(Boolean) as ListingFact[];
+}
+
+const depositCostFacts = listingFacts([
+  listing.deposit != null && {
+    label: 'Deposit',
+    value: formatMoney(listing.deposit),
+  },
+  listing.pet_deposit != null && {
+    label: 'Pet deposit',
+    value: formatMoney(listing.pet_deposit),
+  },
+]);
+
+const oneTimeCostFacts = listingFacts([
+  listing.application_fees != null && {
+    label: 'Application fees',
+    value: formatMoney(listing.application_fees),
+  },
+  listing.move_in_fees != null && {
+    label: 'Move-in fees',
+    value: formatMoney(listing.move_in_fees),
+  },
+]);
+
+const monthlyCostFacts = listingFacts([
+  listing.price_monthly != null && {
+    label: 'Price / mo',
+    value: formatMoney(listing.price_monthly),
+  },
+  listing.fees_monthly != null && {
+    label: 'Fees / mo',
+    value: formatMoney(listing.fees_monthly),
+  },
   listing.pet_rent_monthly != null && {
     label: 'Pet rent / mo',
     value: formatMoney(listing.pet_rent_monthly),
   },
-  listing.pet_deposit != null && { label: 'Pet deposit', value: formatMoney(listing.pet_deposit) },
+]);
+
+const unitFacts = listingFacts([
+  listing.beds != null && { label: 'Beds', value: formatNumber(listing.beds) },
+  listing.baths != null && { label: 'Baths', value: formatNumber(listing.baths) },
+  listing.sqft != null && { label: 'Sq ft', value: formatSqft(listing.sqft) },
+]);
+
+const otherFacts = listingFacts([
   (listing.amenities?.length ?? 0) > 0 && {
     label: 'Amenities',
     value: formatAmenities(listing.amenities),
@@ -292,7 +337,19 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
     value: listing.notes.trim(),
     prewrap: true,
   },
-].filter(Boolean) as { label: string; value: string; prewrap?: boolean }[];
+]);
+
+const showMoveInDepositNote =
+  moveInTotal != null &&
+  ((listing.deposit != null && listing.deposit > 0) ||
+    (listing.pet_deposit != null && listing.pet_deposit > 0));
+
+const hasFactSections =
+  depositCostFacts.length > 0 ||
+  oneTimeCostFacts.length > 0 ||
+  monthlyCostFacts.length > 0 ||
+  unitFacts.length > 0 ||
+  otherFacts.length > 0;
 ---
 <AppLayout
   title={listingTitle}
@@ -307,124 +364,189 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
   nestId={locale.nest_id}
   entitlementUi={entitlementUi}
 >
-  <div class="locale-hero__heading">
-    <div class="locale-hero__title">
-      <h1 class="locale-hero__name">{listingTitle}</h1>
-      <div class="locale-hero__title-actions">
-        <FavoriteHeart listingId={listing.id} favorited={Boolean(listing.is_favorite)} />
-        <button
-          type="button"
-          class="secondary icon-btn locale-hero__edit"
-          data-listing-overlay-open="edit"
-          title="Edit listing"
-          aria-label="Edit listing"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 20h9"></path>
-            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-          </svg>
-        </button>
-      </div>
-    </div>
-    <div class="locale-hero__trailing">
-      <p class="listing-hero__tour locale-hero__tour-status">
-        {
-          assignment ? (
-            <>
-              On tour{' '}
-              {
-                assignment.hiddenOnPlan ? (
-                  <span>
-                    {formatTourDate(assignment.tourDate)}
-                    {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}{' '}
-                    <PlanNotice variant="chip">{PLAN_MESSAGES.tourOnHiddenDate}</PlanNotice>
-                  </span>
-                ) : (
-                  <a href={`${base}/tours/${assignment.tourDayId}`}>
-                    {formatTourDate(assignment.tourDate)}
-                    {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}
-                  </a>
-                )
-              }
-            </>
-          ) : (
-            <span class="muted">Not on a tour</span>
-          )
-        }
-      </p>
-      <div class="locale-hero__actions">
-        <button
-          type="button"
-          class="secondary icon-btn"
-          data-listing-overlay-open="tour"
-          title="Tour"
-          aria-label="Tour"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-            <path d="M3 10h18"></path>
-            <path d="M8 3v4"></path>
-            <path d="M16 3v4"></path>
-          </svg>
-        </button>
-      </div>
-    </div>
-  </div>
-
   <section class="listing-hero">
     <div class="listing-hero__meta stack">
-      {
-        listing.address || listing.source_url ? (
-          <div class="listing-hero__address-row">
-            {listing.address ? (
-              <p class="listing-hero__address">{listing.address}</p>
-            ) : (
-              <p class="muted">No address yet.</p>
-            )}
-            {listing.source_url ? (
-              <a
-                class="secondary icon-btn"
-                href={listing.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open listing source"
-                aria-label="Open listing source"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M14 4h6v6"></path>
-                  <path d="M10 14L20 4"></path>
-                  <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
-                </svg>
-              </a>
-            ) : null}
+      <div class="listing-hero__heading">
+        <div class="locale-hero__title">
+          <h1 class="locale-hero__name">{listingTitle}</h1>
+          <div class="locale-hero__title-actions">
+            <FavoriteHeart listingId={listing.id} favorited={Boolean(listing.is_favorite)} />
+            <button
+              type="button"
+              class="secondary icon-btn locale-hero__edit"
+              data-listing-overlay-open="edit"
+              title="Edit listing"
+              aria-label="Edit listing"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+            </button>
           </div>
-        ) : (
-          <p class="muted">No address yet.</p>
-        )
-      }
+        </div>
+      </div>
+
       {
-        listing.phone ? (
-          <p class="listing-hero__phone">
-            <a href={`tel:${listing.phone.replace(/[^\d+]/g, '')}`}>{listing.phone}</a>
-          </p>
+        listing.address || listing.source_url || listing.phone ? (
+          <div class="listing-hero__contact stack">
+            {
+              listing.address || listing.source_url ? (
+                <div class="listing-hero__address-row">
+                  {listing.address ? (
+                    <p class="listing-hero__address">{listing.address}</p>
+                  ) : (
+                    <p class="muted">No address yet.</p>
+                  )}
+                  {listing.source_url ? (
+                    <a
+                      class="secondary icon-btn"
+                      href={listing.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open listing source"
+                      aria-label="Open listing source"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M14 4h6v6"></path>
+                        <path d="M10 14L20 4"></path>
+                        <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
+                      </svg>
+                    </a>
+                  ) : null}
+                </div>
+              ) : null
+            }
+            {
+              listing.phone ? (
+                <p class="listing-hero__phone">
+                  <a href={`tel:${listing.phone.replace(/[^\d+]/g, '')}`}>{listing.phone}</a>
+                </p>
+              ) : null
+            }
+          </div>
         ) : null
       }
 
       {
-        attributeFacts.length > 0 ? (
-          <dl class="listing-facts">
-            {attributeFacts.map((fact) => (
-              <div class="listing-facts__row">
-                <dt>{fact.label}</dt>
-                <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
-                  {fact.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        ) : (
+        monthlyTotal != null || moveInTotal != null ? (
+          <section class="listing-cost-summary glass" aria-label="Cost totals">
+            <dl class="listing-cost-summary__grid">
+              {
+                monthlyTotal != null ? (
+                  <div class="listing-cost-summary__item">
+                    <dt>Total / mo</dt>
+                    <dd>{formatMoney(monthlyTotal)}</dd>
+                  </div>
+                ) : null
+              }
+              {
+                moveInTotal != null ? (
+                  <div class="listing-cost-summary__item">
+                    <dt>
+                      Total move-in
+                      {showMoveInDepositNote ? (
+                        <span class="listing-cost-summary__qualifier"> (includes deposit)</span>
+                      ) : null}
+                    </dt>
+                    <dd>{formatMoney(moveInTotal)}</dd>
+                  </div>
+                ) : null
+              }
+            </dl>
+          </section>
+        ) : null
+      }
+
+      {
+        hasFactSections ? (
+          <div class="listing-hero__fact-sections stack">
+      {
+        depositCostFacts.length > 0 ? (
+          <div class="listing-facts-group">
+            <h2 class="listing-section__title">Deposit</h2>
+            <dl class="listing-facts">
+              {depositCostFacts.map((fact) => (
+                <div class="listing-facts__row">
+                  <dt>{fact.label}</dt>
+                  <dd>
+                    <span class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                      {fact.value}
+                    </span>
+                    {fact.hint ? <span class="listing-facts__hint muted">{fact.hint}</span> : null}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null
+      }
+
+      {
+        oneTimeCostFacts.length > 0 ? (
+          <div class="listing-facts-group">
+            <h2 class="listing-section__title">One-time fees</h2>
+            <dl class="listing-facts">
+              {oneTimeCostFacts.map((fact) => (
+                <div class="listing-facts__row">
+                  <dt>{fact.label}</dt>
+                  <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                    {fact.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null
+      }
+
+      {
+        monthlyCostFacts.length > 0 ? (
+          <div class="listing-facts-group">
+            <h2 class="listing-section__title">Monthly</h2>
+            <dl class="listing-facts">
+              {monthlyCostFacts.map((fact) => (
+                <div class="listing-facts__row">
+                  <dt>{fact.label}</dt>
+                  <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                    {fact.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null
+      }
+
+      {
+        unitFacts.length > 0 || otherFacts.length > 0 ? (
+          <div class="listing-facts-group">
+            <h2 class="listing-section__title">Attributes</h2>
+            <dl class="listing-facts">
+              {unitFacts.map((fact) => (
+                <div class="listing-facts__row">
+                  <dt>{fact.label}</dt>
+                  <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                    {fact.value}
+                  </dd>
+                </div>
+              ))}
+              {otherFacts.map((fact) => (
+                <div class="listing-facts__row">
+                  <dt>{fact.label}</dt>
+                  <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                    {fact.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null
+      }
+          </div>
+        ) : monthlyTotal == null && moveInTotal == null ? (
           <p class="muted">No attributes yet.</p>
-        )
+        ) : null
       }
 
       <div class="listing-hero__travel prox-saved">
@@ -640,6 +762,49 @@ const attributeFacts: { label: string; value: string; prewrap?: boolean }[] = [
     </div>
 
     <div class="listing-hero__visual stack">
+      <div class="listing-hero__tour-bar">
+        <p class="listing-hero__tour locale-hero__tour-status">
+          {
+            assignment ? (
+              <>
+                On tour{' '}
+                {
+                  assignment.hiddenOnPlan ? (
+                    <span>
+                      {formatTourDate(assignment.tourDate)}
+                      {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}{' '}
+                      <PlanNotice variant="chip">{PLAN_MESSAGES.tourOnHiddenDate}</PlanNotice>
+                    </span>
+                  ) : (
+                    <a href={`${base}/tours/${assignment.tourDayId}`}>
+                      {formatTourDate(assignment.tourDate)}
+                      {assignmentTourTimeLabel ? ` · ${assignmentTourTimeLabel}` : ''}
+                    </a>
+                  )
+                }
+              </>
+            ) : (
+              <span class="muted">Not on a tour</span>
+            )
+          }
+        </p>
+        <div class="locale-hero__actions">
+          <button
+            type="button"
+            class="secondary icon-btn"
+            data-listing-overlay-open="tour"
+            title="Tour"
+            aria-label="Tour"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+              <path d="M3 10h18"></path>
+              <path d="M8 3v4"></path>
+              <path d="M16 3v4"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
       {
         photoUrls.length > 0 ? (
           isFreePlan ? (

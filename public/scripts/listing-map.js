@@ -1,16 +1,18 @@
-import { createPinHoverController } from './map-pin-hover.js';
-import { fitMapForPinTooltips } from './map-fit.js';
-import { nudgeMapLayout, whenMapVisible } from './map-lazy.js';
+import { createPinHoverController } from "./map-pin-hover.js";
+import { fitMapForPinTooltips } from "./map-fit.js";
+import { nudgeMapLayout, whenMapVisible } from "./map-lazy.js";
 
 function cssVar(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
 }
 
 function themePinPalette() {
-  const primary = cssVar('--primary') || '#0d9488';
-  const primaryContrast = cssVar('--primary-contrast') || '#ffffff';
-  const accent = cssVar('--accent') || '#2563eb';
-  const placeGlyph = cssVar('--bg-0') || '#0b1220';
+  const primary = cssVar("--primary") || "#0d9488";
+  const primaryContrast = cssVar("--primary-contrast") || "#ffffff";
+  const accent = cssVar("--accent") || "#2563eb";
+  const placeGlyph = cssVar("--bg-0") || "#0b1220";
   return {
     listing: {
       background: primary,
@@ -38,11 +40,11 @@ function parsePlaces(raw) {
 async function loadGoogleMaps(key) {
   if (window.google?.maps?.importLibrary) return;
   await new Promise((resolve, reject) => {
-    const script = document.createElement('script');
+    const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
     script.async = true;
     script.onload = () => resolve(undefined);
-    script.onerror = () => reject(new Error('Failed to load Maps JS'));
+    script.onerror = () => reject(new Error("Failed to load Maps JS"));
     document.head.appendChild(script);
   });
 }
@@ -50,7 +52,7 @@ async function loadGoogleMaps(key) {
 let listingMapBootId = 0;
 
 async function initListingMap() {
-  let el = document.getElementById('listing-map');
+  let el = document.getElementById("listing-map");
   if (!el) return;
 
   // Soft-nav can reuse a host that already had a Map instance.
@@ -64,25 +66,28 @@ async function initListingMap() {
   const mapId = el.dataset.mapId;
   const lat = Number(el.dataset.lat);
   const lng = Number(el.dataset.lng);
-  const title = el.dataset.title || 'Listing';
-  const address = el.dataset.address || '';
-  const photoUrl = el.dataset.photoUrl || '';
+  const title = el.dataset.title || "Listing";
+  const address = el.dataset.address || "";
+  const photoUrl = el.dataset.photoUrl || "";
   const places = parsePlaces(el.dataset.places);
 
   if (!key || !mapId) {
-    el.textContent = 'Missing PUBLIC_GOOGLE_MAPS_BROWSER_KEY or PUBLIC_GOOGLE_MAPS_MAP_ID';
+    el.textContent =
+      "Missing PUBLIC_GOOGLE_MAPS_BROWSER_KEY or PUBLIC_GOOGLE_MAPS_MAP_ID";
     return;
   }
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    el.textContent = 'No geocoded location to show';
+    el.textContent = "No geocoded location to show";
     return;
   }
 
   await loadGoogleMaps(key);
-  if (bootId !== listingMapBootId || !document.getElementById('listing-map')) return;
+  if (bootId !== listingMapBootId || !document.getElementById("listing-map"))
+    return;
 
-  const { Map, InfoWindow } = await google.maps.importLibrary('maps');
-  const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary('marker');
+  const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+  const { AdvancedMarkerElement, PinElement } =
+    await google.maps.importLibrary("marker");
   if (bootId !== listingMapBootId) return;
 
   el.replaceChildren();
@@ -109,7 +114,7 @@ async function initListingMap() {
     const marker = new AdvancedMarkerElement({
       map,
       position: pos,
-      title: listing.name || header || 'Place',
+      title: listing.name || header || "Place",
       content: pin.element,
     });
     pinHover.bind(marker, pin.element, listing, header);
@@ -124,7 +129,7 @@ async function initListingMap() {
       address,
       photoUrl: photoUrl || null,
     },
-    'Listing',
+    "Listing",
   );
 
   for (const place of places) {
@@ -141,11 +146,11 @@ async function initListingMap() {
       palette.place,
       {
         id: place.id || null,
-        name: place.name || 'Place',
-        address: place.address || '',
+        name: place.name || "Place",
+        address: place.address || "",
         photoUrl: photo,
       },
-      place.label || place.name || 'Place',
+      place.label || place.name || "Place",
     );
   }
 
@@ -156,16 +161,17 @@ async function initListingMap() {
 }
 
 function bootListingMap() {
-  const el = document.getElementById('listing-map');
+  const el = document.getElementById("listing-map");
   if (!el) return;
 
   whenMapVisible(el, () => {
     initListingMap().catch((err) => {
-      const host = document.getElementById('listing-map');
-      if (host) host.textContent = err instanceof Error ? err.message : 'Map failed';
+      const host = document.getElementById("listing-map");
+      if (host)
+        host.textContent = err instanceof Error ? err.message : "Map failed";
     });
   });
 }
 
 bootListingMap();
-document.addEventListener('astro:page-load', bootListingMap);
+document.addEventListener("astro:page-load", bootListingMap);

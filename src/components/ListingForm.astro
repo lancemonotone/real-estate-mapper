@@ -158,41 +158,104 @@ const initialPhotoUrls =
     </label>
   </fieldset>
 
+  <fieldset class="listing-form__section listing-form__costs">
+    <legend>Costs</legend>
+
+    <div class="listing-form__cost-group">
+      <p class="listing-form__cost-group-title">Deposit</p>
+      <label>
+        Deposit
+        <input
+          name="deposit"
+          type="number"
+          inputmode="decimal"
+          step="0.01"
+          min="0"
+          value={listing.deposit ?? ''}
+        />
+      </label>
+      <label>
+        Pet deposit
+        <input
+          name="pet_deposit"
+          type="number"
+          inputmode="decimal"
+          step="0.01"
+          min="0"
+          value={listing.pet_deposit ?? ''}
+        />
+      </label>
+      <p class="muted listing-form__field-hint">
+        Refundable. Included in total move-in.
+      </p>
+    </div>
+
+    <div class="listing-form__cost-group">
+      <p class="listing-form__cost-group-title">One-time fees</p>
+      <label>
+        Application fees
+        <input
+          name="application_fees"
+          type="number"
+          inputmode="decimal"
+          step="0.01"
+          min="0"
+          value={listing.application_fees ?? ''}
+        />
+      </label>
+      <label>
+        Move-in fees
+        <input
+          name="move_in_fees"
+          type="number"
+          inputmode="decimal"
+          step="0.01"
+          min="0"
+          value={listing.move_in_fees ?? ''}
+        />
+      </label>
+    </div>
+
+    <div class="listing-form__cost-group">
+      <p class="listing-form__cost-group-title">Monthly</p>
+      <label>
+        Price / mo
+        <input
+          name="price_monthly"
+          type="number"
+          inputmode="decimal"
+          step="0.01"
+          min="0"
+          value={listing.price_monthly ?? ''}
+        />
+      </label>
+      <label>
+        Fees / mo
+        <input
+          name="fees_monthly"
+          type="number"
+          inputmode="decimal"
+          step="0.01"
+          min="0"
+          value={listing.fees_monthly ?? ''}
+        />
+      </label>
+      <label>
+        Pet rent / mo
+        <input
+          name="pet_rent_monthly"
+          type="number"
+          inputmode="decimal"
+          step="0.01"
+          min="0"
+          value={listing.pet_rent_monthly ?? ''}
+        />
+      </label>
+    </div>
+  </fieldset>
+
   <fieldset class="listing-form__section listing-form__attrs">
     <legend>Attributes</legend>
-    <label>
-      Price / mo
-      <input
-        name="price_monthly"
-        type="number"
-        inputmode="decimal"
-        step="0.01"
-        min="0"
-        value={listing.price_monthly ?? ''}
-      />
-    </label>
-    <label>
-      Deposit
-      <input
-        name="deposit"
-        type="number"
-        inputmode="decimal"
-        step="0.01"
-        min="0"
-        value={listing.deposit ?? ''}
-      />
-    </label>
-    <label>
-      Fees / mo
-      <input
-        name="fees_monthly"
-        type="number"
-        inputmode="decimal"
-        step="0.01"
-        min="0"
-        value={listing.fees_monthly ?? ''}
-      />
-    </label>
     <label>
       Sq ft
       <input name="sqft" type="number" inputmode="numeric" step="1" min="0" value={listing.sqft ?? ''} />
@@ -204,28 +267,6 @@ const initialPhotoUrls =
     <label>
       Baths
       <input name="baths" type="number" inputmode="decimal" step="0.5" min="0" value={listing.baths ?? ''} />
-    </label>
-    <label>
-      Pet rent / mo
-      <input
-        name="pet_rent_monthly"
-        type="number"
-        inputmode="decimal"
-        step="0.01"
-        min="0"
-        value={listing.pet_rent_monthly ?? ''}
-      />
-    </label>
-    <label>
-      Pet deposit
-      <input
-        name="pet_deposit"
-        type="number"
-        inputmode="decimal"
-        step="0.01"
-        min="0"
-        value={listing.pet_deposit ?? ''}
-      />
     </label>
     <label>
       Amenities
@@ -437,9 +478,3 @@ const initialPhotoUrls =
     z-index: 1;
   }
 </style>
-<script>
-  import { bindListingGalleryForm } from '../client/listing-gallery-form';
-  import { bindListingFormAutosave } from '../client/listing-form-autosave';
-  bindListingGalleryForm();
-  bindListingFormAutosave();
-</script>

@@ -4,6 +4,8 @@ import {
   formatMoney,
   formatNumber,
   formatSqft,
+  sumListingMonthlyTotal,
+  sumListingMoveInTotal,
 } from '../src/lib/listings/format-attributes';
 
 describe('formatMoney', () => {
@@ -46,5 +48,27 @@ describe('formatAmenities', () => {
 
   it('joins tags', () => {
     expect(formatAmenities(['pool', 'gym'])).toBe('pool, gym');
+  });
+});
+
+describe('listing cost totals', () => {
+  it('sums monthly costs when components are present', () => {
+    expect(
+      sumListingMonthlyTotal({
+        price_monthly: 1581,
+        fees_monthly: 117,
+        pet_rent_monthly: 50,
+      }),
+    ).toBe(1748);
+  });
+
+  it('sums move-in costs when components are present', () => {
+    expect(
+      sumListingMoveInTotal({
+        application_fees: 325,
+        move_in_fees: 55,
+        pet_deposit: 500,
+      }),
+    ).toBe(880);
   });
 });

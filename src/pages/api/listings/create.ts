@@ -53,6 +53,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const price_monthly = parseOptionalNumber(form.get('price_monthly'));
   const deposit = parseOptionalNumber(form.get('deposit'));
   const fees_monthly = parseOptionalNumber(form.get('fees_monthly'));
+  const application_fees = parseOptionalNumber(form.get('application_fees'));
+  const move_in_fees = parseOptionalNumber(form.get('move_in_fees'));
   const sqft = parseOptionalInt(form.get('sqft'));
   const beds = parseOptionalNumber(form.get('beds'));
   const baths = parseOptionalNumber(form.get('baths'));
@@ -91,6 +93,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       price_monthly,
       deposit,
       fees_monthly,
+      application_fees,
+      move_in_fees,
       sqft,
       beds,
       baths,

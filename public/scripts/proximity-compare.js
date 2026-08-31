@@ -13,6 +13,7 @@ import {
   setPlaceTypeValue,
 } from './place-type-picker.js';
 import { iconBan, iconBtn, iconMapPin, iconPencil, iconRoute } from './ui-icons.js';
+import { loadGoogleMapsJs } from './google-maps-loader.js';
 
 function formatDuration(sec) {
   if (sec == null || !Number.isFinite(sec)) return '';
@@ -593,8 +594,6 @@ let cellPickerPlaceSearch = null;
 let cellPickerMap = null;
 let cellPickerDirectionsRenderer = null;
 let cellPickerDirectionsService = null;
-let cellPickerMapsReady = null;
-
 function cellPickerCfg() {
   return window.__WAYHOME_COMPARE__ || window.__WAYHOME_MAPS__ || {};
 }
@@ -692,17 +691,7 @@ function clearComparePickerMapUi() {
 }
 
 async function loadComparePickerMaps(key) {
-  if (window.google?.maps?.importLibrary) return;
-  if (cellPickerMapsReady) return cellPickerMapsReady;
-  cellPickerMapsReady = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-    script.async = true;
-    script.onload = () => resolve(undefined);
-    script.onerror = () => reject(new Error('Failed to load Maps JS'));
-    document.head.appendChild(script);
-  });
-  return cellPickerMapsReady;
+  return loadGoogleMapsJs(key);
 }
 
 async function showComparePickerRoute(result) {
