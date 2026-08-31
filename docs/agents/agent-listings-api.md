@@ -1,10 +1,8 @@
 # Agent listings API
 
-Session-auth JSON API for AI agents acting as the logged-in Nest member. Wayhome does **not** scrape listing portals — the agent gathers data, then calls these endpoints.
+Session-auth JSON API for AI agents acting as the logged-in Nest member. Wayhome does **not** scrape listing portals — the agent gathers data from what the user provides, then calls these endpoints.
 
 Design: [`docs/superpowers/specs/2026-08-26-agent-listings-api-design.md`](../superpowers/specs/2026-08-26-agent-listings-api-design.md)
-
-HTML dump import: [`docs/superpowers/specs/2026-08-26-listing-html-import-design.md`](../superpowers/specs/2026-08-26-listing-html-import-design.md)
 
 ## Auth
 
@@ -46,38 +44,35 @@ Upsert by `source_url` (required). Creates or updates that URL in the locale. Ge
 
 Update by id after the user confirms a same-property / different-URL match. May set `source_url`.
 
-## HTML dump import (Zillow)
+## Agent workflow
 
-When the user saves page HTML (portals block agent fetch):
-
-1. Dump file: `_listings/listing.txt` with `source_url:` on line 1, then HTML.
-2. `GET /api/agent/locales/:localeId` — load `listing_prefs`.
-3. Run parser (do **not** read raw HTML into chat):
-
-   ```bash
-   npm run listing:parse -- _listings/listing.txt --prefs '<listing_prefs JSON>'
-   ```
-
-   Writes `_listings/listing.json` by default; stdout is the output path.
-
-4. Read the JSON file; user may edit before upsert (e.g. pick another primary from `photo_candidates`).
-5. `GET` listings → duplicate name / different URL → **ask** before `PATCH`.
-6. Else `PUT` with parser `listing` + `source_url` + **`photo_urls: photo_candidates`** (full gallery). `photo_url` is derived as `photo_urls[0]`; if the listing already had a primary still present in the candidates, that URL is kept as primary.
-7. Report id, `created`, money fields, amenities, warnings.
+1. User provides listing details in chat (URL, property name, address, rents, fees, amenities, photo URLs, etc.).
+2. `GET /api/agent/locales/:localeId` — load `listing_prefs` (beds, pets).
+3. Extract only what the user supplied; never invent fields (Fail Fast). For multi-unit properties, filter to `listing_prefs.target_beds` when deriving price, sqft, and baths.
+4. `GET /api/agent/locales/:localeId/listings` — if another listing has a similar **name** and a **different** `source_url`, **ask the user** before `PATCH`.
+5. Else `PUT` with `source_url` + fields. Same URL → upsert.
+6. Report listing id, `created` true/false, key money fields, and amenities.
 
 ### Photo fields
 
 | Field | Role |
 |-------|------|
-| `photo_urls` | Ordered gallery of remote image URLs (required for multi-photo import) |
-| `photo_url` | Primary thumb; always synced to `photo_urls[0]` when `photo_urls` is sent |
+| `photo_urls` | Ordered gallery of remote image URLs |
+| `photo_url` | Primary thumb; synced to `photo_urls[0]` when `photo_urls` is sent |
 
 Remote URLs only — Wayhome does not host gallery image files.
 
-## Agent workflow (live URL)
+### PUT body (when known)
 
-1. User gives URL + locale (prefs come from locale row).
-2. Agent parses the page off-platform; averages rents / splits fees; leaves unknowns null.
-3. `GET` listings → if similar name and different URL, **ask the user** before `PATCH`.
-4. Else `PUT` with `source_url` + fields.
-5. Report `created` / updated listing id.
+| Field | Notes |
+|-------|-------|
+| `source_url` | Required for PUT |
+| `name`, `address`, `phone` | As provided |
+| `beds` | Usually `listing_prefs.target_beds` |
+| `baths` | Typical floor-plan value for target units (not an arithmetic average) |
+| `sqft`, `price_monthly` | Average or typical for target-bed units |
+| `fees_monthly`, `deposit`, `pet_deposit`, `pet_rent_monthly` | When listed |
+| `amenities` | Filtered lifestyle string array |
+| `photo_urls` | Full ordered gallery |
+
+Omit or `null` unknown fields. Do **not** set `notes` on import (user-authored only).
