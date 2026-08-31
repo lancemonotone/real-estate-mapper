@@ -2521,6 +2521,35 @@ body.directions-overlay-open {
   margin-block-end: 0;
 }
 
+.listing-hero__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+}
+
+.listing-hero__fact-sections {
+  --fact-section-gap: 1.15rem;
+
+  gap: var(--fact-section-gap);
+}
+
+.listing-cost-summary + .listing-hero__fact-sections {
+  margin-block-start: 1.25rem;
+}
+
+.listing-hero__tour-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 0.85rem;
+
+  & .locale-hero__actions {
+    margin-inline-start: 0;
+  }
+}
+
 .listing-hero__photo {
   --photo-h: 12rem;
 
@@ -3452,6 +3481,67 @@ body.directions-overlay-open {
   margin: 0;
 }
 
+.listing-cost-summary {
+  --cost-summary-pad: 0.65rem 0.75rem;
+  --cost-summary-gap: 0.75rem;
+
+  margin: 0;
+  padding: var(--cost-summary-pad);
+
+  & .listing-cost-summary__grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--cost-summary-gap) 3.5rem;
+    margin: 0;
+  }
+
+  & .listing-cost-summary__item {
+    display: grid;
+    gap: 0.1rem;
+    margin: 0;
+    flex: 0 0 auto;
+  }
+
+  & .listing-cost-summary__item dt {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  & .listing-cost-summary__item dd {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 650;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+
+  & .listing-cost-summary__qualifier {
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+}
+
+.listing-hero__contact {
+  gap: 0.35rem;
+  margin-block: 0;
+}
+
+.listing-facts-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.listing-facts__hint {
+  display: block;
+  margin-block-start: 0.15rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
 .listing-facts__row {
   display: grid;
   grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
@@ -3740,6 +3830,27 @@ body.directions-overlay-open {
 
 .listing-form {
   margin-block: 0;
+}
+
+.listing-form__cost-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.listing-form__cost-group-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.listing-form__field-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .listing-section__subtitle {

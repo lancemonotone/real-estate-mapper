@@ -16,6 +16,7 @@ import {
   iconRoute,
   iconX,
 } from './ui-icons.js';
+import { loadGoogleMapsJs } from './google-maps-loader.js';
 
 function formatDuration(sec) {
   if (sec == null || !Number.isFinite(sec)) return '';
@@ -225,23 +226,11 @@ let placeSearch = null;
 let pickerMap = null;
 let pickerDirectionsRenderer = null;
 let pickerDirectionsService = null;
-let pickerMapsReady = null;
-
 /** @type {{ mode: 'add-listing' | 'edit-criterion' | 'edit-listing', criterionId?: string, placeRowId?: string, label?: string, travelMode?: string }} */
 let pickerContext = { mode: 'add-listing' };
 
 async function loadPickerMaps(key) {
-  if (window.google?.maps?.importLibrary) return;
-  if (pickerMapsReady) return pickerMapsReady;
-  pickerMapsReady = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-    script.async = true;
-    script.onload = () => resolve(undefined);
-    script.onerror = () => reject(new Error('Failed to load Maps JS'));
-    document.head.appendChild(script);
-  });
-  return pickerMapsReady;
+  return loadGoogleMapsJs(key);
 }
 
 function clearPickerMapUi() {

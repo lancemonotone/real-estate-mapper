@@ -30,17 +30,13 @@ export function primaryPhotoUrl(urls: string[]): string | null {
 export function resolvePhotoFields(input: {
   photo_urls?: unknown;
   photo_url?: unknown;
-  existingPrimary?: string | null;
 }): { photo_urls: string[]; photo_url: string | null } {
   const hasUrls = Object.prototype.hasOwnProperty.call(input, 'photo_urls');
   const hasLegacy = Object.prototype.hasOwnProperty.call(input, 'photo_url');
 
   let urls: string[];
   if (hasUrls) {
-    urls = mergePhotoUrls(
-      normalizePhotoUrls(input.photo_urls),
-      input.existingPrimary ?? null,
-    );
+    urls = normalizePhotoUrls(input.photo_urls);
   } else if (hasLegacy) {
     const one =
       typeof input.photo_url === 'string' ? input.photo_url.trim() : '';

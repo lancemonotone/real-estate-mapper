@@ -1,6 +1,6 @@
-import { createPinHoverController } from './map-pin-hover.js';
-import { fitMapForPinTooltips } from './map-fit.js';
-import { nudgeMapLayout, whenMapVisible } from './map-lazy.js';
+import { createPinHoverController } from "./map-pin-hover.js";
+import { fitMapForPinTooltips } from "./map-fit.js";
+import { nudgeMapLayout, whenMapVisible } from "./map-lazy.js";
 
 function parseJsonAttr(raw) {
   if (!raw) return null;
@@ -12,14 +12,16 @@ function parseJsonAttr(raw) {
 }
 
 function cssVar(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
 }
 
 function themePinPalette() {
-  const primary = cssVar('--primary') || '#0d9488';
-  const primaryContrast = cssVar('--primary-contrast') || '#ffffff';
-  const accent = cssVar('--accent') || '#2563eb';
-  const endpointGlyph = cssVar('--bg-0') || '#0b1220';
+  const primary = cssVar("--primary") || "#0d9488";
+  const primaryContrast = cssVar("--primary-contrast") || "#ffffff";
+  const accent = cssVar("--accent") || "#2563eb";
+  const endpointGlyph = cssVar("--bg-0") || "#0b1220";
   return {
     stop: {
       background: primary,
@@ -42,7 +44,7 @@ function fitMapToMarkers(map, bounds) {
 let tourMapBootId = 0;
 
 async function initTourMap() {
-  let el = document.getElementById('tour-map');
+  let el = document.getElementById("tour-map");
   if (!el) return;
 
   // Soft-nav can reuse a host that already had a Map instance; replace the node
@@ -55,17 +57,18 @@ async function initTourMap() {
 
   const key = el.dataset.key;
   const mapId = el.dataset.mapId;
-  const stops = JSON.parse(el.dataset.stops || '[]');
-  const encodedPolyline = el.dataset.polyline || '';
+  const stops = JSON.parse(el.dataset.stops || "[]");
+  const encodedPolyline = el.dataset.polyline || "";
   const customStart = parseJsonAttr(el.dataset.customStart);
   const customEnd = parseJsonAttr(el.dataset.customEnd);
 
   if (!key || !mapId) {
-    el.textContent = 'Missing PUBLIC_GOOGLE_MAPS_BROWSER_KEY or PUBLIC_GOOGLE_MAPS_MAP_ID';
+    el.textContent =
+      "Missing PUBLIC_GOOGLE_MAPS_BROWSER_KEY or PUBLIC_GOOGLE_MAPS_MAP_ID";
     return;
   }
   if (!stops.length && !customStart && !customEnd) {
-    el.textContent = 'No geocoded stops to show';
+    el.textContent = "No geocoded stops to show";
     return;
   }
 
@@ -74,20 +77,20 @@ async function initTourMap() {
       resolve(undefined);
       return;
     }
-    const script = document.createElement('script');
+    const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
     script.async = true;
     script.onload = () => resolve(undefined);
-    script.onerror = () => reject(new Error('Failed to load Maps JS'));
+    script.onerror = () => reject(new Error("Failed to load Maps JS"));
     document.head.appendChild(script);
   });
 
-  if (bootId !== tourMapBootId || !document.getElementById('tour-map')) return;
+  if (bootId !== tourMapBootId || !document.getElementById("tour-map")) return;
 
   const [{ Map, InfoWindow }, { AdvancedMarkerElement, PinElement }] =
     await Promise.all([
-      google.maps.importLibrary('maps'),
-      google.maps.importLibrary('marker'),
+      google.maps.importLibrary("maps"),
+      google.maps.importLibrary("marker"),
     ]);
 
   if (bootId !== tourMapBootId) return;
@@ -114,7 +117,7 @@ async function initTourMap() {
   function addMarker(stop, glyph, role, header) {
     const position = { lat: stop.lat, lng: stop.lng };
     bounds.extend(position);
-    const colors = role === 'stop' ? palette.stop : palette.endpoint;
+    const colors = role === "stop" ? palette.stop : palette.endpoint;
 
     const pin = new PinElement({
       glyph,
@@ -137,46 +140,46 @@ async function initTourMap() {
   if (customStart) {
     addMarker(
       {
-        id: 'custom-start',
-        name: customStart.name || customStart.address || 'Start',
-        address: customStart.address || '',
+        id: "custom-start",
+        name: customStart.name || customStart.address || "Start",
+        address: customStart.address || "",
         lat: customStart.lat,
         lng: customStart.lng,
-        kind: 'custom-start',
+        kind: "custom-start",
       },
-      'S',
-      'start',
-      customStart.name || 'Start',
+      "S",
+      "start",
+      customStart.name || "Start",
     );
   }
 
   for (const stop of stops) {
-    const glyph = stop.glyph || '•';
+    const glyph = stop.glyph || "•";
     const role =
-      stop.role === 'start' ? 'start' : stop.role === 'end' ? 'end' : 'stop';
+      stop.role === "start" ? "start" : stop.role === "end" ? "end" : "stop";
     const header =
-      role === 'start' ? 'Start' : role === 'end' ? 'End' : `Stop ${glyph}`;
+      role === "start" ? "Start" : role === "end" ? "End" : `Stop ${glyph}`;
     addMarker(stop, glyph, role, header);
   }
 
   if (customEnd) {
     addMarker(
       {
-        id: 'custom-end',
-        name: customEnd.name || customEnd.address || 'End',
-        address: customEnd.address || '',
+        id: "custom-end",
+        name: customEnd.name || customEnd.address || "End",
+        address: customEnd.address || "",
         lat: customEnd.lat,
         lng: customEnd.lng,
-        kind: 'custom-end',
+        kind: "custom-end",
       },
-      'E',
-      'end',
-      customEnd.name || 'End',
+      "E",
+      "end",
+      customEnd.name || "End",
     );
   }
 
   if (encodedPolyline) {
-    const { encoding } = await google.maps.importLibrary('geometry');
+    const { encoding } = await google.maps.importLibrary("geometry");
     const path = encoding.decodePath(encodedPolyline);
     new google.maps.Polyline({
       path,
@@ -196,13 +199,14 @@ async function initTourMap() {
 }
 
 function bootTourMap({ immediate = false } = {}) {
-  const el = document.getElementById('tour-map');
+  const el = document.getElementById("tour-map");
   if (!el) return;
 
   const run = () => {
     initTourMap().catch((err) => {
-      const host = document.getElementById('tour-map');
-      if (host) host.textContent = err instanceof Error ? err.message : 'Map failed';
+      const host = document.getElementById("tour-map");
+      if (host)
+        host.textContent = err instanceof Error ? err.message : "Map failed";
     });
   };
 
@@ -214,6 +218,8 @@ function bootTourMap({ immediate = false } = {}) {
   whenMapVisible(el, run);
 }
 
-document.addEventListener('astro:page-load', () => bootTourMap());
-document.addEventListener('wayhome:tour-map-refresh', () => bootTourMap({ immediate: true }));
+document.addEventListener("astro:page-load", () => bootTourMap());
+document.addEventListener("wayhome:tour-map-refresh", () =>
+  bootTourMap({ immediate: true }),
+);
 bootTourMap();

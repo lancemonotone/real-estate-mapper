@@ -24,6 +24,45 @@ export function formatAmenities(value: string[] | null | undefined): string {
   return value.join(', ');
 }
 
+function sumNullable(values: Array<number | null | undefined>): number | null {
+  let total = 0;
+  let any = false;
+  for (const value of values) {
+    if (value == null) continue;
+    total += value;
+    any = true;
+  }
+  return any ? total : null;
+}
+
+/** Base rent + recurring fees + pet rent when present. */
+export function sumListingMonthlyTotal(listing: {
+  price_monthly?: number | null;
+  fees_monthly?: number | null;
+  pet_rent_monthly?: number | null;
+}): number | null {
+  return sumNullable([
+    listing.price_monthly,
+    listing.fees_monthly,
+    listing.pet_rent_monthly,
+  ]);
+}
+
+/** Application + move-in + security deposit + pet deposit when present. */
+export function sumListingMoveInTotal(listing: {
+  application_fees?: number | null;
+  move_in_fees?: number | null;
+  deposit?: number | null;
+  pet_deposit?: number | null;
+}): number | null {
+  return sumNullable([
+    listing.application_fees,
+    listing.move_in_fees,
+    listing.deposit,
+    listing.pet_deposit,
+  ]);
+}
+
 /** Parse optional money/count form field: blank → null; invalid → null (Fail Fast). */
 export function parseOptionalNumber(raw: FormDataEntryValue | null): number | null {
   const s = String(raw ?? '').trim();

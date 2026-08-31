@@ -17,6 +17,8 @@ const WRITABLE_KEYS = [
   'price_monthly',
   'deposit',
   'fees_monthly',
+  'application_fees',
+  'move_in_fees',
   'sqft',
   'beds',
   'baths',
@@ -39,6 +41,8 @@ export type AgentListingPatch = Partial<{
   price_monthly: number | null;
   deposit: number | null;
   fees_monthly: number | null;
+  application_fees: number | null;
+  move_in_fees: number | null;
   sqft: number | null;
   beds: number | null;
   baths: number | null;
@@ -49,7 +53,6 @@ export type AgentListingPatch = Partial<{
 
 function resolveAgentPhotoFields(
   patch: AgentListingPatch,
-  existingPrimary: string | null,
 ): { photo_urls: string[]; photo_url: string | null } | null {
   const hasUrls = Object.prototype.hasOwnProperty.call(patch, 'photo_urls');
   const hasLegacy = Object.prototype.hasOwnProperty.call(patch, 'photo_url');
@@ -57,7 +60,6 @@ function resolveAgentPhotoFields(
   return resolvePhotoFields({
     ...(hasUrls ? { photo_urls: patch.photo_urls } : {}),
     ...(hasLegacy && !hasUrls ? { photo_url: patch.photo_url } : {}),
-    existingPrimary,
   });
 }
 
@@ -195,6 +197,20 @@ export function parseAgentListingPatch(
     }
     patch.fees_monthly = v;
   }
+  if ('application_fees' in body) {
+    const v = parseOptionalNumberJson(body.application_fees);
+    if (v === undefined) {
+      return { ok: false, error: 'application_fees must be number or null' };
+    }
+    patch.application_fees = v;
+  }
+  if ('move_in_fees' in body) {
+    const v = parseOptionalNumberJson(body.move_in_fees);
+    if (v === undefined) {
+      return { ok: false, error: 'move_in_fees must be number or null' };
+    }
+    patch.move_in_fees = v;
+  }
   if ('sqft' in body) {
     const v = parseOptionalIntJson(body.sqft);
     if (v === undefined) {
@@ -322,7 +338,7 @@ export async function upsertListingBySourceUrl(
     lng = coords.lng;
   }
 
-  const photos = resolveAgentPhotoFields(patch, null);
+  const photos = resolveAgentPhotoFields(patch);
 
   const row = {
     locale_id: input.localeId,
@@ -352,6 +368,12 @@ export async function upsertListingBySourceUrl(
       : null,
     fees_monthly: Object.prototype.hasOwnProperty.call(patch, 'fees_monthly')
       ? (patch.fees_monthly ?? null)
+      : null,
+    application_fees: Object.prototype.hasOwnProperty.call(patch, 'application_fees')
+      ? (patch.application_fees ?? null)
+      : null,
+    move_in_fees: Object.prototype.hasOwnProperty.call(patch, 'move_in_fees')
+      ? (patch.move_in_fees ?? null)
       : null,
     sqft: Object.prototype.hasOwnProperty.call(patch, 'sqft')
       ? (patch.sqft ?? null)
@@ -443,7 +465,7 @@ async function applyListingPatch(
     }
   }
 
-  const photos = resolveAgentPhotoFields(patch, existing.photo_url);
+  const photos = resolveAgentPhotoFields(patch);
   if (photos) {
     update.photo_url = photos.photo_url;
     update.photo_urls = photos.photo_urls;

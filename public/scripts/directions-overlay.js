@@ -1,3 +1,5 @@
+import { loadGoogleMapsJs } from './google-maps-loader.js';
+
 const JS_TRAVEL = {
   DRIVE: 'DRIVING',
   WALK: 'WALKING',
@@ -5,7 +7,6 @@ const JS_TRAVEL = {
   TRANSIT: 'TRANSIT',
 };
 
-let mapsReady = null;
 let map = null;
 let directionsRenderer = null;
 let directionsService = null;
@@ -23,17 +24,7 @@ function ensureDom() {
 }
 
 async function loadMaps(key) {
-  if (window.google?.maps?.importLibrary) return;
-  if (mapsReady) return mapsReady;
-  mapsReady = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-    script.async = true;
-    script.onload = () => resolve(undefined);
-    script.onerror = () => reject(new Error('Failed to load Maps JS'));
-    document.head.appendChild(script);
-  });
-  return mapsReady;
+  return loadGoogleMapsJs(key);
 }
 
 function closeOverlay() {

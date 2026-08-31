@@ -232,6 +232,39 @@ function bootListingHeroGallery(signal?: AbortSignal): void {
   );
 }
 
+export function updateListingHeroPhotos(urls: string[]): void {
+  const items = urls
+    .map((src) => (typeof src === 'string' ? src.trim() : ''))
+    .filter(Boolean);
+  if (items.length === 0) return;
+
+  const heroRoot = document.querySelector('[data-hero-gallery]');
+  if (heroRoot instanceof HTMLElement) {
+    const trigger = heroRoot.querySelector('[data-listing-gallery]');
+    const img = heroRoot.querySelector('[data-hero-gallery-img]');
+    const count = heroRoot.querySelector('[data-hero-gallery-count]');
+    const json = JSON.stringify(items);
+
+    if (trigger instanceof HTMLElement) {
+      trigger.setAttribute('data-photo-urls', json);
+      trigger.setAttribute('data-photo-index', '0');
+    }
+    if (img instanceof HTMLImageElement) {
+      img.src = items[0]!;
+    }
+    if (count) {
+      count.textContent = `1 / ${items.length}`;
+    }
+    bootListingGalleries();
+    return;
+  }
+
+  const singlePhoto = document.querySelector('.listing-hero__gallery .listing-hero__photo');
+  if (singlePhoto instanceof HTMLImageElement) {
+    singlePhoto.src = items[0]!;
+  }
+}
+
 export function bootListingGalleries(): void {
   closeListingGallery();
 
@@ -252,4 +285,7 @@ export function bootListingGalleries(): void {
 if (typeof document !== 'undefined') {
   document.addEventListener('astro:page-load', bootListingGalleries);
   document.addEventListener('astro:before-swap', closeListingGallery);
+  document.addEventListener('wayhome:listing-photos-updated', () => {
+    bootListingGalleries();
+  });
 }
