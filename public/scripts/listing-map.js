@@ -1,6 +1,6 @@
 import { createPinHoverController } from './map-pin-hover.js';
 import { fitMapForPinTooltips } from './map-fit.js';
-import { whenMapVisible } from './map-lazy.js';
+import { nudgeMapLayout, whenMapVisible } from './map-lazy.js';
 
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -47,6 +47,8 @@ async function loadGoogleMaps(key) {
   });
 }
 
+let listingMapBootId = 0;
+
 async function initListingMap() {
   let el = document.getElementById('listing-map');
   if (!el) return;
@@ -55,6 +57,8 @@ async function initListingMap() {
   const fresh = el.cloneNode(false);
   el.replaceWith(fresh);
   el = fresh;
+
+  const bootId = ++listingMapBootId;
 
   const key = el.dataset.key;
   const mapId = el.dataset.mapId;
@@ -75,9 +79,11 @@ async function initListingMap() {
   }
 
   await loadGoogleMaps(key);
+  if (bootId !== listingMapBootId || !document.getElementById('listing-map')) return;
 
   const { Map, InfoWindow } = await google.maps.importLibrary('maps');
   const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary('marker');
+  if (bootId !== listingMapBootId) return;
 
   el.replaceChildren();
 
@@ -143,7 +149,10 @@ async function initListingMap() {
     );
   }
 
-  fitMapForPinTooltips(map, bounds);
+  if (bootId !== listingMapBootId) return;
+  const fit = () => fitMapForPinTooltips(map, bounds);
+  fit();
+  nudgeMapLayout(map, fit);
 }
 
 function bootListingMap() {

@@ -1,6 +1,6 @@
 import { createPinHoverController } from './map-pin-hover.js';
 import { fitMapForPinTooltips } from './map-fit.js';
-import { whenMapVisible } from './map-lazy.js';
+import { nudgeMapLayout as nudgeMap, whenMapVisible } from './map-lazy.js';
 
 async function loadGoogleMaps(key) {
   if (window.google?.maps?.importLibrary) return;
@@ -25,6 +25,19 @@ function parseListings(raw) {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function applyLocalePinTheme(pin) {
+  const primary = cssVar('--primary');
+  const contrast = cssVar('--primary-contrast');
+  if (primary) pin.style.background = primary;
+  if (contrast) {
+    pin.style.boxShadow = `0 0 0 2px color-mix(in srgb, ${contrast} 70%, transparent)`;
   }
 }
 
@@ -89,6 +102,7 @@ async function initLocaleMap() {
       const pin = document.createElement('button');
       pin.type = 'button';
       pin.className = 'locale-map__listing-pin';
+      applyLocalePinTheme(pin);
       pin.title = listing.name || 'Listing';
       pin.setAttribute('aria-label', listing.name || 'Listing');
       pin.addEventListener('click', (e) => {
@@ -133,6 +147,11 @@ async function initLocaleMap() {
     if (!bounds.isEmpty()) fitMapForPinTooltips(map, bounds);
   };
 
+  const nudgeView = () => {
+    if (!map) return;
+    nudgeMap(map, fit);
+  };
+
   const setView = async ({ lat, lng, radiusM, title: nextTitle }) => {
     if (typeof nextTitle === 'string' && nextTitle) {
       title = nextTitle;
@@ -149,12 +168,14 @@ async function initLocaleMap() {
       circle.setCenter(pos);
       circle.setRadius(nextRadius);
       fit();
+      nudgeView();
       return;
     }
 
     if (map && circle && typeof radiusM === 'number' && radiusM > 0) {
       circle.setRadius(radiusM);
       fit();
+      nudgeView();
     }
   };
 
@@ -179,21 +200,12 @@ async function initLocaleMap() {
     initialRadius = milesToMeters(10);
   }
 
-  const nudgeMapLayout = () => {
-    if (!map) return;
-    google.maps.event.trigger(map, 'resize');
-    fit();
-  };
-
   if (Number.isFinite(initialLat) && Number.isFinite(initialLng)) {
     await setView({
       lat: initialLat,
       lng: initialLng,
       radiusM: initialRadius,
       title,
-    });
-    requestAnimationFrame(() => {
-      requestAnimationFrame(nudgeMapLayout);
     });
   } else {
     el.textContent = 'Enter a place name to preview the map.';

@@ -4,6 +4,7 @@
  */
 
 const ROW_SEL = '[data-map-listing]';
+const HIDE_DELAY_MS = 150;
 
 /** @type {Map<string, PinEntry>} */
 const registry = new Map();
@@ -12,6 +13,8 @@ const registry = new Map();
 const active = { listingId: null, infoWindow: null };
 
 let listHoverInstalled = false;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let hideTimer = null;
 
 /**
  * @typedef {{
@@ -102,6 +105,7 @@ function setPinActive(listingId) {
 
 function showEntry(entry) {
   const listingId = entry.listing?.id ?? null;
+  cancelScheduledHide();
   if (active.infoWindow && active.infoWindow !== entry.infoWindow) {
     active.infoWindow.close();
   }
@@ -130,6 +134,21 @@ function hideListing(listingId) {
   clearRowHighlight();
 }
 
+function cancelScheduledHide() {
+  if (hideTimer != null) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  }
+}
+
+function scheduleHide(listingId) {
+  cancelScheduledHide();
+  hideTimer = setTimeout(() => {
+    hideTimer = null;
+    hideListing(listingId);
+  }, HIDE_DELAY_MS);
+}
+
 function showByListingId(listingId) {
   const entry = registry.get(String(listingId));
   if (!entry) return;
@@ -144,6 +163,24 @@ function rowListingIdFromEventTarget(target) {
   return id || null;
 }
 
+function isInsideInfoWindow(target) {
+  return target instanceof Element && Boolean(target.closest('.gm-style-iw'));
+}
+
+function isInsidePinEntry(target, entry) {
+  if (!(target instanceof Node)) return false;
+  if (entry.pinEl.contains(target)) return true;
+  const markerEl = entry.marker?.element;
+  return markerEl instanceof Element && markerEl.contains(target);
+}
+
+function shouldIgnorePointerLeave(relatedTarget, entry) {
+  if (!(relatedTarget instanceof Node)) return false;
+  if (isInsideInfoWindow(relatedTarget)) return true;
+  if (isInsidePinEntry(relatedTarget, entry)) return true;
+  return false;
+}
+
 function ensureListHover() {
   if (listHoverInstalled) return;
   listHoverInstalled = true;
@@ -155,6 +192,7 @@ function ensureListHover() {
       if (!id || !registry.has(id)) return;
       const fromId = rowListingIdFromEventTarget(e.relatedTarget);
       if (fromId === id) return;
+      cancelScheduledHide();
       showByListingId(id);
     },
     true,
@@ -167,13 +205,16 @@ function ensureListHover() {
       if (!id || !registry.has(id)) return;
       const toId = rowListingIdFromEventTarget(e.relatedTarget);
       if (toId === id) return;
-      hideListing(id);
+      const entry = registry.get(id);
+      if (entry && shouldIgnorePointerLeave(e.relatedTarget, entry)) return;
+      scheduleHide(id);
     },
     true,
   );
 }
 
 function clearRegistry() {
+  cancelScheduledHide();
   for (const entry of registry.values()) {
     entry.pinEl.classList.remove('is-map-pin-hover');
     entry.marker.zIndex = null;
@@ -201,6 +242,7 @@ export function createPinHoverController(map, InfoWindow) {
     const listingId = listing?.id;
     if (listingId == null) {
       // Single-pin maps (listing detail) without a list id — still show tooltip.
+      cancelScheduledHide();
       infoWindow.close();
       infoWindow.setContent(buildListingInfoContent(listing, header));
       infoWindow.open({ anchor: marker, map });
@@ -220,28 +262,31 @@ export function createPinHoverController(map, InfoWindow) {
 
   function bind(marker, pinEl, listing, header) {
     const listingId = listing?.id ?? null;
+    const entry = {
+      marker,
+      pinEl,
+      listing,
+      header,
+      map,
+      infoWindow,
+    };
 
     if (listingId != null) {
-      registry.set(String(listingId), {
-        marker,
-        pinEl,
-        listing,
-        header,
-        map,
-        infoWindow,
-      });
+      registry.set(String(listingId), entry);
     }
 
     const onEnter = () => {
+      cancelScheduledHide();
       if (listingId != null) showByListingId(listingId);
       else show(marker, listing, header);
     };
-    const onLeave = () => hide(listingId);
+    const onLeave = (e) => {
+      if (shouldIgnorePointerLeave(e.relatedTarget, entry)) return;
+      scheduleHide(listingId);
+    };
 
     pinEl.addEventListener('pointerenter', onEnter);
     pinEl.addEventListener('pointerleave', onLeave);
-    marker.addEventListener('pointerenter', onEnter);
-    marker.addEventListener('pointerleave', onLeave);
   }
 
   return { bind, show, hide, infoWindow };
