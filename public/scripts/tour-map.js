@@ -1,6 +1,6 @@
 import { createPinHoverController } from './map-pin-hover.js';
 import { fitMapForPinTooltips } from './map-fit.js';
-import { whenMapVisible } from './map-lazy.js';
+import { nudgeMapLayout, whenMapVisible } from './map-lazy.js';
 
 function parseJsonAttr(raw) {
   if (!raw) return null;
@@ -192,6 +192,7 @@ async function initTourMap() {
 
   if (bootId !== tourMapBootId) return;
   fitMapToMarkers(map, bounds);
+  nudgeMapLayout(map, () => fitMapToMarkers(map, bounds));
 }
 
 function bootTourMap({ immediate = false } = {}) {

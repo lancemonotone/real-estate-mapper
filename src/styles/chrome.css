@@ -1619,6 +1619,9 @@ button.tour-stop-set-start {
 .gm-style-iw-c:has(.map-pin-info) {
   --info-photo: 100px;
 
+  /* Hover tooltips only: do not steal pointer from the pin underneath. */
+  pointer-events: none;
+
   padding: 8px !important;
   inline-size: calc(var(--info-photo) + 16px) !important;
   max-inline-size: calc(var(--info-photo) + 16px) !important;
