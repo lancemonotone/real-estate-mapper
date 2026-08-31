@@ -17,6 +17,19 @@ import type {
   TourDayRow,
 } from './types';
 
+/**
+ * When updating a listing, only enforce the stored-photo cap if the save adds
+ * photos. Re-saves at or below the existing count (reorder, edit other fields,
+ * or remove photos) must not 403 on listings that already exceed the cap.
+ */
+export function photoCountForStorageGate(
+  existingCount: number,
+  incomingCount: number,
+): number | null {
+  if (incomingCount <= existingCount) return null;
+  return incomingCount;
+}
+
 export function isNestPro(billing: NestBillingRow, now = new Date()): boolean {
   if (!billing.pass_expires_at) return false;
   return new Date(billing.pass_expires_at) > now;

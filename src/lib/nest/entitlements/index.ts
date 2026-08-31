@@ -47,6 +47,7 @@ export {
   devHuntPassPreviewBilling,
   entitlementDenialResponse,
   isNestPro,
+  photoCountForStorageGate,
   proximityRefreshRemaining,
   resolveNestEntitlements,
   resolveNestPlan,

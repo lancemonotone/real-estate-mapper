@@ -8,8 +8,9 @@ import {
   parseOptionalInt,
   parseOptionalNumber,
 } from '../../../lib/listings/format-attributes';
-import { resolvePhotoFields } from '../../../lib/listings/photo-urls';
+import { normalizePhotoUrls, resolvePhotoFields } from '../../../lib/listings/photo-urls';
 import { assertNestEntitlement } from '../../../lib/nest/entitlements';
+import { photoCountForStorageGate } from '../../../lib/nest/entitlements/resolve';
 import {
   parseListingTourFields,
   syncListingTour,
@@ -67,8 +68,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   if (!existing) return fail(request, 'Not found', 404);
 
+  const existingPhotoUrls = normalizePhotoUrls(existing.photo_urls ?? []);
   const photos = resolvePhotoFields({
     photo_urls: form.getAll('photo_urls').map(String),
+    existingPrimary: existing.photo_url,
   });
 
   const nestId =
@@ -79,12 +82,18 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       : null;
   if (!nestId) return fail(request, 'Nest not found', 404);
 
-  const entitlement = await assertNestEntitlement(supabase, nestId, 'add_photo', {
-    photoCount: photos.photo_urls.length,
-    userId: user.id,
-  });
-  if ('denial' in entitlement) {
-    return fail(request, entitlement.denial.message, 403);
+  const gatePhotoCount = photoCountForStorageGate(
+    existingPhotoUrls.length,
+    photos.photo_urls.length,
+  );
+  if (gatePhotoCount != null) {
+    const entitlement = await assertNestEntitlement(supabase, nestId, 'add_photo', {
+      photoCount: gatePhotoCount,
+      userId: user.id,
+    });
+    if ('denial' in entitlement) {
+      return fail(request, entitlement.denial.message, 403);
+    }
   }
 
   let lat = existing.lat;
