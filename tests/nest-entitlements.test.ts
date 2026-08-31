@@ -10,6 +10,7 @@ import {
   isLocaleCapReached,
   isRouteSearchColumnCapReached,
   isNestPro,
+  photoCountForStorageGate,
   resolveNestEntitlements,
   resolveNestPlan,
   resolveTourDrop,
@@ -188,6 +189,13 @@ describe('nest entitlements', () => {
       tourDays: [],
     });
     expect(checkEntitlementGate(exhausted, 'proximity_refresh').ok).toBe(false);
+  });
+
+  it('only gates photo storage when count increases', () => {
+    expect(photoCountForStorageGate(37, 37)).toBeNull();
+    expect(photoCountForStorageGate(37, 30)).toBeNull();
+    expect(photoCountForStorageGate(28, 30)).toBe(30);
+    expect(photoCountForStorageGate(30, 31)).toBe(31);
   });
 
   it('slices photo URLs on Free', () => {
