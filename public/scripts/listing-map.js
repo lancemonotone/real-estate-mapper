@@ -1,5 +1,6 @@
 import { createPinHoverController } from './map-pin-hover.js';
 import { fitMapForPinTooltips } from './map-fit.js';
+import { whenMapVisible } from './map-lazy.js';
 
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -146,9 +147,14 @@ async function initListingMap() {
 }
 
 function bootListingMap() {
-  initListingMap().catch((err) => {
-    const el = document.getElementById('listing-map');
-    if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
+  const el = document.getElementById('listing-map');
+  if (!el) return;
+
+  whenMapVisible(el, () => {
+    initListingMap().catch((err) => {
+      const host = document.getElementById('listing-map');
+      if (host) host.textContent = err instanceof Error ? err.message : 'Map failed';
+    });
   });
 }
 

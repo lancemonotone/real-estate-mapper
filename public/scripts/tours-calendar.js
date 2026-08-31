@@ -4,6 +4,45 @@
 import { mountPlaceSearch } from './place-search.js';
 import { bindTourWeekJumpPopover } from './tour-week-jump-popover.js';
 
+function applyTourDayRoute(payload) {
+  if (!payload) return;
+
+  const mapEl = document.getElementById('tour-map');
+  if (mapEl instanceof HTMLElement) {
+    mapEl.dataset.stops = JSON.stringify(payload.mapStops ?? []);
+    mapEl.dataset.polyline = payload.encodedPolyline ?? '';
+    mapEl.dataset.rev = [
+      payload.encodedPolyline ?? '',
+      ...(payload.mapStops ?? []).map((stop) => stop.id),
+    ].join('|');
+    mapEl.dataset.customStart = payload.customStart
+      ? JSON.stringify(payload.customStart)
+      : '';
+    mapEl.dataset.customEnd = payload.customEnd ? JSON.stringify(payload.customEnd) : '';
+    document.dispatchEvent(new CustomEvent('wayhome:tour-map-refresh'));
+  }
+
+  const list = document.querySelector('[data-tours-stops]');
+  const orderedIds = payload.orderedListingIds ?? [];
+  if (list instanceof HTMLElement && orderedIds.length) {
+    const customEnd = list.querySelector('[data-listing-id="custom-end"]');
+    for (const listingId of orderedIds) {
+      const item = list.querySelector(`li[data-listing-id="${listingId}"]`);
+      if (item instanceof HTMLElement) {
+        list.insertBefore(item, customEnd);
+      }
+    }
+    for (const stop of payload.mapStops ?? []) {
+      const item = list.querySelector(`li[data-listing-id="${stop.id}"]`);
+      const badge = item?.querySelector('.tour-stop-badge');
+      if (badge && stop.glyph) badge.textContent = stop.glyph;
+    }
+  }
+
+  const cfg = seed();
+  if (cfg) cfg.needsAutoroute = false;
+}
+
 function seed() {
   return window.__WAYHOME_TOURS_CALENDAR__ ?? null;
 }
@@ -559,7 +598,9 @@ async function boot() {
         });
         if (res.ok) {
           sessionStorage.removeItem(arKey);
-          window.location.reload();
+          const data = await res.json().catch(() => ({}));
+          applyTourDayRoute(data.map);
+          showStatus('Route updated', false);
           return;
         }
         sessionStorage.setItem(arKey, stopSig);
@@ -764,11 +805,13 @@ async function boot() {
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ tourDayId: cfg.selectedTourId }),
         });
+        const optData = await opt.json().catch(() => ({}));
         if (!opt.ok) {
-          const od = await opt.json().catch(() => ({}));
-          throw new Error(od.error || 'Optimize failed');
+          throw new Error(optData.error || 'Optimize failed');
         }
-        reloadForDay(cfg.selectedDate);
+        applyTourDayRoute(optData.map);
+        closeOverlay('tours-se-overlay');
+        showStatus('Route updated', false);
       } catch (e) {
         showStatus(e instanceof Error ? e.message : 'Save failed', true);
       }

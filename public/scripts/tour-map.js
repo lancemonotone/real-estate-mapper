@@ -1,5 +1,6 @@
 import { createPinHoverController } from './map-pin-hover.js';
 import { fitMapForPinTooltips } from './map-fit.js';
+import { whenMapVisible } from './map-lazy.js';
 
 function parseJsonAttr(raw) {
   if (!raw) return null;
@@ -193,11 +194,25 @@ async function initTourMap() {
   fitMapToMarkers(map, bounds);
 }
 
-function bootTourMap() {
-  initTourMap().catch((err) => {
-    const el = document.getElementById('tour-map');
-    if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
-  });
+function bootTourMap({ immediate = false } = {}) {
+  const el = document.getElementById('tour-map');
+  if (!el) return;
+
+  const run = () => {
+    initTourMap().catch((err) => {
+      const host = document.getElementById('tour-map');
+      if (host) host.textContent = err instanceof Error ? err.message : 'Map failed';
+    });
+  };
+
+  if (immediate) {
+    run();
+    return;
+  }
+
+  whenMapVisible(el, run);
 }
 
-document.addEventListener('astro:page-load', bootTourMap);
+document.addEventListener('astro:page-load', () => bootTourMap());
+document.addEventListener('wayhome:tour-map-refresh', () => bootTourMap({ immediate: true }));
+bootTourMap();

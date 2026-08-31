@@ -1,5 +1,6 @@
 import { createPinHoverController } from './map-pin-hover.js';
 import { fitMapForPinTooltips } from './map-fit.js';
+import { whenMapVisible } from './map-lazy.js';
 
 async function loadGoogleMaps(key) {
   if (window.google?.maps?.importLibrary) return;
@@ -200,9 +201,14 @@ async function initLocaleMap() {
 }
 
 function bootLocaleMap() {
-  initLocaleMap().catch((err) => {
-    const el = document.getElementById('locale-map');
-    if (el) el.textContent = err instanceof Error ? err.message : 'Map failed';
+  const el = document.getElementById('locale-map');
+  if (!el) return;
+
+  whenMapVisible(el, () => {
+    initLocaleMap().catch((err) => {
+      const host = document.getElementById('locale-map');
+      if (host) host.textContent = err instanceof Error ? err.message : 'Map failed';
+    });
   });
 }
 

@@ -37,7 +37,13 @@ if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
 const user = Astro.locals.user!;
-const entitlementUi = await loadNestEntitlementUi(supabase, locale.nest_id, user.id);
+const entitlementUi = await loadNestEntitlementUi(
+  supabase,
+  locale.nest_id,
+  user.id,
+  Astro.locals.devHuntPassPreview ?? false,
+  snapshot,
+);
 
 const { data: listingRaw } = await supabase.from('listings').select('*').eq('id', id!).single();
 if (!listingRaw || listingRaw.locale_id !== locale.id) {

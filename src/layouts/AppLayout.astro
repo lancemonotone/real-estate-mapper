@@ -50,14 +50,18 @@ if (!entitlementUi && nestId && user && supabase) {
 
 let themeId = resolveUiThemeId(null);
 let bordersMode = resolveUiBorders(true);
-if (user && supabase) {
-  const { data: profile } = await supabase
+const profile = Astro.locals.profile;
+if (profile) {
+  themeId = resolveUiThemeId(profile.ui_theme_id);
+  bordersMode = resolveUiBorders(profile.ui_show_borders);
+} else if (user && supabase) {
+  const { data: loadedProfile } = await supabase
     .from('profiles')
     .select('ui_theme_id, ui_show_borders')
     .eq('id', user.id)
     .maybeSingle();
-  themeId = resolveUiThemeId(profile?.ui_theme_id);
-  bordersMode = resolveUiBorders(profile?.ui_show_borders);
+  themeId = resolveUiThemeId(loadedProfile?.ui_theme_id);
+  bordersMode = resolveUiBorders(loadedProfile?.ui_show_borders);
 }
 ---
 <!doctype html>

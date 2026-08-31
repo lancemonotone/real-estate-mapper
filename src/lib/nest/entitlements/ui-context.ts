@@ -4,6 +4,7 @@ import { listNestMembers } from '../../supabase/nest';
 import type { EntitlementPlan } from './constants';
 import { loadNestEntitlements } from './db';
 import { isNestPro } from './resolve';
+import type { NestEntitlementSnapshot } from './types';
 
 type Client = SupabaseClient<Database>;
 
@@ -29,8 +30,11 @@ export async function loadNestEntitlementUi(
   nestId: string,
   userId: string,
   devHuntPassPreview = false,
+  existingSnapshot?: NestEntitlementSnapshot | null,
 ): Promise<NestEntitlementUi | null> {
-  const snapshot = await loadNestEntitlements(supabase, nestId, { devHuntPassPreview });
+  const snapshot =
+    existingSnapshot ??
+    (await loadNestEntitlements(supabase, nestId, { devHuntPassPreview }));
   if (!snapshot) return null;
 
   const { data: member, error: memberError } = await supabase

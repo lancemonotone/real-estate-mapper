@@ -4,6 +4,7 @@ import { buildOptimizePlan } from '../../../lib/google/optimize-request';
 import { computeOptimizedRoute } from '../../../lib/google/routes';
 import { geocodeAddress } from '../../../lib/google/geocode';
 import { optimizeTourDay } from '../../../lib/tours/optimize-tour-day';
+import { loadTourDayMapPayload } from '../../../lib/tours/tour-day-map-payload';
 
 type LatLng = { lat: number; lng: number };
 
@@ -50,7 +51,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (!opt.ok) {
       return Response.json({ error: opt.error }, { status: opt.status });
     }
-    return Response.json({ ok: true });
+    const mapPayload = await loadTourDayMapPayload(supabase, tourDayId);
+    return Response.json({ ok: true, map: mapPayload });
   }
 
   if (!scratchListingIds?.length) {

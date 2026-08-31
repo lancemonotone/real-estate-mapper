@@ -8,6 +8,10 @@ declare namespace App {
     user?: User;
     supabase?: SupabaseClient<Database>;
     devHuntPassPreview?: boolean;
+    profile?: Pick<
+      Database['public']['Tables']['profiles']['Row'],
+      'ui_theme_id' | 'ui_show_borders'
+    > | null;
   }
 }
 

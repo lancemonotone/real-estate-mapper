@@ -4,6 +4,7 @@ import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
 import {
   filterListingStops,
   isTourDayVisible,
+  loadNestEntitlementUi,
 } from '../../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../../lib/supabase/nest';
 import { formatTourDate } from '../../../../../lib/tours/format-tour-date';
@@ -20,6 +21,7 @@ import {
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
+const user = Astro.locals.user!;
 
 const { data: tour } = await supabase.from('tour_days').select('*').eq('id', id!).single();
 if (!tour || (localeId && tour.locale_id !== localeId)) {
@@ -34,6 +36,13 @@ const localeContext = await getVisibleLocaleContext(
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
+const entitlementUi = await loadNestEntitlementUi(
+  supabase,
+  locale.nest_id,
+  user.id,
+  Astro.locals.devHuntPassPreview ?? false,
+  snapshot,
+);
 if (!isTourDayVisible(snapshot, tour.id)) {
   return new Response('Not found', { status: 404 });
 }
@@ -107,6 +116,7 @@ const stopCount = (stops ?? []).length;
   locale={{ id: locale.id, name: locale.name }}
   localeSection="tours"
   nestId={locale.nest_id}
+  entitlementUi={entitlementUi}
 >
   <div class="locale-hero__heading">
     <h1 class="locale-hero__name">{tourTitle}</h1>

@@ -1124,18 +1124,15 @@ function initCellPlacePicker(signal) {
   );
 }
 
-async function hydrateAndCompute(signal) {
+async function hydrateSeededCells() {
   const cells = [...document.querySelectorAll('td[data-listing-id][data-criterion-id]')];
   for (const td of cells) {
-    if (signal?.aborted) return;
-    // Already painted from a prior boot on this DOM (e.g. module + astro:page-load).
     if (td.dataset.hydrated === '1') continue;
 
     const seeded = td.querySelector('.seeded');
     if (seeded) {
       try {
         const row = JSON.parse(seeded.textContent || '');
-        // Use DB cache on page load — only compute when we have no usable result.
         if (row?.status === 'ok') {
           renderCell(td, row);
           td.dataset.hydrated = '1';
@@ -1147,13 +1144,68 @@ async function hydrateAndCompute(signal) {
           continue;
         }
       } catch {
-        /* fall through to compute */
+        /* queue for lazy compute */
       }
     }
-    await computeCell(td);
-    if (signal?.aborted) return;
+
+    td.replaceChildren();
+    const idle = document.createElement('span');
+    idle.className = 'cell-pending cell-pending--idle muted';
+    idle.textContent = '—';
+    td.appendChild(idle);
+    td.dataset.status = 'pending';
     td.dataset.hydrated = '1';
+    td.dataset.needsCompute = '1';
   }
+}
+
+function initLazyCellCompute(signal) {
+  const pending = [...document.querySelectorAll('td[data-needs-compute="1"]')];
+  if (!pending.length) return;
+
+  const queue = [];
+  let inFlight = 0;
+  const maxConcurrent = 3;
+
+  const pump = () => {
+    while (inFlight < maxConcurrent && queue.length) {
+      const td = queue.shift();
+      if (!(td instanceof HTMLElement) || td.dataset.needsCompute !== '1') continue;
+      td.dataset.needsCompute = '0';
+      inFlight += 1;
+      void computeCell(td).finally(() => {
+        inFlight -= 1;
+        pump();
+      });
+    }
+  };
+
+  const enqueue = (td) => {
+    if (!(td instanceof HTMLElement) || td.dataset.needsCompute !== '1') return;
+    if (queue.includes(td)) return;
+    queue.push(td);
+    pump();
+  };
+
+  if (!('IntersectionObserver' in window)) {
+    for (const td of pending) enqueue(td);
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        observer.unobserve(entry.target);
+        enqueue(entry.target);
+      }
+    },
+    { rootMargin: '120px' },
+  );
+
+  for (const td of pending) observer.observe(td);
+
+  signal?.addEventListener('abort', () => observer.disconnect(), { once: true });
 }
 
 let comparePageAbort = null;
@@ -1189,7 +1241,7 @@ function bootComparePage() {
   initDeleteButtons(signal);
   initCellPlacePicker(signal);
   mountAllPlaceTypePickers(document);
-  void hydrateAndCompute(signal);
+  void hydrateSeededCells().then(() => initLazyCellCompute(signal));
 }
 
 document.addEventListener('astro:page-load', bootComparePage);

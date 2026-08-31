@@ -1,7 +1,7 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
-import { filterVisibleListings } from '../../../../lib/nest/entitlements';
+import { filterVisibleListings, loadNestEntitlementUi } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
 import {
   formatAmenities,
@@ -13,12 +13,20 @@ import type { Listing } from '../../../../lib/types/database';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
+const user = Astro.locals.user!;
 const localeContext = localeId
   ? await getVisibleLocaleContext(supabase, localeId, Astro.locals.devHuntPassPreview ?? false)
   : null;
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
+const entitlementUi = await loadNestEntitlementUi(
+  supabase,
+  locale.nest_id,
+  user.id,
+  Astro.locals.devHuntPassPreview ?? false,
+  snapshot,
+);
 const showListingGallery = snapshot.plan !== 'free';
 
 const base = `/app/locales/${locale.id}`;
@@ -127,6 +135,7 @@ const columns: {
   locale={{ id: locale.id, name: locale.name }}
   localeSection="compare"
   nestId={locale.nest_id}
+  entitlementUi={entitlementUi}
 >
   {
     rows.length === 0 ? (

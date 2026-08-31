@@ -28,7 +28,13 @@ const localeContext = localeId
 if (!localeContext) return new Response('Not found', { status: 404 });
 
 const { locale, snapshot } = localeContext;
-const entitlementUi = await loadNestEntitlementUi(supabase, locale.nest_id, user.id);
+const entitlementUi = await loadNestEntitlementUi(
+  supabase,
+  locale.nest_id,
+  user.id,
+  Astro.locals.devHuntPassPreview ?? false,
+  snapshot,
+);
 const listingCapReached = isListingCapReached(snapshot);
 const listingCapMessage = PLAN_MESSAGES.listingCap(snapshot.plan);
 const showListingGallery = snapshot.plan !== 'free';

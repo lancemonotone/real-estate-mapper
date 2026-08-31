@@ -29,5 +29,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.user = user;
   context.locals.supabase = supabase;
   context.locals.devHuntPassPreview = await loadDevHuntPassPreviewForUser(supabase, user.id);
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('ui_theme_id, ui_show_borders')
+    .eq('id', user.id)
+    .maybeSingle();
+  context.locals.profile = profile ?? null;
+
   return next();
 });
