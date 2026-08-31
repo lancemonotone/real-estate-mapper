@@ -72,6 +72,8 @@ Remote URLs only — Wayhome does not host gallery image files.
 | `baths` | Typical floor-plan value for target units (not an arithmetic average) |
 | `sqft`, `price_monthly` | Average or typical for target-bed units |
 | `fees_monthly`, `deposit`, `pet_deposit`, `pet_rent_monthly` | When listed |
+| `application_fees` | One-time application costs (admin + app fees) |
+| `move_in_fees` | Other one-time move-in fees (utility setup, etc.) |
 | `amenities` | Filtered lifestyle string array |
 | `photo_urls` | Full ordered gallery |
 

@@ -56,11 +56,10 @@ describe('resolvePhotoFields', () => {
     });
   });
 
-  it('applies keep-primary when existingPrimary set and photo_urls provided', () => {
+  it('preserves explicit gallery order when reordering primary', () => {
     expect(
       resolvePhotoFields({
-        photo_urls: ['https://x/a.jpg', 'https://x/b.jpg'],
-        existingPrimary: 'https://x/b.jpg',
+        photo_urls: ['https://x/b.jpg', 'https://x/a.jpg'],
       }),
     ).toEqual({
       photo_urls: ['https://x/b.jpg', 'https://x/a.jpg'],

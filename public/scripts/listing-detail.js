@@ -1,3 +1,17 @@
+function purgeStaleListingOverlays() {
+  document.querySelectorAll('body > [data-listing-overlay]').forEach((el) => {
+    el.remove();
+  });
+}
+
+function notifyListingFormsBind(root) {
+  window.dispatchEvent(
+    new CustomEvent('wayhome:listing-forms-bind', {
+      detail: root ? { root } : undefined,
+    }),
+  );
+}
+
 function mountOverlayOnBody(overlay) {
   // .app-main.glass uses backdrop-filter, which makes position:fixed relative to
   // main instead of the viewport — reparent so the dialog centers on screen.
@@ -25,13 +39,73 @@ function openListingOverlay(name) {
   mountOverlayOnBody(overlay);
   overlay.hidden = false;
   document.body.classList.add('compare-column-overlay-open');
+  notifyListingFormsBind(overlay);
 }
 
-function closeListingOverlays() {
+function readPhotoUrlsFromForm(form) {
+  return [...form.querySelectorAll('input[name="photo_urls"]')]
+    .map((input) => (input instanceof HTMLInputElement ? input.value.trim() : ''))
+    .filter(Boolean);
+}
+
+function waitForAutosaveIdle(form) {
+  return new Promise((resolve) => {
+    const tick = () => {
+      if (
+        form.dataset.listingAutosaveBusy === '1' ||
+        form.dataset.listingAutosaveDirty === '1'
+      ) {
+        window.setTimeout(tick, 120);
+        return;
+      }
+      resolve();
+    };
+    tick();
+  });
+}
+
+function refreshListingHeroPhotos(urls) {
+  const items = urls
+    .map((src) => (typeof src === 'string' ? src.trim() : ''))
+    .filter(Boolean);
+  if (items.length === 0) return;
+
+  const heroRoot = document.querySelector('[data-hero-gallery]');
+  if (heroRoot instanceof HTMLElement) {
+    const trigger = heroRoot.querySelector('[data-listing-gallery]');
+    const img = heroRoot.querySelector('[data-hero-gallery-img]');
+    const count = heroRoot.querySelector('[data-hero-gallery-count]');
+    const json = JSON.stringify(items);
+
+    if (trigger instanceof HTMLElement) {
+      trigger.setAttribute('data-photo-urls', json);
+      trigger.setAttribute('data-photo-index', '0');
+    }
+    if (img instanceof HTMLImageElement) {
+      img.src = items[0];
+    }
+    if (count) {
+      count.textContent = `1 / ${items.length}`;
+    }
+    window.dispatchEvent(
+      new CustomEvent('wayhome:listing-photos-updated', {
+        detail: { urls: items },
+      }),
+    );
+    return;
+  }
+
+  const singlePhoto = document.querySelector('.listing-hero__gallery .listing-hero__photo');
+  if (singlePhoto instanceof HTMLImageElement) {
+    singlePhoto.src = items[0];
+  }
+}
+
+async function closeListingOverlays() {
   const editForm = document.querySelector(
     '[data-listing-overlay="edit"] form[data-listing-autosave]',
   );
-  const shouldReload =
+  const shouldRefresh =
     editForm instanceof HTMLFormElement &&
     (editForm.dataset.listingAutosaved === '1' ||
       editForm.dataset.listingAutosaveDirty === '1' ||
@@ -42,27 +116,11 @@ function closeListingOverlays() {
   });
   document.body.classList.remove('compare-column-overlay-open');
 
-  if (!shouldReload) return;
+  if (!shouldRefresh || !(editForm instanceof HTMLFormElement)) return;
 
-  if (editForm instanceof HTMLFormElement) {
-    editForm.dispatchEvent(new CustomEvent('listing-autosave-flush'));
-  }
-
-  const waitForIdle = () => {
-    if (!(editForm instanceof HTMLFormElement)) {
-      location.reload();
-      return;
-    }
-    if (
-      editForm.dataset.listingAutosaveBusy === '1' ||
-      editForm.dataset.listingAutosaveDirty === '1'
-    ) {
-      window.setTimeout(waitForIdle, 120);
-      return;
-    }
-    location.reload();
-  };
-  waitForIdle();
+  editForm.dispatchEvent(new CustomEvent('listing-autosave-flush'));
+  await waitForAutosaveIdle(editForm);
+  refreshListingHeroPhotos(readPhotoUrlsFromForm(editForm));
 }
 
 window.__WAYHOME_LISTING_OVERLAY__ = {
@@ -89,9 +147,12 @@ function initListingDetail() {
   document.body._listingDetailAbort = ac;
   const { signal } = ac;
 
-  document.querySelectorAll('[data-listing-overlay]').forEach((el) => {
+  const view = document.querySelector('.app-main__view');
+  (view ?? document).querySelectorAll('[data-listing-overlay]').forEach((el) => {
     if (el instanceof HTMLElement) mountOverlayOnBody(el);
   });
+
+  notifyListingFormsBind();
 
   document.querySelectorAll('[data-listing-overlay-open]').forEach((el) => {
     el.addEventListener(
@@ -133,3 +194,9 @@ function initListingDetail() {
 
 initListingDetail();
 document.addEventListener('astro:page-load', initListingDetail);
+document.addEventListener('astro:before-swap', () => {
+  document.querySelectorAll('body > [data-listing-overlay]').forEach((el) => {
+    el.remove();
+  });
+  document.body.classList.remove('compare-column-overlay-open');
+});

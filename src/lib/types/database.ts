@@ -73,6 +73,8 @@ export type Listing = {
   price_monthly: number | null;
   deposit: number | null;
   fees_monthly: number | null;
+  application_fees: number | null;
+  move_in_fees: number | null;
   sqft: number | null;
   beds: number | null;
   baths: number | null;
