@@ -36,16 +36,23 @@ function sumNullable(values: Array<number | null | undefined>): number | null {
 }
 
 /** Base rent + recurring fees + pet rent when present. */
-export function sumListingMonthlyTotal(listing: {
+export type ListingMonthlyCostFields = {
   price_monthly?: number | null;
   fees_monthly?: number | null;
   pet_rent_monthly?: number | null;
-}): number | null {
+};
+
+export function sumListingMonthlyTotal(listing: ListingMonthlyCostFields): number | null {
   return sumNullable([
     listing.price_monthly,
     listing.fees_monthly,
     listing.pet_rent_monthly,
   ]);
+}
+
+/** Formatted Total/mo for listing tables and summaries. */
+export function formatListingMonthlyTotal(listing: ListingMonthlyCostFields): string {
+  return formatMoney(sumListingMonthlyTotal(listing));
 }
 
 /** Application + move-in + security deposit + pet deposit when present. */

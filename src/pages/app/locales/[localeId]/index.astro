@@ -18,7 +18,7 @@ import {
   PLAN_MESSAGES,
 } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../lib/supabase/nest';
-import { formatMoney, formatSqft } from '../../../../lib/listings/format-attributes';
+import { formatMoney, formatSqft, formatListingMonthlyTotal, sumListingMonthlyTotal } from '../../../../lib/listings/format-attributes';
 import { LISTING_FIELD_LABELS } from '../../../../lib/listings/field-labels';
 
 const { localeId } = Astro.params;
@@ -192,7 +192,7 @@ const mapListings = rows
                   </th>
                   <th><span class="matrix-table__heading">Distance</span></th>
                   <th><span class="matrix-table__heading">{LISTING_FIELD_LABELS.sqft}</span></th>
-                  <th><span class="matrix-table__heading">{LISTING_FIELD_LABELS.rentMonthly}</span></th>
+                  <th><span class="matrix-table__heading">{LISTING_FIELD_LABELS.totalMonthly}</span></th>
                 </tr>
               </thead>
               <tbody id="listings-list" data-listings-list>
@@ -200,7 +200,7 @@ const mapListings = rows
                   const title = listing.name || listing.address || 'Untitled';
                   const photo = listing.photo_url;
                   const created = listing.created_at ? Date.parse(listing.created_at) : 0;
-                  const price = listing.price_monthly;
+                  const monthlyTotal = sumListingMonthlyTotal(listing);
                   const distanceLabel =
                     distanceM != null
                       ? `${metersToMiles(distanceM).toFixed(1)} mi`
@@ -212,7 +212,7 @@ const mapListings = rows
                       data-sort-recent={String(Number.isFinite(created) ? created : 0)}
                       data-sort-distance={distanceM != null ? String(distanceM) : ''}
                       data-sort-sqft={listing.sqft != null ? String(listing.sqft) : ''}
-                      data-sort-price={price != null ? String(price) : ''}
+                      data-sort-price={monthlyTotal != null ? String(monthlyTotal) : ''}
                     >
                       <th scope="row" class="matrix-table__listing">
                         <div class="matrix-listing">
@@ -272,7 +272,7 @@ const mapListings = rows
                       </th>
                       <td>{distanceLabel}</td>
                       <td>{formatSqft(listing.sqft)}</td>
-                      <td>{formatMoney(price)}</td>
+                      <td>{formatListingMonthlyTotal(listing)}</td>
                     </tr>
                   );
                 })}

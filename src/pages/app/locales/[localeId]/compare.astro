@@ -6,6 +6,7 @@ import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
 import { LISTING_FIELD_LABELS } from '../../../../lib/listings/field-labels';
 import {
   formatAmenities,
+  formatListingMonthlyTotal,
   formatMoney,
   formatNumber,
   formatSqft,
@@ -80,7 +81,7 @@ const columns: {
       const total = sumListingMonthlyTotal(l);
       return total == null ? '' : String(total);
     },
-    cell: (l) => formatMoney(sumListingMonthlyTotal(l)),
+    cell: (l) => formatListingMonthlyTotal(l),
   },
   {
     label: LISTING_FIELD_LABELS.totalMoveIn,

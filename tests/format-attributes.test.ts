@@ -4,6 +4,7 @@ import {
   formatMoney,
   formatNumber,
   formatSqft,
+  formatListingMonthlyTotal,
   sumListingMonthlyTotal,
   sumListingMoveInTotal,
 } from '../src/lib/listings/format-attributes';
@@ -61,6 +62,15 @@ describe('listing cost totals', () => {
         pet_rent_monthly: 50,
       }),
     ).toBe(1748);
+  });
+
+  it('formats total monthly for listing surfaces', () => {
+    expect(
+      formatListingMonthlyTotal({
+        price_monthly: 1376,
+        pet_rent_monthly: 40,
+      }),
+    ).toBe('$1,416');
   });
 
   it('sums move-in costs when components are present', () => {

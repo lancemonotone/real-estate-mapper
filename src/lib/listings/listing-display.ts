@@ -3,6 +3,7 @@ import {
   formatMoney,
   formatNumber,
   formatSqft,
+  formatListingMonthlyTotal,
   sumListingMonthlyTotal,
   sumListingMoveInTotal,
 } from './format-attributes';
@@ -160,7 +161,7 @@ export function buildListingDisplay(
     address: listing.address?.trim() || null,
     phone: listing.phone?.trim() || null,
     sourceUrl: listing.source_url?.trim() || null,
-    monthlyTotal: monthlyTotal != null ? formatMoney(monthlyTotal) : null,
+    monthlyTotal: formatListingMonthlyTotal(listing),
     moveInTotal: moveInTotal != null ? formatMoney(moveInTotal) : null,
     showMoveInDepositNote,
     photoUrls,

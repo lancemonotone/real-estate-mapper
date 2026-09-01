@@ -22,17 +22,9 @@ import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/fo
 import { formatAppointmentTime } from '../../../../../lib/tours/appointment-order';
 import { parseDateKey, toDateKey, weekDateKeys } from '../../../../../lib/tours/week';
 import {
-  LISTING_COST_SECTION_LABELS,
   LISTING_FIELD_LABELS,
 } from '../../../../../lib/listings/field-labels';
-import {
-  formatAmenities,
-  formatMoney,
-  formatNumber,
-  formatSqft,
-  sumListingMonthlyTotal,
-  sumListingMoveInTotal,
-} from '../../../../../lib/listings/format-attributes';
+import { buildListingDisplay } from '../../../../../lib/listings/listing-display';
 import { formatTravelMeta } from '../../../../../lib/listings/format-travel-meta';
 import { textQueryCacheKey } from '../../../../../lib/proximity/text-query';
 
@@ -262,83 +254,7 @@ const mapPlaces = [
 ];
 
 const mapPlacesJson = JSON.stringify(mapPlaces);
-const monthlyTotal = sumListingMonthlyTotal(listing);
-const moveInTotal = sumListingMoveInTotal(listing);
-
-type ListingFact = { label: string; value: string; prewrap?: boolean; hint?: string };
-
-function listingFacts(
-  entries: Array<ListingFact | false | null | undefined>,
-): ListingFact[] {
-  return entries.filter(Boolean) as ListingFact[];
-}
-
-const depositCostFacts = listingFacts([
-  listing.deposit != null && {
-    label: LISTING_FIELD_LABELS.deposit,
-    value: formatMoney(listing.deposit),
-  },
-  listing.pet_deposit != null && {
-    label: LISTING_FIELD_LABELS.petDeposit,
-    value: formatMoney(listing.pet_deposit),
-  },
-]);
-
-const oneTimeCostFacts = listingFacts([
-  listing.application_fees != null && {
-    label: LISTING_FIELD_LABELS.applicationFees,
-    value: formatMoney(listing.application_fees),
-  },
-  listing.move_in_fees != null && {
-    label: LISTING_FIELD_LABELS.moveInFees,
-    value: formatMoney(listing.move_in_fees),
-  },
-]);
-
-const monthlyCostFacts = listingFacts([
-  listing.price_monthly != null && {
-    label: LISTING_FIELD_LABELS.rentMonthly,
-    value: formatMoney(listing.price_monthly),
-  },
-  listing.fees_monthly != null && {
-    label: LISTING_FIELD_LABELS.feesMonthly,
-    value: formatMoney(listing.fees_monthly),
-  },
-  listing.pet_rent_monthly != null && {
-    label: LISTING_FIELD_LABELS.petMonthly,
-    value: formatMoney(listing.pet_rent_monthly),
-  },
-]);
-
-const unitFacts = listingFacts([
-  listing.beds != null && { label: LISTING_FIELD_LABELS.beds, value: formatNumber(listing.beds) },
-  listing.baths != null && { label: LISTING_FIELD_LABELS.baths, value: formatNumber(listing.baths) },
-  listing.sqft != null && { label: LISTING_FIELD_LABELS.sqft, value: formatSqft(listing.sqft) },
-]);
-
-const otherFacts = listingFacts([
-  (listing.amenities?.length ?? 0) > 0 && {
-    label: LISTING_FIELD_LABELS.amenities,
-    value: formatAmenities(listing.amenities),
-  },
-  listing.notes?.trim() && {
-    label: LISTING_FIELD_LABELS.notes,
-    value: listing.notes.trim(),
-    prewrap: true,
-  },
-]);
-
-const showMoveInDepositNote =
-  moveInTotal != null &&
-  ((listing.deposit != null && listing.deposit > 0) ||
-    (listing.pet_deposit != null && listing.pet_deposit > 0));
-
-const hasFactSections =
-  depositCostFacts.length > 0 ||
-  oneTimeCostFacts.length > 0 ||
-  monthlyCostFacts.length > 0 ||
-  unitFacts.length > 0 ||
-  otherFacts.length > 0;
+const display = buildListingDisplay(listing);
 ---
 <AppLayout
   title={listingTitle}
@@ -420,29 +336,29 @@ const hasFactSections =
         }
       </div>
 
-      <div data-listing-cost-host hidden={monthlyTotal == null && moveInTotal == null}>
+      <div data-listing-cost-host hidden={!display.monthlyTotal && !display.moveInTotal}>
         {
-          monthlyTotal != null || moveInTotal != null ? (
+          display.monthlyTotal || display.moveInTotal ? (
             <section class="listing-cost-summary" aria-label="Cost totals" data-listing-cost-summary>
               <dl class="listing-cost-summary__grid">
                 {
-                  monthlyTotal != null ? (
+                  display.monthlyTotal ? (
                     <div class="listing-cost-summary__item">
                       <dt>{LISTING_FIELD_LABELS.totalMonthly}</dt>
-                      <dd>{formatMoney(monthlyTotal)}</dd>
+                      <dd>{display.monthlyTotal}</dd>
                     </div>
                   ) : null
                 }
                 {
-                  moveInTotal != null ? (
+                  display.moveInTotal ? (
                     <div class="listing-cost-summary__item">
                       <dt>
                         {LISTING_FIELD_LABELS.totalMoveIn}
-                        {showMoveInDepositNote ? (
+                        {display.showMoveInDepositNote ? (
                           <span class="listing-cost-summary__qualifier"> (includes deposit)</span>
                         ) : null}
                       </dt>
-                      <dd>{formatMoney(moveInTotal)}</dd>
+                      <dd>{display.moveInTotal}</dd>
                     </div>
                   ) : null
                 }
@@ -452,98 +368,36 @@ const hasFactSections =
         }
       </div>
 
-      <div data-listing-facts-host hidden={!hasFactSections}>
+      <div data-listing-facts-host hidden={!display.hasFactSections}>
         {
-          hasFactSections ? (
+          display.hasFactSections ? (
             <div class="listing-hero__fact-sections stack">
-      {
-        depositCostFacts.length > 0 ? (
-          <div class="listing-facts-group">
-            <h2 class="listing-section__title">{LISTING_COST_SECTION_LABELS.deposit}</h2>
-            <dl class="listing-facts">
-              {depositCostFacts.map((fact) => (
-                <div class="listing-facts__row">
-                  <dt>{fact.label}</dt>
-                  <dd>
-                    <span class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
-                      {fact.value}
-                    </span>
-                    {fact.hint ? <span class="listing-facts__hint muted">{fact.hint}</span> : null}
-                  </dd>
+              {display.factGroups.map((group) => (
+                <div class="listing-facts-group">
+                  <h2 class="listing-section__title">{group.title}</h2>
+                  <dl class="listing-facts">
+                    {group.facts.map((fact) => (
+                      <div class="listing-facts__row">
+                        <dt>{fact.label}</dt>
+                        <dd>
+                          <span class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                            {fact.value}
+                          </span>
+                          {fact.hint ? (
+                            <span class="listing-facts__hint muted">{fact.hint}</span>
+                          ) : null}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
               ))}
-            </dl>
-          </div>
-        ) : null
-      }
-
-      {
-        oneTimeCostFacts.length > 0 ? (
-          <div class="listing-facts-group">
-            <h2 class="listing-section__title">{LISTING_COST_SECTION_LABELS.oneTimeFees}</h2>
-            <dl class="listing-facts">
-              {oneTimeCostFacts.map((fact) => (
-                <div class="listing-facts__row">
-                  <dt>{fact.label}</dt>
-                  <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
-                    {fact.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ) : null
-      }
-
-      {
-        monthlyCostFacts.length > 0 ? (
-          <div class="listing-facts-group">
-            <h2 class="listing-section__title">{LISTING_COST_SECTION_LABELS.monthly}</h2>
-            <dl class="listing-facts">
-              {monthlyCostFacts.map((fact) => (
-                <div class="listing-facts__row">
-                  <dt>{fact.label}</dt>
-                  <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
-                    {fact.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ) : null
-      }
-
-      {
-        unitFacts.length > 0 || otherFacts.length > 0 ? (
-          <div class="listing-facts-group">
-            <h2 class="listing-section__title">{LISTING_COST_SECTION_LABELS.attributes}</h2>
-            <dl class="listing-facts">
-              {unitFacts.map((fact) => (
-                <div class="listing-facts__row">
-                  <dt>{fact.label}</dt>
-                  <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
-                    {fact.value}
-                  </dd>
-                </div>
-              ))}
-              {otherFacts.map((fact) => (
-                <div class="listing-facts__row">
-                  <dt>{fact.label}</dt>
-                  <dd class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
-                    {fact.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ) : null
-      }
-          </div>
-        ) : null
+            </div>
+          ) : null
         }
       </div>
 
-      <p class="muted" data-listing-empty-host hidden={hasFactSections || monthlyTotal != null || moveInTotal != null}>
+      <p class="muted" data-listing-empty-host hidden={display.hasFactSections || display.monthlyTotal || display.moveInTotal}>
         No attributes yet.
       </p>
 
