@@ -17,6 +17,19 @@ function runWhenLaidOut(host, initFn) {
   requestAnimationFrame(() => requestAnimationFrame(start));
 }
 
+function isNearViewport(host, rootMargin = '200px') {
+  const margin = Number.parseInt(rootMargin, 10) || 0;
+  const rect = host.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const vw = window.innerWidth || document.documentElement.clientWidth;
+  return (
+    rect.bottom >= -margin &&
+    rect.top <= vh + margin &&
+    rect.right >= -margin &&
+    rect.left <= vw + margin
+  );
+}
+
 export function whenMapVisible(host, initFn, { rootMargin = '200px' } = {}) {
   if (!(host instanceof HTMLElement)) return;
 
@@ -24,6 +37,11 @@ export function whenMapVisible(host, initFn, { rootMargin = '200px' } = {}) {
   prev?.disconnect();
 
   const run = () => runWhenLaidOut(host, initFn);
+
+  if (isNearViewport(host, rootMargin)) {
+    run();
+    return;
+  }
 
   if (!('IntersectionObserver' in window)) {
     run();
@@ -49,7 +67,7 @@ export function nudgeMapLayout(map, afterResize) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       if (!map) return;
-      google.maps.event.trigger(map, 'resize');
+      window.google.maps.event.trigger(map, 'resize');
       afterResize?.();
     });
   });

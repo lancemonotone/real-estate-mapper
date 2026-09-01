@@ -296,7 +296,7 @@ const columns: {
                       {col.wide ? (
                         <div class="matrix-amenities-cell">{col.cell(listing)}</div>
                       ) : (
-                        col.cell(listing)
+                        <span class="matrix-data-cell">{col.cell(listing)}</span>
                       )}
                     </td>
                   ))}

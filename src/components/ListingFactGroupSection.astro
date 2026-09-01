@@ -1,0 +1,34 @@
+---
+import type { ListingFactGroup } from '../lib/listings/listing-display';
+
+type Props = {
+  group: ListingFactGroup;
+};
+
+const { group } = Astro.props;
+---
+
+<div class="listing-facts-group">
+  <h2
+    class:list={['listing-section__title', { 'visually-hidden': group.srOnlyTitle }]}
+  >
+    {group.title}
+  </h2>
+  <dl class="listing-facts">
+    {
+      group.facts.map((fact) => (
+        <div class="listing-facts__row">
+          <dt>{fact.label}</dt>
+          <dd>
+            <span class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+              {fact.value}
+            </span>
+            {fact.hint ? (
+              <span class="listing-facts__hint muted">{fact.hint}</span>
+            ) : null}
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+</div>

@@ -255,6 +255,8 @@ const mapPlaces = [
 
 const mapPlacesJson = JSON.stringify(mapPlaces);
 const display = buildListingDisplay(listing);
+const attributeFactGroups = display.factGroups.filter((group) => group.column === 'attributes');
+const costFactGroups = display.factGroups.filter((group) => group.column === 'costs');
 ---
 <AppLayout
   title={listingTitle}
@@ -371,34 +373,66 @@ const display = buildListingDisplay(listing);
       <div data-listing-facts-host hidden={!display.hasFactSections}>
         {
           display.hasFactSections ? (
-            <div class="listing-hero__fact-sections stack">
-              {display.factGroups.map((group) => (
-                <div class="listing-facts-group">
-                  <h2
-                    class:list={[
-                      'listing-section__title',
-                      { 'visually-hidden': group.srOnlyTitle },
-                    ]}
-                  >
-                    {group.title}
-                  </h2>
-                  <dl class="listing-facts">
-                    {group.facts.map((fact) => (
-                      <div class="listing-facts__row">
-                        <dt>{fact.label}</dt>
-                        <dd>
-                          <span class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
-                            {fact.value}
-                          </span>
-                          {fact.hint ? (
-                            <span class="listing-facts__hint muted">{fact.hint}</span>
-                          ) : null}
-                        </dd>
+            <div class="listing-hero__fact-sections">
+              {
+                attributeFactGroups.length > 0 ? (
+                  <div class="listing-hero__fact-col listing-hero__fact-col--attributes">
+                    {attributeFactGroups.map((group) => (
+                      <div class="listing-facts-group">
+                        <h2
+                          class:list={[
+                            'listing-section__title',
+                            { 'visually-hidden': group.srOnlyTitle },
+                          ]}
+                        >
+                          {group.title}
+                        </h2>
+                        <dl class="listing-facts">
+                          {group.facts.map((fact) => (
+                            <div class="listing-facts__row">
+                              <dt>{fact.label}</dt>
+                              <dd>
+                                <span class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                                  {fact.value}
+                                </span>
+                                {fact.hint ? (
+                                  <span class="listing-facts__hint muted">{fact.hint}</span>
+                                ) : null}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
                       </div>
                     ))}
-                  </dl>
-                </div>
-              ))}
+                  </div>
+                ) : null
+              }
+              {
+                costFactGroups.length > 0 ? (
+                  <div class="listing-hero__fact-col listing-hero__fact-col--costs">
+                    {costFactGroups.map((group) => (
+                      <div class="listing-facts-group">
+                        <h2 class="listing-section__title">{group.title}</h2>
+                        <dl class="listing-facts">
+                          {group.facts.map((fact) => (
+                            <div class="listing-facts__row">
+                              <dt>{fact.label}</dt>
+                              <dd>
+                                <span class:list={[{ 'listing-facts__value--prewrap': fact.prewrap }]}>
+                                  {fact.value}
+                                </span>
+                                {fact.hint ? (
+                                  <span class="listing-facts__hint muted">{fact.hint}</span>
+                                ) : null}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    ))}
+                  </div>
+                ) : null
+              }
             </div>
           ) : null
         }
@@ -747,6 +781,7 @@ const display = buildListingDisplay(listing);
           <div
             id="listing-map"
             class="listing-map map-well listing-hero__map"
+            data-map-state="loading"
             data-key={browserKey}
             data-map-id={mapId}
             data-listing-id={listing.id}

@@ -40,9 +40,24 @@ function parsePlaces(raw) {
 
 let listingMapBootId = 0;
 
+function setMapState(el, state) {
+  if (el instanceof HTMLElement) el.dataset.mapState = state;
+}
+
+function waitForMapIdle(map) {
+  return new Promise((resolve) => {
+    const listener = map.addListener("idle", () => {
+      window.google.maps.event.removeListener(listener);
+      resolve();
+    });
+  });
+}
+
 async function initListingMap() {
   let el = document.getElementById("listing-map");
   if (!el) return;
+
+  setMapState(el, "loading");
 
   // Soft-nav can reuse a host that already had a Map instance.
   const fresh = el.cloneNode(false);
@@ -63,10 +78,12 @@ async function initListingMap() {
   if (!key || !mapId) {
     el.textContent =
       "Missing PUBLIC_GOOGLE_MAPS_BROWSER_KEY or PUBLIC_GOOGLE_MAPS_MAP_ID";
+    setMapState(el, "error");
     return;
   }
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     el.textContent = "No geocoded location to show";
+    setMapState(el, "error");
     return;
   }
 
@@ -74,9 +91,10 @@ async function initListingMap() {
   if (bootId !== listingMapBootId || !document.getElementById("listing-map"))
     return;
 
-  const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+  const maps = window.google.maps;
+  const { Map, InfoWindow } = await maps.importLibrary("maps");
   const { AdvancedMarkerElement, PinElement } =
-    await google.maps.importLibrary("marker");
+    await maps.importLibrary("marker");
   if (bootId !== listingMapBootId) return;
 
   el.replaceChildren();
@@ -89,7 +107,7 @@ async function initListingMap() {
   });
 
   const pinHover = createPinHoverController(map, InfoWindow);
-  const bounds = new google.maps.LatLngBounds();
+  const bounds = new maps.LatLngBounds();
   const palette = themePinPalette();
 
   function addPin(pos, colors, listing, header) {
@@ -146,7 +164,13 @@ async function initListingMap() {
   if (bootId !== listingMapBootId) return;
   const fit = () => fitMapForPinTooltips(map, bounds);
   fit();
+  await waitForMapIdle(map);
+  if (bootId !== listingMapBootId) return;
   nudgeMapLayout(map, fit);
+  setMapState(el, "ready");
+  el.dispatchEvent(
+    new CustomEvent("wayhome:listing-map-ready", { bubbles: true }),
+  );
 }
 
 function bootListingMap() {
@@ -156,12 +180,15 @@ function bootListingMap() {
   whenMapVisible(el, () => {
     initListingMap().catch((err) => {
       const host = document.getElementById("listing-map");
-      if (host)
+      if (host) {
         host.textContent = err instanceof Error ? err.message : "Map failed";
+        setMapState(host, "error");
+      }
     });
   });
 }
 
 bootListingMap();
 document.addEventListener("astro:page-load", bootListingMap);
+document.addEventListener("astro:after-swap", bootListingMap);
 document.addEventListener("wayhome:listing-map-refresh", bootListingMap);

@@ -6,11 +6,11 @@ import {
   formatListingMonthlyTotal,
   sumListingMonthlyTotal,
   sumListingMoveInTotal,
-} from './format-attributes';
+} from "./format-attributes";
 import {
   LISTING_COST_SECTION_LABELS,
   LISTING_FIELD_LABELS,
-} from './field-labels';
+} from "./field-labels";
 
 export type ListingFact = {
   label: string;
@@ -19,9 +19,12 @@ export type ListingFact = {
   hint?: string;
 };
 
+export type ListingFactColumn = "attributes" | "costs";
+
 export type ListingFactGroup = {
   title: string;
   facts: ListingFact[];
+  column: ListingFactColumn;
   /** Section title for assistive tech only (no visible heading). */
   srOnlyTitle?: boolean;
 };
@@ -119,9 +122,18 @@ export function buildListingDisplay(
   ]);
 
   const unitFacts = listingFacts([
-    listing.beds != null && { label: labels.beds, value: formatNumber(listing.beds) },
-    listing.baths != null && { label: labels.baths, value: formatNumber(listing.baths) },
-    listing.sqft != null && { label: labels.sqft, value: formatSqft(listing.sqft) },
+    listing.beds != null && {
+      label: labels.beds,
+      value: formatNumber(listing.beds),
+    },
+    listing.baths != null && {
+      label: labels.baths,
+      value: formatNumber(listing.baths),
+    },
+    listing.sqft != null && {
+      label: labels.sqft,
+      value: formatSqft(listing.sqft),
+    },
   ]);
 
   const otherFacts = listingFacts([
@@ -141,17 +153,30 @@ export function buildListingDisplay(
     factGroups.push({
       title: sectionLabels.attributes,
       facts: [...unitFacts, ...otherFacts],
+      column: "attributes",
       srOnlyTitle: true,
     });
   }
   if (depositCostFacts.length > 0) {
-    factGroups.push({ title: sectionLabels.deposit, facts: depositCostFacts });
+    factGroups.push({
+      title: sectionLabels.deposit,
+      facts: depositCostFacts,
+      column: "costs",
+    });
   }
   if (oneTimeCostFacts.length > 0) {
-    factGroups.push({ title: sectionLabels.oneTimeFees, facts: oneTimeCostFacts });
+    factGroups.push({
+      title: sectionLabels.oneTimeFees,
+      facts: oneTimeCostFacts,
+      column: "costs",
+    });
   }
   if (monthlyCostFacts.length > 0) {
-    factGroups.push({ title: sectionLabels.monthly, facts: monthlyCostFacts });
+    factGroups.push({
+      title: sectionLabels.monthly,
+      facts: monthlyCostFacts,
+      column: "costs",
+    });
   }
 
   const showMoveInDepositNote =
@@ -160,7 +185,7 @@ export function buildListingDisplay(
       (listing.pet_deposit != null && listing.pet_deposit > 0));
 
   return {
-    title: listing.name?.trim() || 'Listing',
+    title: listing.name?.trim() || "Listing",
     address: listing.address?.trim() || null,
     phone: listing.phone?.trim() || null,
     sourceUrl: listing.source_url?.trim() || null,

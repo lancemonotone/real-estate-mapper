@@ -188,11 +188,11 @@ const mapListings = rows
               <thead>
                 <tr>
                   <th class="matrix-table__listing">
-                    <span class="matrix-table__heading">Listing</span>
+                    <span class="matrix-table__heading matrix-head-cell matrix-head-cell--start">Listing</span>
                   </th>
-                  <th><span class="matrix-table__heading">Distance</span></th>
-                  <th><span class="matrix-table__heading">{LISTING_FIELD_LABELS.sqft}</span></th>
-                  <th><span class="matrix-table__heading">{LISTING_FIELD_LABELS.totalMonthly}</span></th>
+                  <th><span class="matrix-table__heading matrix-head-cell">Distance</span></th>
+                  <th><span class="matrix-table__heading matrix-head-cell">{LISTING_FIELD_LABELS.sqft}</span></th>
+                  <th><span class="matrix-table__heading matrix-head-cell">{LISTING_FIELD_LABELS.totalMonthly}</span></th>
                 </tr>
               </thead>
               <tbody id="listings-list" data-listings-list>
@@ -270,9 +270,9 @@ const mapListings = rows
                           />
                         </div>
                       </th>
-                      <td>{distanceLabel}</td>
-                      <td>{formatSqft(listing.sqft)}</td>
-                      <td>{formatListingMonthlyTotal(listing)}</td>
+                      <td><span class="matrix-data-cell">{distanceLabel}</span></td>
+                      <td><span class="matrix-data-cell">{formatSqft(listing.sqft)}</span></td>
+                      <td><span class="matrix-data-cell">{formatListingMonthlyTotal(listing)}</span></td>
                     </tr>
                   );
                 })}

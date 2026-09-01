@@ -550,8 +550,8 @@ textarea {
   }
 }
 
-table.compare,
-table.data {
+table.compare:not(.matrix-table),
+table.data:not(.matrix-table) {
   border-collapse: collapse;
   inline-size: 100%;
   background: var(--glass);
@@ -645,7 +645,8 @@ table.compare {
   &.is-plan-limit {
     padding: 0.55rem 0.75rem;
     border-radius: var(--radius, 0.75rem);
-    border: 1px solid color-mix(in oklab, var(--accent, #0d9488) 35%, transparent);
+    border: 1px solid
+      color-mix(in oklab, var(--accent, #0d9488) 35%, transparent);
     background: color-mix(in oklab, var(--accent, #0d9488) 8%, transparent);
     visibility: visible;
   }
@@ -678,7 +679,8 @@ table.compare {
   &.is-plan-limit {
     padding: 0.45rem 0.65rem;
     border-radius: var(--radius-sm);
-    border: 1px solid color-mix(in oklab, var(--accent, #0d9488) 35%, transparent);
+    border: 1px solid
+      color-mix(in oklab, var(--accent, #0d9488) 35%, transparent);
     background: color-mix(in oklab, var(--accent, #0d9488) 8%, transparent);
     text-align: start;
   }
@@ -956,13 +958,41 @@ body.photo-gallery-open {
 /* Shared listing card chrome (tour stops, matrix tables, listing rows). */
 .listing-card,
 .tours-stops__item,
-.listing-row,
-.matrix-table tbody .matrix-table__listing > .matrix-listing,
-.matrix-table tbody .matrix-table__place .matrix-listing {
-  padding: 0.75rem 0.9rem;
+.listing-row {
+  --surface-pad-block: 0.75rem;
+  --surface-pad-inline: 0.9rem;
+  --surface-gap: 0.65rem;
+
+  display: flex;
+  align-items: center;
+  gap: var(--surface-gap);
+  padding-block: var(--surface-pad-block);
+  padding-inline: var(--surface-pad-inline);
   background: var(--glass-wash-strong);
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-md);
+}
+
+.matrix-table tbody .matrix-table__listing > .matrix-listing,
+.matrix-table tbody .matrix-table__place .matrix-listing {
+  --surface-pad-block: 0.75rem;
+  --surface-pad-inline: 0.9rem;
+
+  padding-block: var(--surface-pad-block);
+  padding-inline: var(--surface-pad-inline);
+  background: var(--glass-wash-strong);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+}
+
+.matrix-table tbody .matrix-table__place {
+  text-align: start;
+}
+
+.matrix-table tbody .matrix-table__place > .matrix-listing {
+  inline-size: 100%;
+  box-sizing: border-box;
+  text-align: start;
 }
 
 .tours-stops__item {
@@ -1182,8 +1212,20 @@ button.tour-stop-set-start {
 }
 
 .cell-ok {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   font-size: 0.85rem;
   line-height: 1.35;
+}
+
+.cell-ok__place {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-inline-size: 0;
+  text-align: start;
 }
 
 .cell-actions {
@@ -2155,7 +2197,6 @@ tr[data-map-listing].is-map-hover > .matrix-table__place .matrix-listing {
 }
 
 .listing-row {
-  --row-pad: 0.75rem;
   --row-gap: 0.85rem;
 
   display: flex;
@@ -2180,7 +2221,7 @@ tr[data-map-listing].is-map-hover > .matrix-table__place .matrix-listing {
   }
 
   @media (min-width: 768px) {
-    --row-pad: 0.9rem;
+    --surface-pad-block: 0.9rem;
     --row-gap: 1rem;
   }
 }
@@ -2514,6 +2555,9 @@ body.directions-overlay-open {
 }
 
 .listing-hero__meta {
+  --listing-panel-inset: 0.75rem;
+  --listing-content-inset: 0.75rem;
+
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -2530,8 +2574,43 @@ body.directions-overlay-open {
 
 .listing-hero__fact-sections {
   --fact-section-gap: 1.15rem;
+  --fact-col-gap: 2rem;
 
+  display: flex;
+  flex-direction: column;
   gap: var(--fact-section-gap);
+  margin-inline-start: var(--listing-panel-inset);
+
+  @media (min-width: 1024px) {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: var(--fact-col-gap);
+  }
+}
+
+.listing-hero__fact-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fact-section-gap);
+  min-inline-size: 0;
+
+  @media (min-width: 1024px) {
+    &.listing-hero__fact-col--attributes {
+      flex: 0 1 65ch;
+      max-inline-size: 65ch;
+    }
+
+    &.listing-hero__fact-col--costs {
+      flex: 1 1 0;
+    }
+  }
+}
+
+.listing-hero__fact-col
+  .listing-facts-group:has(> .listing-section__title:not(.visually-hidden))
+  > .listing-facts {
+  margin-inline-start: var(--listing-content-inset);
 }
 
 .listing-cost-summary + .listing-hero__fact-sections {
@@ -2678,8 +2757,13 @@ body.directions-overlay-open {
 }
 
 .matrix-scroll {
+  --matrix-scroll-pad-block: 0.65rem;
+  --matrix-scroll-pad-inline: 0.75rem;
+
   overflow-x: auto;
   margin-block-end: 1rem;
+  padding-block: var(--matrix-scroll-pad-block);
+  padding-inline: var(--matrix-scroll-pad-inline);
 }
 
 .matrix-panel {
@@ -2788,13 +2872,44 @@ body.directions-overlay-open {
   font-weight: 600;
 }
 
+/* Matrix tables: cells are zero-padding shells; gap via border-spacing; inner layout via flex/grid + gap. */
+.matrix-data-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.matrix-head-cell {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  inline-size: 100%;
+  margin-block-end: 0.35rem;
+}
+
+.matrix-head-cell--start {
+  justify-content: flex-start;
+}
+
 .matrix-table {
   --sticky-bg: var(--glass-strong);
-  --matrix-listing-row-gap: 0.65rem;
+  --matrix-row-gap: 0.65rem;
+  --matrix-gap-inline: 0.75rem;
+  --matrix-surface-pad-block: 0.75rem;
+  --matrix-surface-pad-inline: 0.9rem;
   /* Shrink with scrollport on tablet/mobile; fixed 460px from desktop. */
   --listing-col: min(100%, 28.75rem);
   --data-col-min: 8rem;
   --data-cols: 1;
+
+  border-collapse: separate;
+  border-spacing: var(--matrix-gap-inline) var(--matrix-row-gap);
+  background: transparent;
 
   /*
     100% of the scrollport, but at least listing + (data-cols × min)
@@ -2808,12 +2923,27 @@ body.directions-overlay-open {
 
   & th,
   & td {
-    padding-block: calc(var(--matrix-listing-row-gap) / 2);
-    padding-inline: 0.75rem;
+    padding: 0;
+    border: 0;
+    vertical-align: top;
   }
 
   & thead th {
-    padding-block: 0.55rem;
+    background: transparent;
+    font-weight: 600;
+    vertical-align: bottom;
+  }
+
+  & thead .matrix-table__listing .matrix-table__heading,
+  & thead .matrix-table__listing .matrix-head-cell,
+  & thead .matrix-table__listing .matrix-sort {
+    display: flex;
+    box-sizing: border-box;
+    inline-size: 100%;
+    padding-inline-start: var(--matrix-surface-pad-inline);
+    padding-inline-end: 0;
+    justify-content: flex-start;
+    text-align: start;
   }
 
   @media (min-width: 1024px) {
@@ -2825,6 +2955,7 @@ body.directions-overlay-open {
     inset-inline-start: 0;
     z-index: 1;
     box-sizing: border-box;
+    text-align: start;
     /* Absolute width under fixed layout — do not set widths on sibling cols. */
     inline-size: var(--listing-col);
     min-inline-size: 0;
@@ -2847,6 +2978,12 @@ body.directions-overlay-open {
   & tbody .matrix-table__listing {
     background: transparent;
     box-shadow: none;
+    text-align: start;
+  }
+
+  & tbody .matrix-table__listing > .matrix-listing {
+    inline-size: 100%;
+    box-sizing: border-box;
   }
 
   & .matrix-listing {
@@ -2868,11 +3005,9 @@ body.directions-overlay-open {
 
   & thead th {
     font-size: 0.85rem;
-    font-weight: 600;
-    vertical-align: bottom;
   }
 
-  & td .badge {
+  & tbody td .badge {
     white-space: nowrap;
   }
 
@@ -2938,13 +3073,16 @@ body.directions-overlay-open {
       background: transparent;
       box-shadow: none;
       vertical-align: middle;
+      text-align: start;
     }
 
     & .cell-ok__place {
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
       gap: 0.15rem;
       min-inline-size: 0;
+      text-align: start;
     }
 
     & .cell-ok__name {
@@ -2989,11 +3127,14 @@ body.directions-overlay-open {
       min-inline-size: var(--type-col);
       max-inline-size: var(--type-col);
       width: var(--type-col);
-      padding-inline: 0.25rem;
       text-align: center;
       white-space: nowrap;
       border-inline-start: 0;
       vertical-align: middle;
+    }
+
+    & .matrix-type .matrix-type__icon {
+      margin-inline: auto;
     }
 
     & .matrix-listing {
@@ -3015,7 +3156,6 @@ body.directions-overlay-open {
   /* Travel Times — full-width scrollport, fixed data cols, aligned icon row. */
   &.matrix-table--travel {
     --travel-col: 10.5rem;
-    --travel-pad-inline: 0.5rem;
 
     inline-size: min(
       100%,
@@ -3029,11 +3169,16 @@ body.directions-overlay-open {
     & thead th:not(.matrix-table__listing),
     & tbody td {
       box-sizing: border-box;
-      padding-inline: var(--travel-pad-inline);
       inline-size: var(--travel-col);
       width: var(--travel-col);
       min-inline-size: var(--travel-col);
       max-inline-size: var(--travel-col);
+    }
+
+    & thead .matrix-criterion-head {
+      box-sizing: border-box;
+      inline-size: 100%;
+      margin-block-end: 0.35rem;
     }
 
     /* Equal row height: listing + proximity cells share tallest column. */
@@ -3050,18 +3195,18 @@ body.directions-overlay-open {
     }
 
     & tbody td .cell-ok {
-      --cell-ok-edge: 0.35rem;
-      --cell-ok-place-pad: 0.5rem 0.55rem 0.25rem;
-      --cell-actions-pad: 0.14rem 0.18rem;
       --cell-actions-gap: 0.2rem;
 
       display: flex;
       flex-direction: column;
+      gap: 0.35rem;
+      box-sizing: border-box;
+      inline-size: 100%;
       block-size: 100%;
       min-block-size: 100%;
       min-inline-size: 0;
-      padding-block-end: var(--cell-ok-edge);
-      padding-inline: var(--cell-ok-edge);
+      padding-block: var(--matrix-surface-pad-block);
+      padding-inline: var(--matrix-surface-pad-inline);
       border: 1px solid var(--border-accent);
       border-radius: var(--radius-md);
       background: var(--glass-wash-strong);
@@ -3069,12 +3214,8 @@ body.directions-overlay-open {
     }
 
     & tbody td .cell-ok__place {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
       flex: 1 1 auto;
       min-block-size: 0;
-      padding: var(--cell-ok-place-pad);
     }
 
     & tbody td .cell-ok__meta {
@@ -3095,11 +3236,12 @@ body.directions-overlay-open {
       justify-content: flex-end;
       gap: var(--cell-actions-gap);
       margin-block-start: auto;
-      padding: var(--cell-actions-pad);
+      padding: 0.14rem 0.18rem;
       border: 1px solid var(--border-accent);
       border-radius: var(--radius-sm);
       background: var(--glass-strong);
-      box-shadow: 0 2px 8px color-mix(in oklab, var(--bg-0, #000) 28%, transparent);
+      box-shadow: 0 2px 8px
+        color-mix(in oklab, var(--bg-0, #000) 28%, transparent);
     }
 
     & tbody tr.is-map-hover td .cell-ok {
@@ -3110,7 +3252,6 @@ body.directions-overlay-open {
 
     @media (min-width: 1024px) {
       --travel-col: 11.5rem;
-      --travel-pad-inline: 0.55rem;
     }
   }
 
@@ -3119,60 +3260,52 @@ body.directions-overlay-open {
     --listings-distance-col: 5.5rem;
     --listings-sqft-col: 6rem;
     --listings-price-col: 6.5rem;
-    --listings-data-pad-inline: 0.5rem;
 
     inline-size: min(
       100%,
       calc(
-        var(--listing-col) + var(--listings-distance-col) + var(--listings-sqft-col) +
-          var(--listings-price-col)
+        var(--listing-col) + var(--listings-distance-col) +
+          var(--listings-sqft-col) + var(--listings-price-col)
       )
     );
     min-inline-size: calc(
-      var(--listing-col) + var(--listings-distance-col) + var(--listings-sqft-col) +
-        var(--listings-price-col)
+      var(--listing-col) + var(--listings-distance-col) +
+        var(--listings-sqft-col) + var(--listings-price-col)
     );
     background: transparent;
 
     & thead .matrix-table__listing {
       background: transparent;
       box-shadow: none;
-      padding-inline: 0.9rem;
     }
 
     & thead th:nth-child(2),
     & tbody td:nth-child(2) {
       box-sizing: border-box;
-      padding-inline: var(--listings-data-pad-inline);
       inline-size: var(--listings-distance-col);
       width: var(--listings-distance-col);
       min-inline-size: var(--listings-distance-col);
       max-inline-size: var(--listings-distance-col);
-      text-align: end;
       white-space: nowrap;
     }
 
     & thead th:nth-child(3),
     & tbody td:nth-child(3) {
       box-sizing: border-box;
-      padding-inline: var(--listings-data-pad-inline);
       inline-size: var(--listings-sqft-col);
       width: var(--listings-sqft-col);
       min-inline-size: var(--listings-sqft-col);
       max-inline-size: var(--listings-sqft-col);
-      text-align: end;
       white-space: nowrap;
     }
 
     & thead th:nth-child(4),
     & tbody td:nth-child(4) {
       box-sizing: border-box;
-      padding-inline: var(--listings-data-pad-inline);
       inline-size: var(--listings-price-col);
       width: var(--listings-price-col);
       min-inline-size: var(--listings-price-col);
       max-inline-size: var(--listings-price-col);
-      text-align: end;
       white-space: nowrap;
     }
 
@@ -3180,7 +3313,6 @@ body.directions-overlay-open {
       --listings-distance-col: 6rem;
       --listings-sqft-col: 6.5rem;
       --listings-price-col: 7rem;
-      --listings-data-pad-inline: 0.55rem;
     }
   }
 
@@ -3189,7 +3321,6 @@ body.directions-overlay-open {
     --compact-col-max: 5rem;
     --wide-col-min: 16rem;
     --amenities-cell-max-block: 6rem;
-    --compact-pad-inline: 0.4rem;
 
     inline-size: 100%;
     min-inline-size: calc(
@@ -3208,9 +3339,7 @@ body.directions-overlay-open {
       width: var(--compact-col-max);
       min-inline-size: var(--compact-col-max);
       max-inline-size: var(--compact-col-max);
-      padding-inline: var(--compact-pad-inline);
       white-space: nowrap;
-      text-align: end;
 
       & .matrix-sort {
         display: inline-flex;
@@ -3226,7 +3355,6 @@ body.directions-overlay-open {
       max-inline-size: none;
       inline-size: auto;
       width: auto;
-      padding-inline: 0.5rem;
       white-space: normal;
       overflow-wrap: break-word;
       vertical-align: top;
@@ -3241,6 +3369,11 @@ body.directions-overlay-open {
     }
 
     & .matrix-amenities-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      box-sizing: border-box;
+      inline-size: 100%;
       max-block-size: var(--amenities-cell-max-block);
       overflow-block: auto;
       overflow-wrap: break-word;
@@ -3252,7 +3385,6 @@ body.directions-overlay-open {
     }
 
     @media (min-width: 768px) {
-      --compact-pad-inline: 0.5rem;
       --wide-col-min: 18rem;
       --amenities-cell-max-block: 7rem;
     }
@@ -3314,7 +3446,6 @@ body.directions-overlay-open {
 
 .matrix-listing {
   --link-gap: 1.3rem;
-  /* Shared listing thumb size app-wide (listing detail --fit may override). */
   --thumb-size: 4.0625rem;
 
   display: grid;
@@ -3326,6 +3457,10 @@ body.directions-overlay-open {
   text-decoration: none;
 
   &:has(> .listing-favorite) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  &:has(> .cell-actions) {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
@@ -3379,12 +3514,17 @@ body.directions-overlay-open {
   display: flex;
   align-items: center;
   justify-content: center;
+  inline-size: var(--thumb-size);
+  block-size: var(--thumb-size);
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--text-muted);
   line-height: 1.1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-accent);
+  background: var(--bg-1);
 }
 
 .matrix-listing__text {
@@ -3429,6 +3569,8 @@ body.directions-overlay-open {
   font-weight: 600;
   color: inherit;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
   text-align: start;
   justify-content: flex-start;
 
@@ -3489,18 +3631,21 @@ body.directions-overlay-open {
 
 .listing-facts {
   --facts-gap: 0.55rem;
+  --facts-label-width: 6rem;
 
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--facts-gap);
   margin: 0;
 }
 
 .listing-cost-summary {
-  --cost-summary-pad: 0.65rem 0.75rem;
+  --cost-summary-pad-block: 0.65rem;
   --cost-summary-gap: 0.75rem;
 
   margin: 0;
-  padding: var(--cost-summary-pad);
+  padding-block: var(--cost-summary-pad-block);
+  padding-inline: var(--listing-panel-inset);
 
   & .listing-cost-summary__grid {
     display: flex;
@@ -3511,7 +3656,8 @@ body.directions-overlay-open {
   }
 
   & .listing-cost-summary__item {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 0.1rem;
     margin: 0;
     flex: 0 0 auto;
@@ -3557,12 +3703,13 @@ body.directions-overlay-open {
 }
 
 .listing-facts__row {
-  display: grid;
-  grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
-  gap: 0.5rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
+  gap: 0.35rem 1rem;
 
   & dt {
+    flex: 0 0 var(--facts-label-width);
     margin: 0;
     color: var(--text-muted);
     font-size: 0.85rem;
@@ -3570,6 +3717,8 @@ body.directions-overlay-open {
   }
 
   & dd {
+    flex: 1 1 0;
+    min-inline-size: 0;
     margin: 0;
     font-size: 0.95rem;
   }
@@ -4260,7 +4409,11 @@ body.directions-overlay-open {
 
   & .tours-stops__item.is-selected,
   & .tours-stops__item.is-dragging {
-    outline: 1px solid var(--map-hover-border, color-mix(in oklab, var(--accent, #2563eb) 50%, transparent));
+    outline: 1px solid
+      var(
+        --map-hover-border,
+        color-mix(in oklab, var(--accent, #2563eb) 50%, transparent)
+      );
     background: color-mix(
       in oklab,
       var(--accent, #2563eb) 10%,
@@ -4759,7 +4912,8 @@ body.directions-overlay-open {
     align-items: center;
     padding: 0.15rem 0.45rem;
     border-radius: 999px;
-    border: 1px solid color-mix(in oklab, var(--accent, #0d9488) 40%, transparent);
+    border: 1px solid
+      color-mix(in oklab, var(--accent, #0d9488) 40%, transparent);
     background: color-mix(in oklab, var(--accent, #0d9488) 12%, transparent);
     font-size: 0.72rem;
     font-weight: 650;
@@ -4775,7 +4929,9 @@ body.directions-overlay-open {
   max-inline-size: min(18rem, calc(100vw - 2rem));
   opacity: 0;
   transform: translateY(0.25rem);
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
 
   &.is-visible {
     opacity: 1;
