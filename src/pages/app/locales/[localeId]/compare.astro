@@ -3,11 +3,14 @@ import AppLayout from '../../../../layouts/AppLayout.astro';
 import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
 import { filterVisibleListings, loadNestEntitlementUi } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
+import { LISTING_FIELD_LABELS } from '../../../../lib/listings/field-labels';
 import {
   formatAmenities,
   formatMoney,
   formatNumber,
   formatSqft,
+  sumListingMonthlyTotal,
+  sumListingMoveInTotal,
 } from '../../../../lib/listings/format-attributes';
 import type { Listing } from '../../../../lib/types/database';
 
@@ -34,7 +37,7 @@ const base = `/app/locales/${locale.id}`;
 const { data: listings } = await supabase
   .from('listings')
   .select(
-    'id, name, address, phone, photo_url, photo_urls, price_monthly, deposit, fees_monthly, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite',
+    'id, name, address, phone, photo_url, photo_urls, price_monthly, deposit, fees_monthly, application_fees, move_in_fees, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite',
   )
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
@@ -50,6 +53,8 @@ const rows = filterVisibleListings(listings ?? [], snapshot) as Pick<
   | 'price_monthly'
   | 'deposit'
   | 'fees_monthly'
+  | 'application_fees'
+  | 'move_in_fees'
   | 'sqft'
   | 'beds'
   | 'baths'
@@ -69,55 +74,85 @@ const columns: {
   wide?: boolean;
 }[] = [
   {
-    label: 'Price',
+    label: LISTING_FIELD_LABELS.totalMonthly,
     sortType: 'number',
-    sortValue: (l) => (l.price_monthly == null ? '' : String(l.price_monthly)),
-    cell: (l) => formatMoney(l.price_monthly),
+    sortValue: (l) => {
+      const total = sumListingMonthlyTotal(l);
+      return total == null ? '' : String(total);
+    },
+    cell: (l) => formatMoney(sumListingMonthlyTotal(l)),
   },
   {
-    label: 'Deposit',
+    label: LISTING_FIELD_LABELS.totalMoveIn,
+    sortType: 'number',
+    sortValue: (l) => {
+      const total = sumListingMoveInTotal(l);
+      return total == null ? '' : String(total);
+    },
+    cell: (l) => formatMoney(sumListingMoveInTotal(l)),
+  },
+  {
+    label: LISTING_FIELD_LABELS.deposit,
     sortType: 'number',
     sortValue: (l) => (l.deposit == null ? '' : String(l.deposit)),
     cell: (l) => formatMoney(l.deposit),
   },
   {
-    label: 'Fees',
-    sortType: 'number',
-    sortValue: (l) => (l.fees_monthly == null ? '' : String(l.fees_monthly)),
-    cell: (l) => formatMoney(l.fees_monthly),
-  },
-  {
-    label: 'Sq ft',
-    sortType: 'number',
-    sortValue: (l) => (l.sqft == null ? '' : String(l.sqft)),
-    cell: (l) => formatSqft(l.sqft),
-  },
-  {
-    label: 'Beds',
-    sortType: 'number',
-    sortValue: (l) => (l.beds == null ? '' : String(l.beds)),
-    cell: (l) => formatNumber(l.beds),
-  },
-  {
-    label: 'Baths',
-    sortType: 'number',
-    sortValue: (l) => (l.baths == null ? '' : String(l.baths)),
-    cell: (l) => formatNumber(l.baths),
-  },
-  {
-    label: 'Pet rent',
-    sortType: 'number',
-    sortValue: (l) => (l.pet_rent_monthly == null ? '' : String(l.pet_rent_monthly)),
-    cell: (l) => formatMoney(l.pet_rent_monthly),
-  },
-  {
-    label: 'Pet deposit',
+    label: LISTING_FIELD_LABELS.petDeposit,
     sortType: 'number',
     sortValue: (l) => (l.pet_deposit == null ? '' : String(l.pet_deposit)),
     cell: (l) => formatMoney(l.pet_deposit),
   },
   {
-    label: 'Amenities',
+    label: LISTING_FIELD_LABELS.applicationFees,
+    sortType: 'number',
+    sortValue: (l) => (l.application_fees == null ? '' : String(l.application_fees)),
+    cell: (l) => formatMoney(l.application_fees),
+  },
+  {
+    label: LISTING_FIELD_LABELS.moveInFees,
+    sortType: 'number',
+    sortValue: (l) => (l.move_in_fees == null ? '' : String(l.move_in_fees)),
+    cell: (l) => formatMoney(l.move_in_fees),
+  },
+  {
+    label: LISTING_FIELD_LABELS.rentMonthly,
+    sortType: 'number',
+    sortValue: (l) => (l.price_monthly == null ? '' : String(l.price_monthly)),
+    cell: (l) => formatMoney(l.price_monthly),
+  },
+  {
+    label: LISTING_FIELD_LABELS.feesMonthly,
+    sortType: 'number',
+    sortValue: (l) => (l.fees_monthly == null ? '' : String(l.fees_monthly)),
+    cell: (l) => formatMoney(l.fees_monthly),
+  },
+  {
+    label: LISTING_FIELD_LABELS.petMonthly,
+    sortType: 'number',
+    sortValue: (l) => (l.pet_rent_monthly == null ? '' : String(l.pet_rent_monthly)),
+    cell: (l) => formatMoney(l.pet_rent_monthly),
+  },
+  {
+    label: LISTING_FIELD_LABELS.beds,
+    sortType: 'number',
+    sortValue: (l) => (l.beds == null ? '' : String(l.beds)),
+    cell: (l) => formatNumber(l.beds),
+  },
+  {
+    label: LISTING_FIELD_LABELS.baths,
+    sortType: 'number',
+    sortValue: (l) => (l.baths == null ? '' : String(l.baths)),
+    cell: (l) => formatNumber(l.baths),
+  },
+  {
+    label: LISTING_FIELD_LABELS.sqft,
+    sortType: 'number',
+    sortValue: (l) => (l.sqft == null ? '' : String(l.sqft)),
+    cell: (l) => formatSqft(l.sqft),
+  },
+  {
+    label: LISTING_FIELD_LABELS.amenities,
     sortType: 'text',
     sortValue: (l) => (l.amenities ?? []).join(', '),
     cell: (l) => formatAmenities(l.amenities),
@@ -150,7 +185,8 @@ const columns: {
             <div class="matrix-panel__titles compare-header__titles">
               <h1 class="compare-header__title">Compare</h1>
               <p class="muted compare-header__sub">
-                Listing details side by side. Click a column header to sort.
+                Listing details side by side. Click a column header to sort. Move-in total
+                includes deposit and one-time fees when entered.
               </p>
             </div>
             <div class="matrix-panel__actions compare-header__actions">

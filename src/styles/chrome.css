@@ -3209,8 +3209,10 @@ body.directions-overlay-open {
       text-align: end;
 
       & .matrix-sort {
-        text-align: end;
+        display: inline-flex;
+        inline-size: 100%;
         justify-content: flex-end;
+        text-align: end;
       }
     }
 
@@ -3224,6 +3226,14 @@ body.directions-overlay-open {
       white-space: normal;
       overflow-wrap: break-word;
       vertical-align: top;
+      text-align: start;
+
+      & .matrix-sort {
+        display: inline-flex;
+        inline-size: 100%;
+        justify-content: flex-start;
+        text-align: start;
+      }
     }
 
     & .matrix-amenities-cell {
