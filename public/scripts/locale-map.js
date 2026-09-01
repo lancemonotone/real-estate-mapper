@@ -1,18 +1,7 @@
 import { createPinHoverController } from "./map-pin-hover.js";
 import { fitMapForPinTooltips } from "./map-fit.js";
+import { loadGoogleMapsJs } from "./google-maps-loader.js";
 import { nudgeMapLayout as nudgeMap, whenMapVisible } from "./map-lazy.js";
-
-async function loadGoogleMaps(key) {
-  if (window.google?.maps?.importLibrary) return;
-  await new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-    script.async = true;
-    script.onload = () => resolve(undefined);
-    script.onerror = () => reject(new Error("Failed to load Maps JS"));
-    document.head.appendChild(script);
-  });
-}
 
 function milesToMeters(miles) {
   return miles * 1609.344;
@@ -73,7 +62,7 @@ async function initLocaleMap() {
 
   const ensureMap = async (lat, lng, radiusM) => {
     if (map) return;
-    await loadGoogleMaps(key);
+    await loadGoogleMapsJs(key);
     if (bootId !== localeMapBootId || !document.getElementById("locale-map"))
       return;
 

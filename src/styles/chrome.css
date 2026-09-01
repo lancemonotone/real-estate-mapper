@@ -2671,11 +2671,15 @@ body.directions-overlay-open {
   display: none;
 }
 
+.matrix-scroll,
+.listing-cost-summary {
+  background: var(--glass);
+  border-radius: var(--radius-md);
+}
+
 .matrix-scroll {
   overflow-x: auto;
   margin-block-end: 1rem;
-  background: var(--glass);
-  border-radius: var(--radius-md);
 }
 
 .matrix-panel {

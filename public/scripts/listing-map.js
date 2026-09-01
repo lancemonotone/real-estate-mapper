@@ -1,5 +1,6 @@
 import { createPinHoverController } from "./map-pin-hover.js";
 import { fitMapForPinTooltips } from "./map-fit.js";
+import { loadGoogleMapsJs } from "./google-maps-loader.js";
 import { nudgeMapLayout, whenMapVisible } from "./map-lazy.js";
 
 function cssVar(name) {
@@ -37,18 +38,6 @@ function parsePlaces(raw) {
   }
 }
 
-async function loadGoogleMaps(key) {
-  if (window.google?.maps?.importLibrary) return;
-  await new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-    script.async = true;
-    script.onload = () => resolve(undefined);
-    script.onerror = () => reject(new Error("Failed to load Maps JS"));
-    document.head.appendChild(script);
-  });
-}
-
 let listingMapBootId = 0;
 
 async function initListingMap() {
@@ -81,7 +70,7 @@ async function initListingMap() {
     return;
   }
 
-  await loadGoogleMaps(key);
+  await loadGoogleMapsJs(key);
   if (bootId !== listingMapBootId || !document.getElementById("listing-map"))
     return;
 
@@ -115,9 +104,9 @@ async function initListingMap() {
       map,
       position: pos,
       title: listing.name || header || "Place",
-      content: pin.element,
+      content: pin,
     });
-    pinHover.bind(marker, pin.element, listing, header);
+    pinHover.bind(marker, pin, listing, header);
   }
 
   addPin(
@@ -175,3 +164,4 @@ function bootListingMap() {
 
 bootListingMap();
 document.addEventListener("astro:page-load", bootListingMap);
+document.addEventListener("wayhome:listing-map-refresh", bootListingMap);

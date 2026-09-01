@@ -8,11 +8,14 @@ import {
   parseOptionalInt,
   parseOptionalNumber,
 } from '../../../lib/listings/format-attributes';
-import { resolvePhotoFields } from '../../../lib/listings/photo-urls';
+import { primaryPhotoUrl, resolvePhotoFields } from '../../../lib/listings/photo-urls';
 import {
   assertNestEntitlement,
   entitlementDenialResponse,
+  loadNestEntitlements,
 } from '../../../lib/nest/entitlements';
+import { loadDevHuntPassPreviewForUser } from '../../../lib/dev/hunt-pass-preview';
+import { sliceStoredPhotoUrls } from '../../../lib/nest/entitlements/resolve';
 import {
   parseListingTourFields,
   syncListingTour,
@@ -44,9 +47,21 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const address = String(form.get('address') ?? '').trim() || null;
   const phone = String(form.get('phone') ?? '').trim() || null;
   const source_url = String(form.get('source_url') ?? '').trim() || null;
-  const photos = resolvePhotoFields({
+  const resolvedPhotos = resolvePhotoFields({
     photo_urls: form.getAll('photo_urls').map(String),
   });
+  const devHuntPassPreview = await loadDevHuntPassPreviewForUser(supabase, user.id);
+  const snapshot = await loadNestEntitlements(supabase, locale.nest_id, {
+    devHuntPassPreview,
+  });
+  const storedUrls = sliceStoredPhotoUrls(
+    resolvedPhotos.photo_urls,
+    snapshot?.plan ?? 'free',
+  );
+  const photos = {
+    photo_urls: storedUrls,
+    photo_url: primaryPhotoUrl(storedUrls),
+  };
   const notes = String(form.get('notes') ?? '').trim() || null;
   const tour = parseListingTourFields(form.get('tour_date'), form.get('tour_time'));
   const appointment_at = tour.appointmentAt;

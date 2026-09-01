@@ -8,6 +8,22 @@ function syncHiddenInputs(list: HTMLElement) {
   });
 }
 
+function storedCap(form: HTMLElement): number | null {
+  const raw = form.getAttribute('data-photo-stored-cap');
+  if (!raw) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function photoCount(list: HTMLElement): number {
+  return list.querySelectorAll('input[name="photo_urls"]').length;
+}
+
+function setCapNotice(form: HTMLElement, message: string | null) {
+  const el = form.querySelector('[data-gallery-cap-status]');
+  if (el) el.textContent = message ?? '';
+}
+
 function createItem(url: string): HTMLLIElement {
   const li = document.createElement('li');
   li.className = 'listing-form__gallery-item';
@@ -36,7 +52,7 @@ function createItem(url: string): HTMLLIElement {
   return li;
 }
 
-function addUrls(list: HTMLElement, raw: string) {
+function addUrls(form: HTMLElement, list: HTMLElement, raw: string) {
   const urls = raw
     .split(/\r?\n/)
     .map((s) => s.trim())
@@ -46,12 +62,28 @@ function addUrls(list: HTMLElement, raw: string) {
       el instanceof HTMLInputElement ? el.value : '',
     ),
   );
+  const cap = storedCap(form);
+  let skipped = 0;
   for (const url of urls) {
     if (existing.has(url)) continue;
+    if (cap != null && photoCount(list) >= cap) {
+      skipped += 1;
+      continue;
+    }
     existing.add(url);
     list.appendChild(createItem(url));
   }
   syncHiddenInputs(list);
+  if (skipped > 0) {
+    setCapNotice(
+      form,
+      cap != null
+        ? `Photo limit reached (${cap} per listing). Remove a photo or upgrade Hunt Pass.`
+        : 'Photo limit reached for this listing.',
+    );
+  } else {
+    setCapNotice(form, null);
+  }
 }
 
 export function bindListingGalleryForm(root: ParentNode = document): void {
@@ -71,7 +103,7 @@ export function bindListingGalleryForm(root: ParentNode = document): void {
         e.preventDefault();
         const ta = form.querySelector<HTMLTextAreaElement>('[data-gallery-add]');
         if (ta) {
-          addUrls(list, ta.value);
+          addUrls(form, list, ta.value);
           ta.value = '';
           form.dispatchEvent(new CustomEvent('listing-gallery-changed', { bubbles: true }));
         }
@@ -85,6 +117,7 @@ export function bindListingGalleryForm(root: ParentNode = document): void {
       e.preventDefault();
       item.remove();
       syncHiddenInputs(list);
+      setCapNotice(form, null);
       form.dispatchEvent(new CustomEvent('listing-gallery-changed', { bubbles: true }));
     });
 

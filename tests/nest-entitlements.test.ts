@@ -10,7 +10,8 @@ import {
   isLocaleCapReached,
   isRouteSearchColumnCapReached,
   isNestPro,
-  photoCountForStorageGate,
+  sliceStoredPhotoUrls,
+  storedPhotoLimit,
   resolveNestEntitlements,
   resolveNestPlan,
   resolveTourDrop,
@@ -191,14 +192,16 @@ describe('nest entitlements', () => {
     expect(checkEntitlementGate(exhausted, 'proximity_refresh').ok).toBe(false);
   });
 
-  it('only gates photo storage when count increases', () => {
-    expect(photoCountForStorageGate(37, 37)).toBeNull();
-    expect(photoCountForStorageGate(37, 30)).toBeNull();
-    expect(photoCountForStorageGate(28, 30)).toBe(30);
-    expect(photoCountForStorageGate(30, 31)).toBe(31);
+  it('slices stored photo URLs on Free, unlimited on Pro', () => {
+    const urls = Array.from({ length: 35 }, (_, i) => `photo-${i}.jpg`);
+    expect(sliceStoredPhotoUrls(urls, 'free')).toHaveLength(30);
+    expect(sliceStoredPhotoUrls(urls, 'free')[0]).toBe('photo-0.jpg');
+    expect(sliceStoredPhotoUrls(urls, 'pro')).toEqual(urls);
+    expect(storedPhotoLimit('free')).toBe(30);
+    expect(storedPhotoLimit('pro')).toBeNull();
   });
 
-  it('slices photo URLs on Free', () => {
+  it('slices photo URLs on Free, unlimited on Pro', () => {
     const urls = ['a.jpg', 'b.jpg', 'c.jpg'];
     expect(sliceVisiblePhotoUrls(urls, 'free')).toEqual(['a.jpg']);
     expect(sliceVisiblePhotoUrls(urls, 'pro')).toEqual(urls);

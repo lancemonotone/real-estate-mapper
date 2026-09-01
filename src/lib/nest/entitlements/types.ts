@@ -42,7 +42,7 @@ export type NestEntitlementSnapshot = {
   tourDaysWithStopsCount: number;
   proximityRefreshRemaining: number;
   routeSearchColumnCount: number;
-  photosPerListingLimit: number;
+  photosPerListingLimit: number | null;
   /** True when limits come from the dev Hunt Pass preview toggle. */
   devHuntPassPreview?: boolean;
 };

@@ -8,9 +8,10 @@ import {
   parseOptionalInt,
   parseOptionalNumber,
 } from '../../../lib/listings/format-attributes';
-import { normalizePhotoUrls, resolvePhotoFields } from '../../../lib/listings/photo-urls';
-import { assertNestEntitlement } from '../../../lib/nest/entitlements';
-import { photoCountForStorageGate } from '../../../lib/nest/entitlements/resolve';
+import { primaryPhotoUrl, resolvePhotoFields } from '../../../lib/listings/photo-urls';
+import { loadNestEntitlements } from '../../../lib/nest/entitlements';
+import { loadDevHuntPassPreviewForUser } from '../../../lib/dev/hunt-pass-preview';
+import { sliceStoredPhotoUrls, storedPhotoLimit } from '../../../lib/nest/entitlements/resolve';
 import {
   parseListingTourFields,
   syncListingTour,
@@ -70,8 +71,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   if (!existing) return fail(request, 'Not found', 404);
 
-  const existingPhotoUrls = normalizePhotoUrls(existing.photo_urls ?? []);
-  const photos = resolvePhotoFields({
+  const resolvedPhotos = resolvePhotoFields({
     photo_urls: form.getAll('photo_urls').map(String),
   });
 
@@ -83,19 +83,18 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       : null;
   if (!nestId) return fail(request, 'Nest not found', 404);
 
-  const gatePhotoCount = photoCountForStorageGate(
-    existingPhotoUrls.length,
-    photos.photo_urls.length,
-  );
-  if (gatePhotoCount != null) {
-    const entitlement = await assertNestEntitlement(supabase, nestId, 'add_photo', {
-      photoCount: gatePhotoCount,
-      userId: user.id,
-    });
-    if ('denial' in entitlement) {
-      return fail(request, entitlement.denial.message, 403);
-    }
-  }
+  const devHuntPassPreview = await loadDevHuntPassPreviewForUser(supabase, user.id);
+  const snapshot = await loadNestEntitlements(supabase, nestId, { devHuntPassPreview });
+  if (!snapshot) return fail(request, 'Nest not found', 404);
+
+  const incomingPhotoCount = resolvedPhotos.photo_urls.length;
+  const storedUrls = sliceStoredPhotoUrls(resolvedPhotos.photo_urls, snapshot.plan);
+  const photos = {
+    photo_urls: storedUrls,
+    photo_url: primaryPhotoUrl(storedUrls),
+  };
+  const photosDropped = incomingPhotoCount - storedUrls.length;
+  const photoLimit = storedPhotoLimit(snapshot.plan);
 
   let lat = existing.lat;
   let lng = existing.lng;
@@ -204,6 +203,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
         lat,
         lng,
       },
+      ...(photosDropped > 0 && photoLimit != null
+        ? { photos_dropped: photosDropped, photo_limit: photoLimit }
+        : {}),
     });
   }
 

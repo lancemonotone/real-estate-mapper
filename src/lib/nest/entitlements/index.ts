@@ -47,14 +47,15 @@ export {
   devHuntPassPreviewBilling,
   entitlementDenialResponse,
   isNestPro,
-  photoCountForStorageGate,
   proximityRefreshRemaining,
   resolveNestEntitlements,
   resolveNestPlan,
   resolveVisibleListingIds,
   resolveVisibleLocaleIds,
   resolveVisibleTourDayIds,
+  sliceStoredPhotoUrls,
   sliceVisiblePhotoUrls,
+  storedPhotoLimit,
   type HuntPassActivation,
 } from './resolve';
 export type {

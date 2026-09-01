@@ -12,6 +12,7 @@ import {
   buildTourCalendarContext,
   isListingVisible,
   loadNestEntitlementUi,
+  PLAN_LIMITS,
   PLAN_MESSAGES,
   resolveTourDrop,
   tourCalendarClientConfig,
@@ -32,6 +33,7 @@ import {
   sumListingMonthlyTotal,
   sumListingMoveInTotal,
 } from '../../../../../lib/listings/format-attributes';
+import { formatTravelMeta } from '../../../../../lib/listings/format-travel-meta';
 import { textQueryCacheKey } from '../../../../../lib/proximity/text-query';
 
 const { localeId, id } = Astro.params;
@@ -60,26 +62,6 @@ if (!isListingVisible(snapshot, listingRaw.id)) {
 }
 
 const listing = applyListingPhotoVisibility(listingRaw, snapshot);
-
-function formatListingMeta(
-  durationSec: number | null | undefined,
-  distanceM: number | null | undefined,
-): string {
-  const parts: string[] = [];
-  if (durationSec != null && Number.isFinite(durationSec)) {
-    const minutes = Math.round(durationSec / 60);
-    if (minutes < 60) parts.push(`${minutes}m`);
-    else {
-      const h = Math.floor(minutes / 60);
-      const m = minutes % 60;
-      parts.push(m ? `${h}h ${m}m` : `${h}h`);
-    }
-  }
-  if (distanceM != null && Number.isFinite(distanceM)) {
-    parts.push(`${(distanceM / 1609.34).toFixed(1)} mi`);
-  }
-  return parts.join(' · ');
-}
 
 const { data: listingPlaces } = await supabase
   .from('listing_places')
@@ -219,6 +201,8 @@ const photoUrls =
       : [];
 const photoUrlsJson = JSON.stringify(photoUrls);
 const isFreePlan = snapshot.plan === 'free';
+const photoStoredCap =
+  snapshot.plan === 'free' ? PLAN_LIMITS.free.photosStoredPerListing : undefined;
 const storedPhotoUrls =
   listingRaw.photo_urls && listingRaw.photo_urls.length > 0
     ? listingRaw.photo_urls
@@ -369,11 +353,11 @@ const hasFactSections =
   nestId={locale.nest_id}
   entitlementUi={entitlementUi}
 >
-  <section class="listing-hero">
+  <section class="listing-hero" data-listing-surface>
     <div class="listing-hero__meta stack">
       <div class="listing-hero__heading">
         <div class="locale-hero__title">
-          <h1 class="locale-hero__name">{listingTitle}</h1>
+          <h1 class="locale-hero__name" data-listing-title>{listingTitle}</h1>
           <div class="locale-hero__title-actions">
             <FavoriteHeart listingId={listing.id} favorited={Boolean(listing.is_favorite)} />
             <button
@@ -392,80 +376,86 @@ const hasFactSections =
         </div>
       </div>
 
-      {
-        listing.address || listing.source_url || listing.phone ? (
-          <div class="listing-hero__contact stack">
-            {
-              listing.address || listing.source_url ? (
-                <div class="listing-hero__address-row">
-                  {listing.address ? (
-                    <p class="listing-hero__address">{listing.address}</p>
-                  ) : (
-                    <p class="muted">No address yet.</p>
-                  )}
-                  {listing.source_url ? (
-                    <a
-                      class="secondary icon-btn"
-                      href={listing.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Open listing source"
-                      aria-label="Open listing source"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M14 4h6v6"></path>
-                        <path d="M10 14L20 4"></path>
-                        <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
-                      </svg>
-                    </a>
-                  ) : null}
-                </div>
-              ) : null
-            }
-            {
-              listing.phone ? (
-                <p class="listing-hero__phone">
-                  <a href={`tel:${listing.phone.replace(/[^\d+]/g, '')}`}>{listing.phone}</a>
-                </p>
-              ) : null
-            }
-          </div>
-        ) : null
-      }
-
-      {
-        monthlyTotal != null || moveInTotal != null ? (
-          <section class="listing-cost-summary glass" aria-label="Cost totals">
-            <dl class="listing-cost-summary__grid">
+      <div data-listing-contact-host hidden={!(listing.address || listing.source_url || listing.phone)}>
+        {
+          listing.address || listing.source_url || listing.phone ? (
+            <div class="listing-hero__contact stack" data-listing-contact>
               {
-                monthlyTotal != null ? (
-                  <div class="listing-cost-summary__item">
-                    <dt>{LISTING_FIELD_LABELS.totalMonthly}</dt>
-                    <dd>{formatMoney(monthlyTotal)}</dd>
+                listing.address || listing.source_url ? (
+                  <div class="listing-hero__address-row">
+                    {listing.address ? (
+                      <p class="listing-hero__address" data-listing-address>{listing.address}</p>
+                    ) : (
+                      <p class="muted">No address yet.</p>
+                    )}
+                    {listing.source_url ? (
+                      <a
+                        class="secondary icon-btn"
+                        href={listing.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open listing source"
+                        aria-label="Open listing source"
+                        data-listing-source
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path d="M14 4h6v6"></path>
+                          <path d="M10 14L20 4"></path>
+                          <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
+                        </svg>
+                      </a>
+                    ) : null}
                   </div>
                 ) : null
               }
               {
-                moveInTotal != null ? (
-                  <div class="listing-cost-summary__item">
-                    <dt>
-                      {LISTING_FIELD_LABELS.totalMoveIn}
-                      {showMoveInDepositNote ? (
-                        <span class="listing-cost-summary__qualifier"> (includes deposit)</span>
-                      ) : null}
-                    </dt>
-                    <dd>{formatMoney(moveInTotal)}</dd>
-                  </div>
+                listing.phone ? (
+                  <p class="listing-hero__phone" data-listing-phone>
+                    <a href={`tel:${listing.phone.replace(/[^\d+]/g, '')}`}>{listing.phone}</a>
+                  </p>
                 ) : null
               }
-            </dl>
-          </section>
-        ) : null
-      }
+            </div>
+          ) : null
+        }
+      </div>
 
-      {
-        hasFactSections ? (
-          <div class="listing-hero__fact-sections stack">
+      <div data-listing-cost-host hidden={monthlyTotal == null && moveInTotal == null}>
+        {
+          monthlyTotal != null || moveInTotal != null ? (
+            <section class="listing-cost-summary" aria-label="Cost totals" data-listing-cost-summary>
+              <dl class="listing-cost-summary__grid">
+                {
+                  monthlyTotal != null ? (
+                    <div class="listing-cost-summary__item">
+                      <dt>{LISTING_FIELD_LABELS.totalMonthly}</dt>
+                      <dd>{formatMoney(monthlyTotal)}</dd>
+                    </div>
+                  ) : null
+                }
+                {
+                  moveInTotal != null ? (
+                    <div class="listing-cost-summary__item">
+                      <dt>
+                        {LISTING_FIELD_LABELS.totalMoveIn}
+                        {showMoveInDepositNote ? (
+                          <span class="listing-cost-summary__qualifier"> (includes deposit)</span>
+                        ) : null}
+                      </dt>
+                      <dd>{formatMoney(moveInTotal)}</dd>
+                    </div>
+                  ) : null
+                }
+              </dl>
+            </section>
+          ) : null
+        }
+      </div>
+
+      <div data-listing-facts-host hidden={!hasFactSections}>
+        {
+          hasFactSections ? (
+            <div class="listing-hero__fact-sections stack">
       {
         depositCostFacts.length > 0 ? (
           <div class="listing-facts-group">
@@ -549,12 +539,15 @@ const hasFactSections =
         ) : null
       }
           </div>
-        ) : monthlyTotal == null && moveInTotal == null ? (
-          <p class="muted">No attributes yet.</p>
         ) : null
-      }
+        }
+      </div>
 
-      <div class="listing-hero__travel prox-saved">
+      <p class="muted" data-listing-empty-host hidden={hasFactSections || monthlyTotal != null || moveInTotal != null}>
+        No attributes yet.
+      </p>
+
+      <div class="listing-hero__travel prox-saved" data-listing-travel-host>
         {
           compareRows.length === 0 && (listingPlaces ?? []).length === 0 ? (
             <>
@@ -620,7 +613,7 @@ const hasFactSections =
                       row.result?.status === 'ok' ? row.result.place_name ?? '' : '';
                     const metaLabel =
                       row.result?.status === 'ok'
-                        ? formatListingMeta(
+                        ? formatTravelMeta(
                             row.result.duration_sec,
                             row.result.distance_m,
                           )
@@ -733,7 +726,7 @@ const hasFactSections =
                           <div class="cell-ok__place">
                             <div class="cell-ok__name">{p.name}</div>
                             <div class="cell-ok__meta prox-cell-meta">
-                              {[formatListingMeta(p.duration_sec, p.distance_m), p.travel_mode]
+                              {[formatTravelMeta(p.duration_sec, p.distance_m), p.travel_mode]
                                 .filter(Boolean)
                                 .join(' · ')}
                             </div>
@@ -768,7 +761,7 @@ const hasFactSections =
 
     <div class="listing-hero__visual stack">
       <div class="listing-hero__tour-bar">
-        <p class="listing-hero__tour locale-hero__tour-status">
+        <p class="listing-hero__tour locale-hero__tour-status" data-listing-tour-status>
           {
             assignment ? (
               <>
@@ -945,6 +938,7 @@ const hasFactSections =
           localeId={locale.id}
           autosave
           photoPlanNote={photoPlanNote}
+          photoStoredCap={photoStoredCap}
           planIsOwner={entitlementUi?.isOwner ?? true}
           planOwnerDisplayName={entitlementUi?.ownerDisplayName ?? null}
         />
@@ -982,7 +976,7 @@ const hasFactSections =
 
       {
         assignment ? (
-          <div class="stack">
+          <div class="stack" data-listing-tour-assignment>
             <p>
               Currently on{' '}
               {
@@ -998,7 +992,7 @@ const hasFactSections =
               }
               .
             </p>
-            <form method="post" action="/api/tours/unassign">
+            <form method="post" action="/api/tours/unassign" data-listing-tour-unassign>
               <input type="hidden" name="listing_id" value={listing.id} />
               <input type="hidden" name="tour_day_id" value={assignment.tourDayId} />
               <input type="hidden" name="locale_id" value={locale.id} />
@@ -1022,7 +1016,7 @@ const hasFactSections =
           blockNewTourDays={!listingTourCal.canAddNewTourDay}
           dropBlocked={listingTourDropBlocked}
         />
-        <div class="listing-tour-day">
+        <div class="listing-tour-day" data-listing-tour-day-host>
           <h3 class="listing-tour-day__title">{formatTourDate(listingTourSelected)}</h3>
           {
             selectedDayStopLabels.length > 0 ? (
@@ -1227,6 +1221,7 @@ const hasFactSections =
       listingTourSelected,
       listingPath: `${base}/listings/${listing.id}`,
       listingTourCalendarClient,
+      listingSurfacePlan: snapshot.plan,
     }}
   >
     window.__WAYHOME_LISTING_PROX__ = {
@@ -1239,6 +1234,7 @@ const hasFactSections =
       localeLng,
     };
     window.__WAYHOME_MAPS__ = { mapKey, mapId };
+    window.__WAYHOME_LISTING_SURFACE__ = { plan: listingSurfacePlan, listingId, localeId };
     window.__WAYHOME_LISTING_TOUR_CAL__ = {
       localeId,
       listingId,

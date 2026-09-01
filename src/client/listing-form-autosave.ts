@@ -34,7 +34,53 @@ async function saveForm(form: HTMLFormElement): Promise<void> {
       return;
     }
     markSaved(form);
-    if (status) status.textContent = 'Saved';
+    if (status) {
+      const dropped =
+        data && typeof data.photos_dropped === 'number' && data.photos_dropped > 0
+          ? data.photos_dropped
+          : 0;
+      const limit =
+        data && typeof data.photo_limit === 'number' ? data.photo_limit : null;
+      if (dropped > 0 && limit != null) {
+        status.textContent = `Saved. ${dropped} photo${dropped === 1 ? '' : 's'} over the ${limit}-photo Free limit were not saved.`;
+      } else {
+        status.textContent = 'Saved';
+      }
+    }
+    const savedUrls =
+      data?.listing &&
+      Array.isArray(data.listing.photo_urls) &&
+      data.listing.photo_urls.every((u: unknown) => typeof u === 'string')
+        ? (data.listing.photo_urls as string[])
+        : null;
+    if (savedUrls) {
+      const list = form.querySelector('[data-gallery-list]');
+      if (list instanceof HTMLElement) {
+        const inputs = [...list.querySelectorAll('input[name="photo_urls"]')];
+        const current = inputs
+          .map((el) => (el instanceof HTMLInputElement ? el.value : ''))
+          .filter(Boolean);
+        if (current.length !== savedUrls.length || current.some((u, i) => u !== savedUrls[i])) {
+          inputs.slice(savedUrls.length).forEach((input) => {
+            input.closest('[data-gallery-item]')?.remove();
+          });
+          inputs.slice(0, savedUrls.length).forEach((input, i) => {
+            if (!(input instanceof HTMLInputElement)) return;
+            input.value = savedUrls[i] ?? '';
+            const img = input.parentElement?.querySelector('img');
+            if (img instanceof HTMLImageElement) img.src = savedUrls[i] ?? '';
+          });
+        }
+      }
+    }
+    if (data?.listing && typeof data.listing === 'object') {
+      document.dispatchEvent(
+        new CustomEvent('wayhome:listing-updated', {
+          detail: { listing: data.listing },
+          bubbles: true,
+        }),
+      );
+    }
   } catch {
     if (status) status.textContent = 'Save failed';
   } finally {

@@ -1,5 +1,6 @@
 import { createPinHoverController } from "./map-pin-hover.js";
 import { fitMapForPinTooltips } from "./map-fit.js";
+import { loadGoogleMapsJs } from "./google-maps-loader.js";
 import { nudgeMapLayout, whenMapVisible } from "./map-lazy.js";
 
 function parseJsonAttr(raw) {
@@ -72,18 +73,7 @@ async function initTourMap() {
     return;
   }
 
-  await new Promise((resolve, reject) => {
-    if (window.google?.maps?.importLibrary) {
-      resolve(undefined);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly`;
-    script.async = true;
-    script.onload = () => resolve(undefined);
-    script.onerror = () => reject(new Error("Failed to load Maps JS"));
-    document.head.appendChild(script);
-  });
+  await loadGoogleMapsJs(key);
 
   if (bootId !== tourMapBootId || !document.getElementById("tour-map")) return;
 
@@ -120,7 +110,7 @@ async function initTourMap() {
     const colors = role === "stop" ? palette.stop : palette.endpoint;
 
     const pin = new PinElement({
-      glyph,
+      glyphText: String(glyph),
       glyphColor: colors.glyphColor,
       background: colors.background,
       borderColor: colors.borderColor,
@@ -131,10 +121,10 @@ async function initTourMap() {
       map,
       position,
       title: stop.name,
-      content: pin.element,
+      content: pin,
     });
 
-    pinHover.bind(marker, pin.element, stop, header);
+    pinHover.bind(marker, pin, stop, header);
   }
 
   if (customStart) {

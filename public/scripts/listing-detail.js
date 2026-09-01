@@ -42,19 +42,10 @@ function openListingOverlay(name) {
   notifyListingFormsBind(overlay);
 }
 
-function readPhotoUrlsFromForm(form) {
-  return [...form.querySelectorAll('input[name="photo_urls"]')]
-    .map((input) => (input instanceof HTMLInputElement ? input.value.trim() : ''))
-    .filter(Boolean);
-}
-
 function waitForAutosaveIdle(form) {
   return new Promise((resolve) => {
     const tick = () => {
-      if (
-        form.dataset.listingAutosaveBusy === '1' ||
-        form.dataset.listingAutosaveDirty === '1'
-      ) {
+      if (form.dataset.listingAutosaveBusy === '1') {
         window.setTimeout(tick, 120);
         return;
       }
@@ -64,51 +55,13 @@ function waitForAutosaveIdle(form) {
   });
 }
 
-function refreshListingHeroPhotos(urls) {
-  const items = urls
-    .map((src) => (typeof src === 'string' ? src.trim() : ''))
-    .filter(Boolean);
-  if (items.length === 0) return;
-
-  const heroRoot = document.querySelector('[data-hero-gallery]');
-  if (heroRoot instanceof HTMLElement) {
-    const trigger = heroRoot.querySelector('[data-listing-gallery]');
-    const img = heroRoot.querySelector('[data-hero-gallery-img]');
-    const count = heroRoot.querySelector('[data-hero-gallery-count]');
-    const json = JSON.stringify(items);
-
-    if (trigger instanceof HTMLElement) {
-      trigger.setAttribute('data-photo-urls', json);
-      trigger.setAttribute('data-photo-index', '0');
-    }
-    if (img instanceof HTMLImageElement) {
-      img.src = items[0];
-    }
-    if (count) {
-      count.textContent = `1 / ${items.length}`;
-    }
-    window.dispatchEvent(
-      new CustomEvent('wayhome:listing-photos-updated', {
-        detail: { urls: items },
-      }),
-    );
-    return;
-  }
-
-  const singlePhoto = document.querySelector('.listing-hero__gallery .listing-hero__photo');
-  if (singlePhoto instanceof HTMLImageElement) {
-    singlePhoto.src = items[0];
-  }
-}
-
 async function closeListingOverlays() {
   const editForm = document.querySelector(
     '[data-listing-overlay="edit"] form[data-listing-autosave]',
   );
-  const shouldRefresh =
+  const hadPendingSave =
     editForm instanceof HTMLFormElement &&
-    (editForm.dataset.listingAutosaved === '1' ||
-      editForm.dataset.listingAutosaveDirty === '1' ||
+    (editForm.dataset.listingAutosaveDirty === '1' ||
       editForm.dataset.listingAutosaveBusy === '1');
 
   document.querySelectorAll('[data-listing-overlay]').forEach((el) => {
@@ -116,11 +69,14 @@ async function closeListingOverlays() {
   });
   document.body.classList.remove('compare-column-overlay-open');
 
-  if (!shouldRefresh || !(editForm instanceof HTMLFormElement)) return;
+  if (!(editForm instanceof HTMLFormElement)) return;
 
-  editForm.dispatchEvent(new CustomEvent('listing-autosave-flush'));
-  await waitForAutosaveIdle(editForm);
-  refreshListingHeroPhotos(readPhotoUrlsFromForm(editForm));
+  if (hadPendingSave) {
+    editForm.dispatchEvent(new CustomEvent('listing-autosave-flush'));
+    await waitForAutosaveIdle(editForm);
+  } else if (editForm.dataset.listingAutosaved === '1') {
+    await window.__WAYHOME_REFRESH_LISTING_SURFACE__?.();
+  }
 }
 
 window.__WAYHOME_LISTING_OVERLAY__ = {

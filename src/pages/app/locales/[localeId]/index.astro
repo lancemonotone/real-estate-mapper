@@ -14,6 +14,7 @@ import {
   filterVisibleListings,
   isListingCapReached,
   loadNestEntitlementUi,
+  PLAN_LIMITS,
   PLAN_MESSAGES,
 } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../lib/supabase/nest';
@@ -38,6 +39,8 @@ const entitlementUi = await loadNestEntitlementUi(
 );
 const listingCapReached = isListingCapReached(snapshot);
 const listingCapMessage = PLAN_MESSAGES.listingCap(snapshot.plan);
+const photoStoredCap =
+  snapshot.plan === 'free' ? PLAN_LIMITS.free.photosStoredPerListing : undefined;
 const showListingGallery = snapshot.plan !== 'free';
 
 const radiusMiles = nearestAllowedRadiusMiles(locale.radius_m);
@@ -361,6 +364,7 @@ const mapListings = rows
                 action="/api/listings/create"
                 submitLabel="Save listing"
                 localeId={locale.id}
+                photoStoredCap={photoStoredCap}
               />
             </>
           )

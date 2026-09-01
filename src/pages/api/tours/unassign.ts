@@ -8,14 +8,23 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return redirect('/login');
+  if (!user) {
+    if (request.headers.get('Accept')?.includes('application/json')) {
+      return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    return redirect('/login');
+  }
 
   const form = await request.formData();
   const listingId = String(form.get('listing_id') ?? '');
   const tourDayId = String(form.get('tour_day_id') ?? '');
   const localeId = String(form.get('locale_id') ?? '');
   const returnTo = String(form.get('return_to') ?? '');
+  const wantsJson = request.headers.get('Accept')?.includes('application/json');
   if (!listingId || !tourDayId || !localeId) {
+    if (wantsJson) {
+      return Response.json({ ok: false, error: 'Missing fields' }, { status: 400 });
+    }
     return new Response('Missing fields', { status: 400 });
   }
 
@@ -57,8 +66,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   }
 
   if (returnTo.startsWith('/app/')) {
+    if (wantsJson) return Response.json({ ok: true });
     return redirect(returnTo);
   }
+  if (wantsJson) return Response.json({ ok: true });
   if (dayEmpty) {
     return redirect(`/app/locales/${localeId}/tours`);
   }

@@ -867,7 +867,7 @@ function initListingPlaceActions() {
             alert(data.error || 'Remove failed');
             return;
           }
-          location.reload();
+          await window.__WAYHOME_REFRESH_LISTING_SURFACE__?.({ closePlaceOverlay: true });
         },
       }),
     );
@@ -917,7 +917,7 @@ async function savePickerResult(cfg) {
       alert(lockData.error || 'Could not update location');
       return;
     }
-    location.reload();
+    await window.__WAYHOME_REFRESH_LISTING_SURFACE__?.({ closePlaceOverlay: true });
     return;
   }
 
@@ -947,7 +947,7 @@ async function savePickerResult(cfg) {
       alert(data.error || 'Could not update location');
       return;
     }
-    location.reload();
+    await window.__WAYHOME_REFRESH_LISTING_SURFACE__?.({ closePlaceOverlay: true });
     return;
   }
 
@@ -971,7 +971,7 @@ async function savePickerResult(cfg) {
     alert(data.error || 'Save failed');
     return;
   }
-  location.reload();
+  await window.__WAYHOME_REFRESH_LISTING_SURFACE__?.({ closePlaceOverlay: true });
 }
 
 function initProximityPanel() {
@@ -1164,3 +1164,7 @@ function initProximityPanel() {
 
 initProximityPanel();
 document.addEventListener('astro:page-load', initProximityPanel);
+document.addEventListener('wayhome:listing-travel-hydrate', () => {
+  initListingPlaceActions();
+  hydrateCompareCells();
+});

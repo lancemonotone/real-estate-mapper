@@ -20,8 +20,8 @@ export const PLAN_LIMITS = {
     listings: 100,
     tourDaysWithStops: null as number | null,
     routeSearchColumns: null as number | null,
-    photosPerListing: 30,
-    photosStoredPerListing: 30,
+    photosPerListing: null as number | null,
+    photosStoredPerListing: null as number | null,
   },
 } as const;
 
@@ -31,7 +31,6 @@ export type EntitlementGate =
   | 'add_tour_day_with_stops'
   | 'add_route_search_column'
   | 'proximity_compute'
-  | 'proximity_refresh'
-  | 'add_photo';
+  | 'proximity_refresh';
 
 export const ENTITLEMENT_ERROR_CODE = 'plan_limit' as const;
