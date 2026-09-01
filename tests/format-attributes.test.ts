@@ -24,8 +24,9 @@ describe('formatSqft', () => {
     expect(formatSqft(null)).toBe('—');
   });
 
-  it('formats square feet', () => {
-    expect(formatSqft(850)).toBe('850 sq ft');
+  it('formats square feet as a locale number', () => {
+    expect(formatSqft(850)).toBe('850');
+    expect(formatSqft(1200)).toBe('1,200');
   });
 });
 

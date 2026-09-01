@@ -11,7 +11,7 @@ export function formatMoney(value: number | null | undefined): string {
 
 export function formatSqft(value: number | null | undefined): string {
   if (value == null) return EMPTY;
-  return `${new Intl.NumberFormat('en-US').format(value)} sq ft`;
+  return new Intl.NumberFormat('en-US').format(value);
 }
 
 export function formatNumber(value: number | null | undefined): string {

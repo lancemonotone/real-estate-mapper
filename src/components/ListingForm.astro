@@ -1,6 +1,10 @@
 ---
 import type { Listing } from '../lib/types/database';
 import { listingBadges } from '../lib/listings/badges';
+import {
+  LISTING_COST_SECTION_LABELS,
+  LISTING_FIELD_LABELS,
+} from '../lib/listings/field-labels';
 import PlanNotice from './PlanNotice.astro';
 import {
   resolveListingTourDateInput,
@@ -162,9 +166,9 @@ const initialPhotoUrls =
     <legend>Costs</legend>
 
     <div class="listing-form__cost-group">
-      <p class="listing-form__cost-group-title">Deposit</p>
+      <p class="listing-form__cost-group-title">{LISTING_COST_SECTION_LABELS.deposit}</p>
       <label>
-        Deposit
+        {LISTING_FIELD_LABELS.deposit}
         <input
           name="deposit"
           type="number"
@@ -175,7 +179,7 @@ const initialPhotoUrls =
         />
       </label>
       <label>
-        Pet deposit
+        {LISTING_FIELD_LABELS.petDeposit}
         <input
           name="pet_deposit"
           type="number"
@@ -191,9 +195,9 @@ const initialPhotoUrls =
     </div>
 
     <div class="listing-form__cost-group">
-      <p class="listing-form__cost-group-title">One-time fees</p>
+      <p class="listing-form__cost-group-title">{LISTING_COST_SECTION_LABELS.oneTimeFees}</p>
       <label>
-        Application fees
+        {LISTING_FIELD_LABELS.applicationFees}
         <input
           name="application_fees"
           type="number"
@@ -204,7 +208,7 @@ const initialPhotoUrls =
         />
       </label>
       <label>
-        Move-in fees
+        {LISTING_FIELD_LABELS.moveInFees}
         <input
           name="move_in_fees"
           type="number"
@@ -217,9 +221,9 @@ const initialPhotoUrls =
     </div>
 
     <div class="listing-form__cost-group">
-      <p class="listing-form__cost-group-title">Monthly</p>
+      <p class="listing-form__cost-group-title">{LISTING_COST_SECTION_LABELS.monthly}</p>
       <label>
-        Price / mo
+        {LISTING_FIELD_LABELS.rentMonthly}
         <input
           name="price_monthly"
           type="number"
@@ -230,7 +234,7 @@ const initialPhotoUrls =
         />
       </label>
       <label>
-        Fees / mo
+        {LISTING_FIELD_LABELS.feesMonthly}
         <input
           name="fees_monthly"
           type="number"
@@ -241,7 +245,7 @@ const initialPhotoUrls =
         />
       </label>
       <label>
-        Pet rent / mo
+        {LISTING_FIELD_LABELS.petMonthly}
         <input
           name="pet_rent_monthly"
           type="number"
@@ -255,21 +259,21 @@ const initialPhotoUrls =
   </fieldset>
 
   <fieldset class="listing-form__section listing-form__attrs">
-    <legend>Attributes</legend>
+    <legend>{LISTING_COST_SECTION_LABELS.attributes}</legend>
     <label>
-      Sq ft
+      {LISTING_FIELD_LABELS.sqft}
       <input name="sqft" type="number" inputmode="numeric" step="1" min="0" value={listing.sqft ?? ''} />
     </label>
     <label>
-      Beds
+      {LISTING_FIELD_LABELS.beds}
       <input name="beds" type="number" inputmode="decimal" step="0.5" min="0" value={listing.beds ?? ''} />
     </label>
     <label>
-      Baths
+      {LISTING_FIELD_LABELS.baths}
       <input name="baths" type="number" inputmode="decimal" step="0.5" min="0" value={listing.baths ?? ''} />
     </label>
     <label>
-      Amenities
+      {LISTING_FIELD_LABELS.amenities}
       <input
         name="amenities"
         type="text"

@@ -18,6 +18,7 @@ import {
 } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../lib/supabase/nest';
 import { formatMoney, formatSqft } from '../../../../lib/listings/format-attributes';
+import { LISTING_FIELD_LABELS } from '../../../../lib/listings/field-labels';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -187,8 +188,8 @@ const mapListings = rows
                     <span class="matrix-table__heading">Listing</span>
                   </th>
                   <th><span class="matrix-table__heading">Distance</span></th>
-                  <th><span class="matrix-table__heading">Sq ft</span></th>
-                  <th><span class="matrix-table__heading">Price / mo</span></th>
+                  <th><span class="matrix-table__heading">{LISTING_FIELD_LABELS.sqft}</span></th>
+                  <th><span class="matrix-table__heading">{LISTING_FIELD_LABELS.rentMonthly}</span></th>
                 </tr>
               </thead>
               <tbody id="listings-list" data-listings-list>
