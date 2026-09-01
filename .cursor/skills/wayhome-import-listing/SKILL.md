@@ -22,7 +22,13 @@ Wayhome never scrapes listing portals. **You** read what the user pastes, then w
 
 Same browser session cookies as the logged-in Wayhome user. No Nest API token in v1.
 
-Call the agent API on a host that **actually serves** `/api/agent/...` (often local `http://localhost:4321` while the feature is undeployed). Do **not** assume prod has the routes. If the API 404s, switch to the host that has them and have the user sign in there — do not pivot to Supabase MCP for this workflow.
+Call the agent API on a host that **actually serves** `/api/agent/...` (often local `http://localhost:4321` while the feature is undeployed). Do **not** assume prod has the routes. If the API 404s, switch to the host that has them and have the user sign in there.
+
+**Reads and field updates:** Use **Supabase MCP** `execute_sql` for audits and cost corrections. See `docs/agents/supabase.md`.
+
+**Full import (new listing / URL upsert / photos):** Agent API `PUT` / `PATCH` when geocoding or photo entitlements must run.
+
+**Household defaults** (unless the user says otherwise): 2 pets (dog + cat), 2 applicants (`application_fees` = administrative fee + $75 × 2).
 
 ## Workflow
 

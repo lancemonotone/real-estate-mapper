@@ -18,6 +18,16 @@ Session JSON create/list/update for AI agents: `docs/agents/agent-listings-api.m
 
 Import-from-URL workflow skill: `.cursor/skills/wayhome-import-listing/SKILL.md`.
 
+**Listing data (reads and field updates)**
+
+| Task | Tool |
+|------|------|
+| Audit stored costs, compare to a paste, look up id/name | **Supabase MCP** `execute_sql` |
+| Update money fields, beds/baths, amenities, etc. | **Supabase MCP** `execute_sql` |
+| Full import with geocoding / photo gallery upsert | **Agent API** (`PUT` / `PATCH`) when address or `photo_urls` change |
+
+Prefer Supabase MCP for listing field updates (fewer tokens, no browser session). Use the agent API when import logic must run (geocoding on address change, entitlements on photo adds).
+
 ### Supabase
 
 Migrations and remote DB: use **`npm run db:push`** / **`npm run db:status`** (see `package.json`) and the **Supabase MCP** — do not default to “paste this into the SQL editor.” Details: `docs/agents/supabase.md`.

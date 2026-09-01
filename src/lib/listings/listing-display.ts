@@ -22,6 +22,8 @@ export type ListingFact = {
 export type ListingFactGroup = {
   title: string;
   facts: ListingFact[];
+  /** Section title for assistive tech only (no visible heading). */
+  srOnlyTitle?: boolean;
 };
 
 export type ListingDisplayInput = {
@@ -135,6 +137,13 @@ export function buildListingDisplay(
   ]);
 
   const factGroups: ListingFactGroup[] = [];
+  if (unitFacts.length > 0 || otherFacts.length > 0) {
+    factGroups.push({
+      title: sectionLabels.attributes,
+      facts: [...unitFacts, ...otherFacts],
+      srOnlyTitle: true,
+    });
+  }
   if (depositCostFacts.length > 0) {
     factGroups.push({ title: sectionLabels.deposit, facts: depositCostFacts });
   }
@@ -143,12 +152,6 @@ export function buildListingDisplay(
   }
   if (monthlyCostFacts.length > 0) {
     factGroups.push({ title: sectionLabels.monthly, facts: monthlyCostFacts });
-  }
-  if (unitFacts.length > 0 || otherFacts.length > 0) {
-    factGroups.push({
-      title: sectionLabels.attributes,
-      facts: [...unitFacts, ...otherFacts],
-    });
   }
 
   const showMoveInDepositNote =

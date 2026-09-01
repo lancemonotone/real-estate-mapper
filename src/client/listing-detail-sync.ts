@@ -64,7 +64,7 @@ function renderFactGroups(groups: ReturnType<typeof buildListingDisplay>['factGr
     .map(
       (group) => `
     <div class="listing-facts-group">
-      <h2 class="listing-section__title">${escapeHtml(group.title)}</h2>
+      <h2 class="listing-section__title${group.srOnlyTitle ? ' visually-hidden' : ''}">${escapeHtml(group.title)}</h2>
       <dl class="listing-facts">
         ${group.facts
           .map(
