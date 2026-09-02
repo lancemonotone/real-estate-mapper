@@ -3733,6 +3733,15 @@ body.directions-overlay-open {
   flex-direction: column;
   gap: 0.75rem;
   min-inline-size: 0;
+
+  & .matrix-panel {
+    inline-size: 100%;
+  }
+
+  /* Header sits outside .matrix-scroll; drop scrollport side inset so rows align with title/actions. */
+  & .matrix-scroll {
+    --matrix-scroll-pad-inline: 0;
+  }
 }
 
 .listing-matrix-actions {
