@@ -51,6 +51,16 @@ export type Locale = {
   radius_m: number;
   center_label: string | null;
   listing_prefs: ListingPrefs | null;
+  default_start_address: string | null;
+  default_start_lat: number | null;
+  default_start_lng: number | null;
+  default_start_name: string | null;
+  default_start_place_id: string | null;
+  default_end_address: string | null;
+  default_end_lat: number | null;
+  default_end_lng: number | null;
+  default_end_name: string | null;
+  default_end_place_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -82,6 +92,7 @@ export type Listing = {
   pet_deposit: number | null;
   amenities: string[] | null;
   is_favorite: boolean;
+  is_passed: boolean;
   archived_at: string | null;
   created_by: string | null;
   created_at: string;

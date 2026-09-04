@@ -1,6 +1,6 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
-import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
+import ListingReactions from '../../../../../components/ListingReactions.astro';
 import {
   filterListingStops,
   isTourDayVisible,
@@ -18,6 +18,7 @@ import {
   routeSignatureForListingIds,
   sameRouteSignature,
 } from '../../../../../lib/tours/route-signature';
+import IconGlyph from '../../../../../components/IconGlyph.astro';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -247,24 +248,11 @@ const stopCount = (stops ?? []).length;
                     value={toTimeInputValue(stop.appointment_time)}
                   />
                 </label>
-                <FavoriteHeart
+                <ListingReactions
                   listingId={stop.listing_id}
                   favorited={Boolean(listing?.is_favorite)}
+                  passed={Boolean(listing?.is_passed)}
                 />
-                {!hasCustomStart && !stop.is_start && (
-                  <form method="post" action="/api/tours/set-start">
-                    <input type="hidden" name="tour_day_id" value={tour.id} />
-                    <input type="hidden" name="listing_id" value={stop.listing_id} />
-                    <button
-                      type="submit"
-                      class="tour-stop-badge tour-stop-badge--endpoint tour-stop-set-start"
-                      title="Set as start"
-                      aria-label="Set as start"
-                    >
-                      {tourStartGlyph()}
-                    </button>
-                  </form>
-                )}
                 <form method="post" action="/api/tours/unassign">
                   <input type="hidden" name="tour_day_id" value={tour.id} />
                   <input type="hidden" name="listing_id" value={stop.listing_id} />
@@ -275,10 +263,7 @@ const stopCount = (stops ?? []).length;
                     title="Remove from tour"
                     aria-label="Remove from tour"
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M6 6l12 12"></path>
-                      <path d="M18 6L6 18"></path>
-                    </svg>
+                    <IconGlyph name="x" />
                   </button>
                 </form>
               </div>
@@ -380,10 +365,7 @@ const stopCount = (stops ?? []).length;
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       <p class="muted">
@@ -420,10 +402,7 @@ const stopCount = (stops ?? []).length;
                 aria-label="Clear custom start"
                 hidden
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M6 6l12 12"></path>
-                  <path d="M18 6L6 18"></path>
-                </svg>
+                <IconGlyph name="x" />
               </button>
               <input type="hidden" name="clear_start" value="" data-clearable-flag />
             </span>
@@ -458,10 +437,7 @@ const stopCount = (stops ?? []).length;
                 aria-label="Clear custom end"
                 hidden
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M6 6l12 12"></path>
-                  <path d="M18 6L6 18"></path>
-                </svg>
+                <IconGlyph name="x" />
               </button>
               <input type="hidden" name="clear_end" value="" data-clearable-flag />
             </span>

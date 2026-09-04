@@ -1,7 +1,8 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
-import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
+import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
+import ListingReactions from '../../../../components/ListingReactions.astro';
 import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
 import PlanNotice from '../../../../components/PlanNotice.astro';
 import { placeTypeLabel } from '../../../../lib/proximity/place-types';
@@ -14,6 +15,7 @@ import {
   routeSearchPlanClientConfig,
 } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
+import IconGlyph from '../../../../components/IconGlyph.astro';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -41,7 +43,7 @@ const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, phone, lat, lng, photo_url, photo_urls, is_favorite')
+  .select('id, name, address, phone, lat, lng, photo_url, photo_urls, is_favorite, is_passed')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -72,7 +74,7 @@ const listingRows = visibleListings;
 const criterionRows = criteria ?? [];
 ---
 <AppLayout
-  title={`Travel Times — ${locale.name}`}
+  title={`Travel Times · ${locale.name}`}
   crumbs={[
     { href: '/app', label: 'Home' },
     { href: base, label: locale.name },
@@ -83,127 +85,115 @@ const criterionRows = criteria ?? [];
   nestId={locale.nest_id}
   entitlementUi={entitlementUi}
 >
-  {
-    listingRows.length === 0 ? (
-      <p class="muted">No listings in this Locale yet.</p>
-    ) : (
-      <>
-        {criterionRows.length === 0 ? (
-          <p class="muted compare-empty-hint">
-            No route search columns yet.{' '}
-            {
-              routeSearchPlan.canAddColumn ? (
-                <button type="button" class="linkish" data-compare-column-open>
-                  Add a column
+  <div class="matrix-panel">
+    <div class="matrix-panel__header">
+      <div class="compare-header__top">
+        <div class="matrix-panel__titles compare-header__titles">
+          <h1 class="compare-header__title">Travel Times</h1>
+        </div>
+        <div class="matrix-panel__actions compare-header__actions">
+          {
+            listingRows.length > 0 && criterionRows.length > 0 ? (
+              <>
+                {
+                  routeSearchPlan.refreshStatusMessage ? (
+                    <p
+                      class:list={[
+                        'compare-header__refresh-status',
+                        'muted',
+                        { 'is-plan-limit': !routeSearchPlan.canRefresh },
+                      ]}
+                      data-compare-refresh-status
+                    >
+                      {routeSearchPlan.refreshStatusMessage}
+                    </p>
+                  ) : null
+                }
+                <button
+                  type="button"
+                  class="button secondary compare-header__refresh"
+                  data-compare-refresh-stale
+                  disabled={!routeSearchPlan.canRefresh}
+                  title="Recompute stale travel times for this Locale"
+                >
+                  Refresh stale
                 </button>
-              ) : (
-                <span>Add a column (Hunt Pass required)</span>
-              )
-            }{' '}
-            to start comparing times.
-          </p>
-        ) : null}
-        <p class="muted compare-empty-hint" data-matrix-favorite-empty hidden>
-          No favorited listings. Heart a listing or turn off the favorites filter.
-        </p>
-        <div class="matrix-panel">
-          <div class="matrix-panel__header">
-            <div class="matrix-panel__titles compare-header__titles">
-              <h1 class="compare-header__title">Travel Times</h1>
-              <p class="muted compare-header__sub">
-                Drive, walk, bike, or transit times from each listing to shared destinations.
+              </>
+            ) : null
+          }
+          <button
+            type="button"
+            class="button icon-btn compare-header__add"
+            data-compare-column-open
+            aria-label="Add column"
+            title="Add column"
+            disabled={!routeSearchPlan.canAddColumn || listingRows.length === 0}
+          >
+            <IconGlyph name="plus" />
+          </button>
+          <FavoriteFilterButton />
+        </div>
+      </div>
+      <p class="muted compare-header__sub">
+        Drive, walk, bike, or transit times from each listing to shared destinations.
+      </p>
+      {
+        entitlementUi &&
+          snapshot.plan === 'free' &&
+          listingRows.length > 0 &&
+          criterionRows.length > 0 && (
+            <PlanNotice
+              variant="inline"
+              isOwner={entitlementUi.isOwner}
+              ownerDisplayName={entitlementUi.ownerDisplayName}
+              showActions
+            >
+              <p class="plan-notice__text">
+                {PLAN_MESSAGES.routeSearchFreeCompareSummary}
               </p>
+            </PlanNotice>
+          )
+      }
+      {
+        entitlementUi &&
+          snapshot.plan === 'free' &&
+          listingRows.length > 0 &&
+          criterionRows.length === 0 &&
+          routeSearchPlan.ambientMessage && (
+            <PlanNotice
+              variant="inline"
+              isOwner={entitlementUi.isOwner}
+              ownerDisplayName={entitlementUi.ownerDisplayName}
+              showActions={!routeSearchPlan.canAddColumn}
+            >
+              <p class="plan-notice__text">{routeSearchPlan.ambientMessage}</p>
+            </PlanNotice>
+          )
+      }
+    </div>
+    {
+      listingRows.length === 0 ? (
+        <p class="muted">No listings in this Locale yet.</p>
+      ) : (
+        <>
+          {criterionRows.length === 0 ? (
+            <p class="muted compare-empty-hint">
+              No route search columns yet.{' '}
               {
-                entitlementUi &&
-                  snapshot.plan === 'free' &&
-                  criterionRows.length > 0 && (
-                    <PlanNotice
-                      variant="inline"
-                      isOwner={entitlementUi.isOwner}
-                      ownerDisplayName={entitlementUi.ownerDisplayName}
-                      showActions
-                    >
-                      <p class="plan-notice__text">
-                        {PLAN_MESSAGES.routeSearchFreeCompareSummary}
-                      </p>
-                    </PlanNotice>
-                  )
-              }
-              {
-                entitlementUi &&
-                  snapshot.plan === 'free' &&
-                  criterionRows.length === 0 &&
-                  routeSearchPlan.ambientMessage && (
-                    <PlanNotice
-                      variant="inline"
-                      isOwner={entitlementUi.isOwner}
-                      ownerDisplayName={entitlementUi.ownerDisplayName}
-                      showActions={!routeSearchPlan.canAddColumn}
-                    >
-                      <p class="plan-notice__text">{routeSearchPlan.ambientMessage}</p>
-                    </PlanNotice>
-                  )
-              }
-            </div>
-            <div class="matrix-panel__actions compare-header__actions">
-              <button
-                type="button"
-                class="listing-favorite matrix-favorite-filter"
-                data-matrix-favorite-filter
-                aria-pressed="false"
-                aria-label="Show favorites only"
-                title="Show favorites only"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path
-                    d="M12 21s-6.7-4.35-9.33-8.1C.8 10.4 1.2 6.9 3.9 5.2 6.1 3.85 8.85 4.4 12 7.1c3.15-2.7 5.9-3.25 8.1-1.9 2.7 1.7 3.1 5.2 1.23 7.7C18.7 16.65 12 21 12 21z"
-                  ></path>
-                </svg>
-              </button>
-              {
-                criterionRows.length > 0 ? (
-                  <>
-                    {
-                      routeSearchPlan.refreshStatusMessage ? (
-                        <p
-                          class:list={[
-                            'compare-header__refresh-status',
-                            'muted',
-                            { 'is-plan-limit': !routeSearchPlan.canRefresh },
-                          ]}
-                          data-compare-refresh-status
-                        >
-                          {routeSearchPlan.refreshStatusMessage}
-                        </p>
-                      ) : null
-                    }
-                    <button
-                      type="button"
-                      class="button secondary compare-header__refresh"
-                      data-compare-refresh-stale
-                      disabled={!routeSearchPlan.canRefresh}
-                      title="Recompute stale travel times for this Locale"
-                    >
-                      Refresh stale
-                    </button>
-                  </>
-                ) : null
-              }
-              <button
-                type="button"
-                class="button icon-btn compare-header__add"
-                data-compare-column-open
-                aria-label="Add column"
-                title="Add column"
-                disabled={!routeSearchPlan.canAddColumn}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M12 5v14"></path>
-                  <path d="M5 12h14"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+                routeSearchPlan.canAddColumn ? (
+                  <button type="button" class="linkish" data-compare-column-open>
+                    Add a column
+                  </button>
+                ) : (
+                  <span>Add a column (Hunt Pass required)</span>
+                )
+              }{' '}
+              to start comparing times.
+            </p>
+          ) : null}
+          <p class="muted compare-empty-hint" data-favorites-empty hidden>
+            No favorited listings. Heart a listing or turn off the favorites filter.
+          </p>
           <div class="matrix-scroll">
           <table
             class="data matrix-table matrix-table--travel"
@@ -241,10 +231,7 @@ const criterionRows = criteria ?? [];
                           aria-label={`Delete ${c.label}`}
                           title={`Delete ${c.label}`}
                         >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M6 6l12 12"></path>
-                            <path d="M18 6L6 18"></path>
-                          </svg>
+                          <IconGlyph name="x" />
                         </button>
                       </div>
                       <small class="muted matrix-criterion-head__meta">
@@ -268,6 +255,7 @@ const criterionRows = criteria ?? [];
                   <tr
                     data-listing-id={listing.id}
                     data-favorite={listing.is_favorite ? '1' : '0'}
+                    data-passed={listing.is_passed ? '1' : '0'}
                   >
                     <th
                       scope="row"
@@ -310,9 +298,10 @@ const criterionRows = criteria ?? [];
                             <span class="muted matrix-listing__phone">{listing.phone}</span>
                           ) : null}
                         </a>
-                        <FavoriteHeart
+                        <ListingReactions
                           listingId={listing.id}
                           favorited={Boolean(listing.is_favorite)}
+                          passed={Boolean(listing.is_passed)}
                         />
                       </div>
                     </th>
@@ -346,10 +335,10 @@ const criterionRows = criteria ?? [];
             </tbody>
           </table>
         </div>
-        </div>
-      </>
-    )
-  }
+        </>
+      )
+    }
+  </div>
 
   <div
     id="compare-column-overlay"
@@ -370,10 +359,7 @@ const criterionRows = criteria ?? [];
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       {
@@ -469,10 +455,7 @@ const criterionRows = criteria ?? [];
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       <div class="place-picker">
@@ -563,10 +546,7 @@ const criterionRows = criteria ?? [];
             aria-label="Open in Google Maps"
             title="Open in Google Maps"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
-              <path d="M12 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
-            </svg>
+            <IconGlyph name="mapPin" />
           </a>
         </div>
       </div>
@@ -593,6 +573,5 @@ const criterionRows = criteria ?? [];
   <DirectionsOverlay />
   <script src="/scripts/directions-overlay.js" type="module"></script>
   <script src="/scripts/matrix-sort.js" type="module"></script>
-  <script src="/scripts/matrix-favorite-filter.js" type="module"></script>
   <script src="/scripts/proximity-compare.js" type="module"></script>
 </AppLayout>

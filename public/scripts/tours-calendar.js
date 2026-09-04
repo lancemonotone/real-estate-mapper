@@ -12,6 +12,13 @@ function autoPlanFavoritesOnly(root) {
   return el instanceof HTMLInputElement && el.checked;
 }
 
+function autoPlanSkipPassed(root) {
+  const el = root.querySelector('[data-auto-plan-skip-passed]');
+  // Default on when the control is missing.
+  if (!(el instanceof HTMLInputElement)) return true;
+  return el.checked;
+}
+
 function autoPlanRangeCookieName(localeId) {
   return `wayhome_ap_range_${localeId}`;
 }
@@ -774,11 +781,11 @@ async function boot() {
           const data = await res.json().catch(() => ({}));
           applyTourDayRoute(data.map);
           showStatus('Route updated', false);
-          return;
+        } else {
+          sessionStorage.setItem(arKey, stopSig);
+          const data = await res.json().catch(() => ({}));
+          showStatus(data.error || 'Could not auto-route this day', true);
         }
-        sessionStorage.setItem(arKey, stopSig);
-        const data = await res.json().catch(() => ({}));
-        showStatus(data.error || 'Could not auto-route this day', true);
       } catch (e) {
         sessionStorage.setItem(arKey, stopSig);
         showStatus(e instanceof Error ? e.message : 'Auto-route failed', true);
@@ -914,6 +921,10 @@ async function boot() {
           ?.getAttribute('data-tour-day-id');
         if (!listingId || !tourDayId) return;
         const appointment_time = input.value.trim() || null;
+        const stopItem = input.closest('.tours-stops__item');
+        if (stopItem instanceof HTMLElement) {
+          stopItem.dataset.hasAppointment = appointment_time ? '1' : '0';
+        }
         try {
           const res = await fetch('/api/tours/appointment-time', {
             method: 'POST',
@@ -932,6 +943,55 @@ async function boot() {
           reloadForDay(cfg.selectedDate);
         } catch (e) {
           showStatus(e instanceof Error ? e.message : 'Could not save time', true);
+        }
+      },
+      { signal },
+    );
+  });
+
+  root.querySelectorAll('[data-tours-clear-endpoint]').forEach((btn) => {
+    btn.addEventListener(
+      'click',
+      async () => {
+        const which = btn.getAttribute('data-tours-clear-endpoint');
+        const tourDayId = root
+          .querySelector('[data-tours-stops]')
+          ?.getAttribute('data-tour-day-id');
+        if (!tourDayId || (which !== 'start' && which !== 'end')) return;
+        const body = new FormData();
+        body.set('tour_day_id', tourDayId);
+        body.set(which === 'start' ? 'clear_start' : 'clear_end', '1');
+        try {
+          const res = await fetch('/api/tours/endpoints', {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+            body,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Could not remove endpoint');
+
+          const list = root.querySelector('[data-tours-stops]');
+          const row = list?.querySelector(
+            which === 'start'
+              ? '[data-listing-id="custom-start"]'
+              : '[data-listing-id="custom-end"]',
+          );
+          row?.remove();
+
+          const mapEl = document.getElementById('tour-map');
+          if (mapEl instanceof HTMLElement) {
+            if (which === 'start') mapEl.dataset.customStart = '';
+            else mapEl.dataset.customEnd = '';
+            document.dispatchEvent(new CustomEvent('wayhome:tour-map-refresh'));
+          }
+
+          showStatus(
+            which === 'start' ? 'Removed custom start.' : 'Removed custom end.',
+            false,
+          );
+          reloadForDay(cfg.selectedDate);
+        } catch (e) {
+          showStatus(e instanceof Error ? e.message : 'Could not remove endpoint', true);
         }
       },
       { signal },
@@ -968,6 +1028,8 @@ async function boot() {
       const form = event.currentTarget;
       if (!(form instanceof HTMLFormElement)) return;
       const body = new FormData(form);
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = true;
       try {
         const res = await fetch('/api/tours/endpoints', {
           method: 'POST',
@@ -975,21 +1037,34 @@ async function boot() {
           body,
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Could not save endpoints');
-        const opt = await fetch('/api/tours/optimize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ tourDayId: cfg.selectedTourId }),
-        });
-        const optData = await opt.json().catch(() => ({}));
-        if (!opt.ok) {
-          throw new Error(optData.error || 'Optimize failed');
+        if (!res.ok) {
+          throw new Error(
+            data.error || (typeof data === 'string' ? data : null) || 'Could not save endpoints',
+          );
         }
-        applyTourDayRoute(optData.map);
+
         closeOverlay('tours-se-overlay');
-        showStatus('Route updated', false);
+        showStatus('Saved start / end', false);
+
+        const tourDayId = data.tourDayId || cfg.selectedTourId;
+        if (tourDayId) {
+          try {
+            const opt = await fetch('/api/tours/optimize', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({ tourDayId }),
+            });
+            const optData = await opt.json().catch(() => ({}));
+            if (opt.ok) applyTourDayRoute(optData.map);
+          } catch {
+            /* reload below still refreshes the day list */
+          }
+        }
+
+        reloadForDay(cfg.selectedDate || undefined);
       } catch (e) {
         showStatus(e instanceof Error ? e.message : 'Save failed', true);
+        if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = false;
       }
     },
     { signal },
@@ -1028,6 +1103,7 @@ async function boot() {
             startDate,
             endDate,
             favoritesOnly: autoPlanFavoritesOnly(root),
+            skipPassed: autoPlanSkipPassed(root),
           }),
         });
         const data = await res.json();
@@ -1049,11 +1125,17 @@ async function boot() {
           if (data.favoritesOnly) {
             parts.push('favorites only');
           }
+          if (data.skipPassed !== false) {
+            parts.push('skip passed');
+          }
           if (data.skippedMissingGeo > 0) {
             parts.push(`${data.skippedMissingGeo} missing location skipped`);
           }
           if (data.skippedNotFavorite > 0) {
             parts.push(`${data.skippedNotFavorite} not favorited skipped`);
+          }
+          if (data.skippedPassed > 0) {
+            parts.push(`${data.skippedPassed} passed skipped`);
           }
           if (overflowCount > 0) {
             parts.push(`${overflowCount} left unscheduled`);
@@ -1121,6 +1203,7 @@ async function boot() {
             startDate,
             endDate,
             favoritesOnly: autoPlanFavoritesOnly(root),
+            skipPassed: autoPlanSkipPassed(root),
           }),
         });
         const data = await res.json();

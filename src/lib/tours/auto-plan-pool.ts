@@ -3,21 +3,25 @@ export type AutoPlanPoolListing = {
   lat: number | null;
   lng: number | null;
   is_favorite?: boolean | null;
+  is_passed?: boolean | null;
 };
 
 export type AutoPlanPoolOptions = {
   favoritesOnly?: boolean;
+  /** When true (default), exclude passed listings from the pool. */
+  skipPassed?: boolean;
 };
 
 export type AutoPlanPoolResult<T extends AutoPlanPoolListing> = {
   geocoded: T[];
   skippedMissingGeo: number;
   skippedNotFavorite: number;
+  skippedPassed: number;
 };
 
 /**
  * Unscheduled listings eligible for Auto-plan fill.
- * Optionally restrict to favorites before the geocode gate.
+ * Optionally skip passed (default on) and/or restrict to favorites.
  */
 export function selectUnscheduledGeocodedForAutoPlan<T extends AutoPlanPoolListing>(
   listings: T[],
@@ -25,21 +29,33 @@ export function selectUnscheduledGeocodedForAutoPlan<T extends AutoPlanPoolListi
   options: AutoPlanPoolOptions = {},
 ): AutoPlanPoolResult<T> {
   const favoritesOnly = options.favoritesOnly === true;
+  const skipPassed = options.skipPassed !== false;
   const unassigned = listings.filter((l) => !assignedIds.has(l.id));
+
+  let skippedPassed = 0;
+  const notPassed = skipPassed
+    ? unassigned.filter((l) => {
+        if (l.is_passed === true) {
+          skippedPassed += 1;
+          return false;
+        }
+        return true;
+      })
+    : unassigned;
 
   let skippedNotFavorite = 0;
   const favoriteScoped = favoritesOnly
-    ? unassigned.filter((l) => {
+    ? notPassed.filter((l) => {
         if (l.is_favorite === true) return true;
         skippedNotFavorite += 1;
         return false;
       })
-    : unassigned;
+    : notPassed;
 
   const geocoded = favoriteScoped.filter(
     (l) => typeof l.lat === 'number' && typeof l.lng === 'number',
   );
   const skippedMissingGeo = favoriteScoped.length - geocoded.length;
 
-  return { geocoded, skippedMissingGeo, skippedNotFavorite };
+  return { geocoded, skippedMissingGeo, skippedNotFavorite, skippedPassed };
 }

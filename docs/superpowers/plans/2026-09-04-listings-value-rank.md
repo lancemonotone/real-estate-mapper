@@ -16,7 +16,7 @@
 - Listings missing Total/mo or sqft: excluded from $/sqft ranking (show in an “Incomplete” section or omit with count; Fail Fast: do not treat null as 0). Prefer: ranked table only complete rows; muted count of skipped incomplete.
 - No em dashes in UI copy. Prefer title `Value` or `Best value`.
 - Branch from `staging`: `feature/listings-value-rank`. Commit only if the user asks.
-- Next port checklist when merging.
+- Next port: docs only. See `docs/superpowers/plans/2026-09-04-next-astro-parity-backlog.md` (fold into the Next migration plan when that branch is edited). Do not implement in Next until scheduled.
 
 ## File map
 
