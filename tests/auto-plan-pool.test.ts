@@ -36,11 +36,27 @@ describe('selectUnscheduledGeocodedForAutoPlan', () => {
     expect(result.skippedPassed).toBe(1);
   });
 
-  it('always excludes passed listings', () => {
+  it('defaults skipPassed to true', () => {
+    const result = selectUnscheduledGeocodedForAutoPlan(listings, new Set());
+    expect(result.geocoded.map((l) => l.id)).toEqual(['a', 'b', 'd']);
+    expect(result.skippedPassed).toBe(1);
+  });
+
+  it('excludes passed listings when skipPassed is true', () => {
     const result = selectUnscheduledGeocodedForAutoPlan(listings, new Set(), {
       favoritesOnly: false,
+      skipPassed: true,
     });
     expect(result.geocoded.map((l) => l.id)).not.toContain('e');
     expect(result.skippedPassed).toBe(1);
+  });
+
+  it('includes passed listings when skipPassed is false', () => {
+    const result = selectUnscheduledGeocodedForAutoPlan(listings, new Set(), {
+      favoritesOnly: false,
+      skipPassed: false,
+    });
+    expect(result.geocoded.map((l) => l.id)).toEqual(['a', 'b', 'd', 'e']);
+    expect(result.skippedPassed).toBe(0);
   });
 });

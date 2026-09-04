@@ -4554,12 +4554,19 @@ body.directions-overlay-open {
   align-items: center;
 }
 
+.tours-auto-plan__filters {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin-inline-end: auto;
+}
+
 .tours-auto-plan__favorites {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
   gap: 0.35rem;
-  margin-inline-end: auto;
   font-size: 0.85rem;
   cursor: pointer;
 

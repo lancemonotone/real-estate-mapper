@@ -8,6 +8,8 @@ export type AutoPlanPoolListing = {
 
 export type AutoPlanPoolOptions = {
   favoritesOnly?: boolean;
+  /** When true (default), exclude passed listings from the pool. */
+  skipPassed?: boolean;
 };
 
 export type AutoPlanPoolResult<T extends AutoPlanPoolListing> = {
@@ -19,7 +21,7 @@ export type AutoPlanPoolResult<T extends AutoPlanPoolListing> = {
 
 /**
  * Unscheduled listings eligible for Auto-plan fill.
- * Passed listings are always excluded. Optionally restrict to favorites.
+ * Optionally skip passed (default on) and/or restrict to favorites.
  */
 export function selectUnscheduledGeocodedForAutoPlan<T extends AutoPlanPoolListing>(
   listings: T[],
@@ -27,16 +29,19 @@ export function selectUnscheduledGeocodedForAutoPlan<T extends AutoPlanPoolListi
   options: AutoPlanPoolOptions = {},
 ): AutoPlanPoolResult<T> {
   const favoritesOnly = options.favoritesOnly === true;
+  const skipPassed = options.skipPassed !== false;
   const unassigned = listings.filter((l) => !assignedIds.has(l.id));
 
   let skippedPassed = 0;
-  const notPassed = unassigned.filter((l) => {
-    if (l.is_passed === true) {
-      skippedPassed += 1;
-      return false;
-    }
-    return true;
-  });
+  const notPassed = skipPassed
+    ? unassigned.filter((l) => {
+        if (l.is_passed === true) {
+          skippedPassed += 1;
+          return false;
+        }
+        return true;
+      })
+    : unassigned;
 
   let skippedNotFavorite = 0;
   const favoriteScoped = favoritesOnly

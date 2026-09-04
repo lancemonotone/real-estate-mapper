@@ -20,6 +20,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export type BuildFillPreviewOptions = {
   favoritesOnly?: boolean;
+  /** Default true: exclude passed listings. */
+  skipPassed?: boolean;
 };
 
 export async function buildFillPreview(
@@ -75,6 +77,7 @@ export async function buildFillPreview(
   const { geocoded, skippedMissingGeo, skippedNotFavorite, skippedPassed } =
     selectUnscheduledGeocodedForAutoPlan(listings ?? [], assignedIds, {
       favoritesOnly: options.favoritesOnly === true,
+      skipPassed: options.skipPassed !== false,
     });
 
   const rangeSet = new Set(rangeDates);
@@ -152,6 +155,7 @@ export async function buildFillPreview(
     skippedNotFavorite,
     skippedPassed,
     favoritesOnly: options.favoritesOnly === true,
+    skipPassed: options.skipPassed !== false,
     radiusMiles: AUTO_PLAN_RADIUS_MILES,
     maxPerDay: AUTO_PLAN_MAX_PER_CLUSTER,
     unscheduledGeocoded: geocoded.length,

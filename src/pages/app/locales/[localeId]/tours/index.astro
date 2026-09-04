@@ -306,10 +306,16 @@ const seed = {
                 />
               </label>
               <div class="tours-auto-plan__actions">
-                <label class="tours-auto-plan__favorites">
-                  <input type="checkbox" data-auto-plan-favorites-only />
-                  <span>Favorites only</span>
-                </label>
+                <div class="tours-auto-plan__filters">
+                  <label class="tours-auto-plan__favorites">
+                    <input type="checkbox" data-auto-plan-favorites-only />
+                    <span>Favorites only</span>
+                  </label>
+                  <label class="tours-auto-plan__favorites">
+                    <input type="checkbox" data-auto-plan-skip-passed checked />
+                    <span>Skip passed</span>
+                  </label>
+                </div>
                 <button type="button" class="secondary" data-tours-auto-plan>
                   Preview
                 </button>
