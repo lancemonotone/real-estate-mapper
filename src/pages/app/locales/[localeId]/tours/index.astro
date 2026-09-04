@@ -1,7 +1,7 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import FavoriteFilterButton from '../../../../../components/FavoriteFilterButton.astro';
-import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
+import ListingReactions from '../../../../../components/ListingReactions.astro';
 import PlanNotice from '../../../../../components/PlanNotice.astro';
 import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/locale-map.css';
@@ -32,6 +32,7 @@ import {
   autoPlanRangeCookieName,
   parseAutoPlanRangeCookie,
 } from '../../../../../lib/tours/auto-plan-range-cookie';
+import IconGlyph from '../../../../../components/IconGlyph.astro';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -125,7 +126,7 @@ const assignedIds = tourCal.assignedListingIds;
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, phone, lat, lng, photo_path, photo_url, photo_urls, is_favorite')
+  .select('id, name, address, phone, lat, lng, photo_path, photo_url, photo_urls, is_favorite, is_passed')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -279,9 +280,7 @@ const seed = {
           aria-label={railExpanded ? 'Collapse unscheduled' : 'Expand unscheduled'}
           title={railExpanded ? 'Collapse' : 'Expand'}
         >
-          <svg class="tours-workspace__rail-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M15 6l-6 6 6 6"></path>
-          </svg>
+          <IconGlyph name="chevronLeft" class="tours-workspace__rail-chevron" />
         </button>
       </div>
       <div class="tours-workspace__rail-body" data-tours-rail-body>
@@ -338,6 +337,7 @@ const seed = {
                   data-map-listing={listing.id}
                   data-drag-kind="listing"
                   data-favorite={listing.is_favorite ? '1' : '0'}
+                  data-passed={listing.is_passed ? '1' : '0'}
                 >
                   <div class="matrix-listing tours-stops__link">
                     {listing.photo_url ? (
@@ -368,9 +368,10 @@ const seed = {
                     </a>
                   </div>
                   <div class="tours-stops__actions">
-                    <FavoriteHeart
+                    <ListingReactions
                       listingId={listing.id}
                       favorited={Boolean(listing.is_favorite)}
+                      passed={Boolean(listing.is_passed)}
                     />
                   </div>
                 </li>
@@ -497,10 +498,7 @@ const seed = {
                         aria-label="Remove custom start"
                         title="Remove custom start"
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                          <path d="M6 6l12 12"></path>
-                          <path d="M18 6L6 18"></path>
-                        </svg>
+                        <IconGlyph name="x" />
                       </button>
                     </div>
                   </li>
@@ -528,6 +526,7 @@ const seed = {
                       data-map-listing={stop.listing_id}
                       data-drag-kind="listing"
                       data-favorite={listing?.is_favorite ? '1' : '0'}
+                      data-passed={listing?.is_passed ? '1' : '0'}
                       data-has-appointment={stop.appointment_time ? '1' : '0'}
                     >
                       <span class={badgeClass} aria-hidden="true">
@@ -578,9 +577,10 @@ const seed = {
                             value={toTimeInputValue(stop.appointment_time)}
                           />
                         </label>
-                        <FavoriteHeart
+                        <ListingReactions
                           listingId={stop.listing_id}
                           favorited={Boolean(listing?.is_favorite)}
+                          passed={Boolean(listing?.is_passed)}
                         />
                         <button
                           type="button"
@@ -589,10 +589,7 @@ const seed = {
                           title="Remove from tour"
                           aria-label="Remove from tour"
                         >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M6 6l12 12"></path>
-                            <path d="M18 6L6 18"></path>
-                          </svg>
+                          <IconGlyph name="x" />
                         </button>
                       </div>
                     </li>
@@ -622,10 +619,7 @@ const seed = {
                         aria-label="Remove custom end"
                         title="Remove custom end"
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                          <path d="M6 6l12 12"></path>
-                          <path d="M18 6L6 18"></path>
-                        </svg>
+                        <IconGlyph name="x" />
                       </button>
                     </div>
                   </li>
@@ -737,10 +731,7 @@ const seed = {
           data-tours-conflict-close
           aria-label="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       <p class="muted">
@@ -770,10 +761,7 @@ const seed = {
       <header class="compare-column-overlay__header">
         <h2 id="tours-info-title">Scheduling tips</h2>
         <button type="button" class="secondary icon-btn" data-tours-info-close aria-label="Close">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       <ul class="stack">
@@ -808,10 +796,7 @@ const seed = {
               data-tours-se-close
               aria-label="Close"
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M6 6l12 12"></path>
-                <path d="M18 6L6 18"></path>
-              </svg>
+              <IconGlyph name="x" />
             </button>
           </header>
           <form method="post" action="/api/tours/endpoints" class="stack" data-tours-se-form>
@@ -839,10 +824,7 @@ const seed = {
                     aria-label="Clear custom start"
                     hidden
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M6 6l12 12"></path>
-                      <path d="M18 6L6 18"></path>
-                    </svg>
+                    <IconGlyph name="x" />
                   </button>
                   <input type="hidden" name="clear_start" value="" data-clearable-flag />
                 </span>
@@ -897,10 +879,7 @@ const seed = {
                     aria-label="Clear custom end"
                     hidden
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M6 6l12 12"></path>
-                      <path d="M18 6L6 18"></path>
-                    </svg>
+                    <IconGlyph name="x" />
                   </button>
                   <input type="hidden" name="clear_end" value="" data-clearable-flag />
                 </span>

@@ -92,6 +92,7 @@ export type Listing = {
   pet_deposit: number | null;
   amenities: string[] | null;
   is_favorite: boolean;
+  is_passed: boolean;
   archived_at: string | null;
   created_by: string | null;
   created_at: string;

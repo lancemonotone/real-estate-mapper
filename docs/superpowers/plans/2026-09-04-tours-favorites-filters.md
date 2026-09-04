@@ -16,7 +16,7 @@
 - Fail Fast: no favorited unscheduled geocoded listings → clear empty/overflow message; do not invent a pool.
 - No em dashes in user-facing copy.
 - Branch from `staging`: `feature/tours-favorites-filters`. Commit only if the user asks.
-- Next port checklist on the PR/issue when merging to staging.
+- Next port: docs only. See `docs/superpowers/plans/2026-09-04-next-astro-parity-backlog.md` (fold into the Next migration plan when that branch is edited). Do not implement in Next until scheduled.
 
 ## File map
 

@@ -1,7 +1,7 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
-import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
+import ListingReactions from '../../../../components/ListingReactions.astro';
 import ListingForm from '../../../../components/ListingForm.astro';
 import PlanNotice from '../../../../components/PlanNotice.astro';
 import '../../../../styles/locale-map.css';
@@ -21,6 +21,7 @@ import {
 import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../lib/supabase/nest';
 import { formatMoney, formatSqft, formatListingMonthlyTotal, sumListingMonthlyTotal } from '../../../../lib/listings/format-attributes';
 import { LISTING_FIELD_LABELS } from '../../../../lib/listings/field-labels';
+import IconGlyph from '../../../../components/IconGlyph.astro';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -115,10 +116,7 @@ const mapListings = rows
                   title="Edit Locale name, center, and radius"
                   aria-label="Edit Locale name, center, and radius"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M12 20h9"></path>
-                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                  </svg>
+                  <IconGlyph name="pencilLine" />
                 </a>
                 <p class="muted locale-hero__count">
                   {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
@@ -146,10 +144,7 @@ const mapListings = rows
                 title="Add listing"
                 disabled={listingCapReached}
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M12 5v14"></path>
-                  <path d="M5 12h14"></path>
-                </svg>
+                <IconGlyph name="plus" />
               </button>
               <FavoriteFilterButton />
             </div>
@@ -215,6 +210,7 @@ const mapListings = rows
                       data-listing-id={listing.id}
                       data-map-listing={listing.id}
                       data-favorite={listing.is_favorite ? '1' : '0'}
+                      data-passed={listing.is_passed ? '1' : '0'}
                       data-sort-recent={String(Number.isFinite(created) ? created : 0)}
                       data-sort-distance={distanceM != null ? String(distanceM) : ''}
                       data-sort-sqft={listing.sqft != null ? String(listing.sqft) : ''}
@@ -270,9 +266,10 @@ const mapListings = rows
                               <span class="muted matrix-listing__phone">{listing.phone}</span>
                             ) : null}
                           </a>
-                          <FavoriteHeart
+                          <ListingReactions
                             listingId={listing.id}
                             favorited={Boolean(listing.is_favorite)}
+                            passed={Boolean(listing.is_passed)}
                           />
                         </div>
                       </th>
@@ -332,10 +329,7 @@ const mapListings = rows
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       <div class="listing-overlay__body stack">

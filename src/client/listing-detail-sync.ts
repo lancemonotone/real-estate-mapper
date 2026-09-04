@@ -11,6 +11,7 @@ import { compareRowPlaceTypeKey } from "../lib/listings/compare-row-place-type-k
 import { sliceVisiblePhotoUrls } from "../lib/nest/entitlements/resolve";
 import type { EntitlementPlan } from "../lib/nest/entitlements/constants";
 import { formatTourDate } from "../lib/tours/format-tour-date";
+import { iconSvgMarkup } from "../lib/ui/icon-glyphs";
 import { updateListingHeroPhotos } from "./listing-gallery";
 
 type SurfaceConfig = {
@@ -144,11 +145,7 @@ function renderContact(
         aria-label="Open listing source"
         data-listing-source
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M14 4h6v6"></path>
-          <path d="M10 14L20 4"></path>
-          <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
-        </svg>
+        ${iconSvgMarkup("externalLink")}
       </a>`
     : "";
   const phone = display.phone
@@ -204,12 +201,7 @@ function renderCompareRow(
     </th>
     <td class="matrix-type">
       <span class="matrix-type__icon" title="On Travel Times" aria-label="On Travel Times">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M4 6h16"></path>
-          <path d="M4 12h16"></path>
-          <path d="M4 18h10"></path>
-          <path d="M16 16l2 2 4-4"></path>
-        </svg>
+        ${iconSvgMarkup("listCheck")}
       </span>
     </td>
   </tr>`;
@@ -252,11 +244,7 @@ function renderListingPlaceRow(
     </th>
     <td class="matrix-type">
       <span class="matrix-type__icon" title="Listing only" aria-label="Listing only">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M3 10.5L12 3l9 7.5"></path>
-          <path d="M5 9.5V21h14V9.5"></path>
-          <path d="M10 21v-6h4v6"></path>
-        </svg>
+        ${iconSvgMarkup("home")}
       </span>
     </td>
   </tr>`;
@@ -286,45 +274,35 @@ function renderTravel(
 
   return `<div class="matrix-panel">
     <div class="matrix-panel__header">
-      <div class="matrix-panel__titles">
-        <h2 class="listing-section__title compare-header__title">Travel Times</h2>
-        <ul class="matrix-type-legend" aria-label="Place scope">
-          <li>
-            <span class="matrix-type__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path d="M4 6h16"></path>
-                <path d="M4 12h16"></path>
-                <path d="M4 18h10"></path>
-                <path d="M16 16l2 2 4-4"></path>
-              </svg>
-            </span>
-            On Travel Times
-          </li>
-          <li>
-            <span class="matrix-type__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path d="M3 10.5L12 3l9 7.5"></path>
-                <path d="M5 9.5V21h14V9.5"></path>
-                <path d="M10 21v-6h4v6"></path>
-              </svg>
-            </span>
-            Listing only
-          </li>
-        </ul>
-      </div>
-      <div class="matrix-panel__actions compare-header__actions">
-        <button
-          type="button"
-          class="button icon-btn compare-header__add"
-          data-listing-overlay-open="place"
-          aria-label="Add place"
-          title="Add place"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 5v14"></path>
-            <path d="M5 12h14"></path>
-          </svg>
-        </button>
+      <div class="compare-header__top">
+        <div class="matrix-panel__titles compare-header__titles">
+          <h2 class="listing-section__title compare-header__title">Travel Times</h2>
+          <ul class="matrix-type-legend" aria-label="Place scope">
+            <li>
+              <span class="matrix-type__icon" aria-hidden="true">
+                ${iconSvgMarkup("listCheck")}
+              </span>
+              On Travel Times
+            </li>
+            <li>
+              <span class="matrix-type__icon" aria-hidden="true">
+                ${iconSvgMarkup("home")}
+              </span>
+              Listing only
+            </li>
+          </ul>
+        </div>
+        <div class="matrix-panel__actions compare-header__actions">
+          <button
+            type="button"
+            class="button icon-btn compare-header__add"
+            data-listing-overlay-open="place"
+            aria-label="Add place"
+            title="Add place"
+          >
+            ${iconSvgMarkup("plus")}
+          </button>
+        </div>
       </div>
     </div>
     <div class="matrix-scroll">

@@ -1,0 +1,37 @@
+---
+import { iconGlyphs, type IconGlyphName } from '../lib/ui/icon-glyphs';
+
+interface Props {
+  name: IconGlyphName;
+  class?: string;
+}
+
+const { name, class: className } = Astro.props;
+const nodes = iconGlyphs[name];
+---
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class={className}>
+  {
+    nodes.map((node) => {
+      switch (node.tag) {
+        case 'path':
+          return <path d={node.d} />;
+        case 'circle':
+          return <circle cx={node.cx} cy={node.cy} r={node.r} />;
+        case 'rect':
+          return (
+            <rect
+              x={node.x}
+              y={node.y}
+              width={node.width}
+              height={node.height}
+              rx={node.rx}
+            />
+          );
+        default: {
+          const _exhaustive: never = node;
+          return _exhaustive;
+        }
+      }
+    })
+  }
+</svg>

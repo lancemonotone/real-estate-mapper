@@ -66,13 +66,13 @@ export async function buildFillPreview(
 
   const { data: listings, error: listError } = await supabase
     .from('listings')
-    .select('id, name, address, lat, lng, is_favorite')
+    .select('id, name, address, lat, lng, is_favorite, is_passed')
     .eq('locale_id', locale.id);
   if (listError) {
     return { ok: false as const, error: listError.message, status: 400 };
   }
 
-  const { geocoded, skippedMissingGeo, skippedNotFavorite } =
+  const { geocoded, skippedMissingGeo, skippedNotFavorite, skippedPassed } =
     selectUnscheduledGeocodedForAutoPlan(listings ?? [], assignedIds, {
       favoritesOnly: options.favoritesOnly === true,
     });
@@ -150,6 +150,7 @@ export async function buildFillPreview(
     overflowLabels,
     skippedMissingGeo,
     skippedNotFavorite,
+    skippedPassed,
     favoritesOnly: options.favoritesOnly === true,
     radiusMiles: AUTO_PLAN_RADIUS_MILES,
     maxPerDay: AUTO_PLAN_MAX_PER_CLUSTER,

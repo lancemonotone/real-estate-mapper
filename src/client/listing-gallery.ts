@@ -1,22 +1,11 @@
+import { iconSvgElement } from '../lib/ui/icon-glyphs';
+
 type GalleryOverlay = {
   ac: AbortController;
   root: HTMLElement;
 };
 
 let activeGallery: GalleryOverlay | null = null;
-
-function svgIcon(paths: string[]): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  for (const d of paths) {
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', d);
-    svg.appendChild(path);
-  }
-  return svg;
-}
 
 function iconBtn(
   label: string,
@@ -83,14 +72,14 @@ export function openListingGallery(urls: string[], index = 0): void {
 
   const closeBtn = iconBtn(
     'Close gallery',
-    svgIcon(['M6 6l12 12', 'M18 6L6 18']),
+    iconSvgElement('x'),
     () => closeListingGallery(),
     signal,
   );
 
   const prevBtn = iconBtn(
     'Previous photo',
-    svgIcon(['M15 6l-6 6 6 6']),
+    iconSvgElement('chevronLeft'),
     () => {
       current = (current - 1 + items.length) % items.length;
       render();
@@ -101,7 +90,7 @@ export function openListingGallery(urls: string[], index = 0): void {
 
   const nextBtn = iconBtn(
     'Next photo',
-    svgIcon(['M9 6l6 6-6 6']),
+    iconSvgElement('chevronRight'),
     () => {
       current = (current + 1) % items.length;
       render();
@@ -116,7 +105,7 @@ export function openListingGallery(urls: string[], index = 0): void {
     const multi = items.length > 1;
     prevBtn.hidden = !multi;
     nextBtn.hidden = !multi;
-    root.setAttribute('aria-label', `Photo gallery — image ${current + 1} of ${items.length}`);
+    root.setAttribute('aria-label', `Photo gallery · image ${current + 1} of ${items.length}`);
   }
 
   toolbar.append(count, closeBtn);

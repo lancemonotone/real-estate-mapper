@@ -1,3 +1,5 @@
+import { iconSvgMarkup } from '../lib/ui/icon-glyphs';
+
 function syncHiddenInputs(list: HTMLElement) {
   list.querySelectorAll('[data-gallery-item]').forEach((item) => {
     const input = item.querySelector('input[name="photo_urls"]');
@@ -39,10 +41,7 @@ function createItem(url: string): HTMLLIElement {
       aria-label="Remove photo"
       title="Remove photo"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M6 6l12 12"></path>
-        <path d="M18 6L6 18"></path>
-      </svg>
+      ${iconSvgMarkup('x')}
     </button>
   `;
   const input = li.querySelector('input[name="photo_urls"]');
