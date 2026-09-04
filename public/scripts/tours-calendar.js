@@ -195,8 +195,53 @@ let pendingConflict = null;
 /** @type {string[]} */
 let selectedListingIds = [];
 
+/** Last plain-click listing id for Shift-range within the day list */
+let selectionAnchorId = null;
+
 /** Mobile: tap listing then tap day */
 let mobilePickIds = [];
+
+function dayListingIds(root) {
+  const list = root.querySelector('[data-tours-stops]');
+  if (!(list instanceof HTMLElement)) return [];
+  return [...list.querySelectorAll('[data-drag-kind="listing"][data-listing-id]')]
+    .map((el) => el.getAttribute('data-listing-id'))
+    .filter((id) => id && !id.startsWith('custom-'));
+}
+
+function paintSelection(root) {
+  root.querySelectorAll('[data-drag-kind="listing"].is-selected').forEach((n) => {
+    n.classList.remove('is-selected');
+  });
+  selectedListingIds.forEach((sid) => {
+    root
+      .querySelectorAll(`[data-drag-kind="listing"][data-listing-id="${sid}"]`)
+      .forEach((n) => {
+        n.classList.add('is-selected');
+      });
+  });
+  const removeBtn = root.querySelector('[data-tours-remove-selected]');
+  if (removeBtn instanceof HTMLButtonElement) {
+    removeBtn.disabled = selectedListingIds.length === 0;
+  }
+}
+
+function toastClearUntimed(result) {
+  const cleared = Number(result?.clearedCount ?? 0);
+  const kept = Number(result?.keptTimedCount ?? 0);
+  if (cleared === 0) {
+    showStatus('No untimed stops to clear.', false);
+    return;
+  }
+  if (kept > 0) {
+    showStatus(
+      `Cleared ${cleared} untimed stop${cleared === 1 ? '' : 's'}. ${kept} timed left on this day.`,
+      false,
+    );
+    return;
+  }
+  showStatus(`Cleared ${cleared} stop${cleared === 1 ? '' : 's'}.`, false);
+}
 
 function setPendingConflict(payload) {
   pendingConflict = payload;
@@ -362,25 +407,33 @@ function bindDragSources(root, signal) {
       (event) => {
         if (event.target.closest('a, button, form')) return;
         const id = el.getAttribute('data-listing-id');
-        if (!id) return;
-        if (event.metaKey || event.ctrlKey) {
+        if (!id || id.startsWith('custom-')) return;
+
+        const inDayList = Boolean(el.closest('[data-tours-stops]'));
+        if (event.shiftKey && inDayList && selectionAnchorId) {
+          const ids = dayListingIds(root);
+          const a = ids.indexOf(selectionAnchorId);
+          const b = ids.indexOf(id);
+          if (a >= 0 && b >= 0) {
+            const [lo, hi] = a < b ? [a, b] : [b, a];
+            selectedListingIds = ids.slice(lo, hi + 1);
+          } else {
+            selectedListingIds = [id];
+            selectionAnchorId = id;
+          }
+        } else if (event.metaKey || event.ctrlKey) {
           if (selectedListingIds.includes(id)) {
             selectedListingIds = selectedListingIds.filter((x) => x !== id);
           } else {
             selectedListingIds = [...selectedListingIds, id];
           }
+          selectionAnchorId = id;
         } else {
           selectedListingIds = [id];
+          selectionAnchorId = id;
           mobilePickIds = [id];
         }
-        root.querySelectorAll('[data-listing-id].is-selected').forEach((n) => {
-          n.classList.remove('is-selected');
-        });
-        selectedListingIds.forEach((sid) => {
-          root.querySelectorAll(`[data-listing-id="${sid}"]`).forEach((n) => {
-            n.classList.add('is-selected');
-          });
-        });
+        paintSelection(root);
       },
       { signal },
     );
@@ -470,7 +523,7 @@ function bindDropTargets(root, signal) {
     );
   });
 
-  const rail = root.querySelector('[data-tours-unscheduled]');
+  const rail = root.querySelector('[data-tours-rail]');
   if (rail) {
     rail.addEventListener(
       'dragover',
@@ -482,7 +535,10 @@ function bindDropTargets(root, signal) {
     );
     rail.addEventListener(
       'dragleave',
-      () => {
+      (event) => {
+        if (event.relatedTarget instanceof Node && rail.contains(event.relatedTarget)) {
+          return;
+        }
         rail.classList.remove('is-drop-target');
       },
       { signal },
@@ -494,13 +550,44 @@ function bindDropTargets(root, signal) {
         rail.classList.remove('is-drop-target');
         const payload = parseDragPayload(event);
         const cfg = seed();
-        if (!payload || payload.kind !== 'listing' || !cfg?.selectedTourId) return;
+        if (!payload || !cfg) return;
+
+        if (payload.kind === 'day' && payload.fromDate) {
+          try {
+            const result = await postAction({
+              type: 'clearUntimed',
+              tourDate: payload.fromDate,
+            });
+            toastClearUntimed(result);
+            let nextDay = cfg.selectedDate;
+            if (!result.tourDayId) {
+              if (cfg.selectedDate === payload.fromDate) nextDay = null;
+            } else if (!cfg.selectedDate || cfg.selectedDate === payload.fromDate) {
+              nextDay = payload.fromDate;
+            }
+            reloadForDay(nextDay);
+          } catch (e) {
+            showStatus(e instanceof Error ? e.message : 'Clear day failed', true);
+          }
+          return;
+        }
+
+        if (payload.kind !== 'listing' || !cfg.selectedTourId) return;
         try {
+          const ids = payload.listingIds ?? [];
           await postAction({
             type: 'unassign',
-            listingIds: payload.listingIds,
+            listingIds: ids,
             tourDayId: cfg.selectedTourId,
           });
+          if (ids.length > 0) {
+            showStatus(
+              `Removed ${ids.length} stop${ids.length === 1 ? '' : 's'} from this day.`,
+              false,
+            );
+          }
+          selectedListingIds = [];
+          selectionAnchorId = null;
           reloadForDay(cfg.selectedDate);
         } catch (e) {
           showStatus(e instanceof Error ? e.message : 'Unassign failed', true);
@@ -601,6 +688,58 @@ function mountEndpointSearch(rootId, localeId, signal) {
   return placeSearch;
 }
 
+function bindDaySelectionToolbar(root, signal) {
+  root.querySelector('[data-tours-select-all]')?.addEventListener(
+    'click',
+    () => {
+      selectedListingIds = dayListingIds(root);
+      selectionAnchorId = selectedListingIds[0] ?? null;
+      paintSelection(root);
+    },
+    { signal },
+  );
+
+  root.querySelector('[data-tours-clear-selection]')?.addEventListener(
+    'click',
+    () => {
+      selectedListingIds = [];
+      selectionAnchorId = null;
+      mobilePickIds = [];
+      paintSelection(root);
+    },
+    { signal },
+  );
+
+  root.querySelector('[data-tours-remove-selected]')?.addEventListener(
+    'click',
+    async () => {
+      const cfg = seed();
+      const tourDayId = root
+        .querySelector('[data-tours-stops]')
+        ?.getAttribute('data-tour-day-id');
+      const ids = [...selectedListingIds];
+      if (!cfg || !tourDayId || ids.length === 0) return;
+      try {
+        await postAction({
+          type: 'unassign',
+          listingIds: ids,
+          tourDayId,
+        });
+        showStatus(
+          `Removed ${ids.length} stop${ids.length === 1 ? '' : 's'} from this day.`,
+          false,
+        );
+        selectedListingIds = [];
+        selectionAnchorId = null;
+        reloadForDay(cfg.selectedDate);
+      } catch (e) {
+        showStatus(e instanceof Error ? e.message : 'Unassign failed', true);
+      }
+    },
+    { signal },
+  );
+}
+
 async function boot() {
   abort?.abort();
   abort = new AbortController();
@@ -650,6 +789,8 @@ async function boot() {
   bindDragSources(root, signal);
   bindDropTargets(root, signal);
   bindAutoPlanRangePersistence(root, cfg.localeId, signal);
+  bindDaySelectionToolbar(root, signal);
+  paintSelection(root);
 
   root.querySelector('[data-tour-week-prev]')?.addEventListener(
     'click',

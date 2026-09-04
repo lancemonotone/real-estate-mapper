@@ -443,6 +443,22 @@ const seed = {
                   {listingCount}
                 </span>
                 <div class="tours-workspace__day-actions">
+                  <div class="tours-workspace__selection-toolbar">
+                    <button type="button" class="secondary" data-tours-select-all>
+                      Select all
+                    </button>
+                    <button type="button" class="secondary" data-tours-clear-selection>
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      class="secondary"
+                      data-tours-remove-selected
+                      disabled
+                    >
+                      Remove selected
+                    </button>
+                  </div>
                   <button
                     type="button"
                     class="tour-stop-badge tour-stop-badge--endpoint"
@@ -757,9 +773,10 @@ const seed = {
       <ul class="stack">
         <li>Click a date to select it and see stops under the week.</li>
         <li>Drag listings from Unscheduled onto a date to schedule them.</li>
-        <li>Drag a numbered day circle to move a whole tour.</li>
+        <li>Drag a numbered day circle onto another date to move the tour, or onto Unscheduled to clear untimed stops (timed appointments stay).</li>
+        <li>Click a stop row to select it (not the title link). Ctrl/Cmd-click to multi-select; Shift-click for a range on the day list.</li>
+        <li>Use Select all / Clear / Remove selected on the day panel for bulk remove.</li>
         <li>On a phone, tap a listing then tap a date.</li>
-        <li>Keyboard: focus a listing, Space to pick it up, arrow to a day, Space to drop.</li>
       </ul>
     </div>
   </div>

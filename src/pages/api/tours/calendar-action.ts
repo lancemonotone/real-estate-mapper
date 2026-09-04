@@ -34,6 +34,13 @@ function parseAction(raw: unknown): CalendarAction | null {
       tourDayId: a.tourDayId,
     };
   }
+  if (type === 'clearUntimed') {
+    if (typeof a.tourDate !== 'string') return null;
+    return {
+      type: 'clearUntimed',
+      tourDate: a.tourDate,
+    };
+  }
   if (type === 'moveDay') {
     if (typeof a.fromDate !== 'string' || typeof a.toDate !== 'string') return null;
     const mode = a.mode;

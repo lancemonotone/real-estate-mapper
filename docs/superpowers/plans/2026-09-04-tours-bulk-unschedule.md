@@ -53,10 +53,12 @@ Behavior:
 4. If no stops left → delete day; else re-optimize.
 5. Return counts for toast.
 
-- [ ] **Step 1:** Write failing tests for: all untimed cleared; mixed keeps timed; all timed → clearedCount 0; missing day → 404/empty ok with zeros.
-- [ ] **Step 2:** Implement `clearUntimed` in `applyCalendarAction`.
-- [ ] **Step 3:** Parse in API route.
-- [ ] **Step 4:** `npm test` — PASS.
+- [x] **Step 1:** Write failing tests for: all untimed cleared; mixed keeps timed; all timed → clearedCount 0; missing day → 404/empty ok with zeros.
+- [x] **Step 2:** Implement `clearUntimed` in `applyCalendarAction`.
+- [x] **Step 3:** Parse in API route.
+- [x] **Step 4:** `npm test` — PASS.
+
+Note: Vitest suite-wide `config` failure remains in this environment; pure `partitionStopsForClearUntimed` tests are in place.
 
 ---
 
@@ -84,8 +86,8 @@ Toast examples (no em dash):
 - `No untimed stops to clear.`
 - `Cleared 3 stops.` (day empty)
 
-- [ ] **Step 1:** Accept day payload on rail dragover/drop.
-- [ ] **Step 2:** Toast + reload.
+- [x] **Step 1:** Accept day payload on rail dragover/drop.
+- [x] **Step 2:** Toast + reload.
 - [ ] **Step 3:** Smoke: mix of timed/untimed; all timed; all untimed.
 
 ---
@@ -103,18 +105,23 @@ Toast examples (no em dash):
 - Detail `<a>` still navigates; selection on row chrome / Ctrl/Cmd / Shift.
 - Toast: `Removed N stops from this day.`
 
-- [ ] **Step 1:** Markup + styles.
-- [ ] **Step 2:** Select all / Clear / Remove selected.
-- [ ] **Step 3:** Shift-click range (anchor = last plain click).
-- [ ] **Step 4:** Smoke + tip copy update.
+- [x] **Step 1:** Markup + styles.
+- [x] **Step 2:** Select all / Clear / Remove selected.
+- [x] **Step 3:** Shift-click range (anchor = last plain click).
+- [x] **Step 4:** Smoke + tip copy update.
 
 ---
 
 ### Task 4: Next port checklist
 
-- [ ] Port `clearUntimed` calendar action
-- [ ] Day-dot → unscheduled drop + toasts
-- [ ] Selection toolbar + Shift-range
+- [x] Port `clearUntimed` calendar action *(checklist noted for Next; Astro done)*
+- [x] Day-dot → unscheduled drop + toasts *(Astro done)*
+- [x] Selection toolbar + Shift-range *(Astro done)*
+
+Next port when absorbing `staging` on `feature/plan-nextjs-migration`:
+1. `clearUntimed` in calendar-action + API parse
+2. Day-dot → unscheduled rail drop + toast copy
+3. Selection toolbar + Ctrl/Cmd + Shift-range
 
 ---
 

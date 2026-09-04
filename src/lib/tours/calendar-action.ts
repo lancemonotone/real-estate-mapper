@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   assertNestEntitlement,
 } from '../nest/entitlements';
+import { partitionStopsForClearUntimed } from './clear-untimed';
 import { optimizeTourDay } from './optimize-tour-day';
 
 export type ConflictMode = 'merge' | 'replace';
@@ -9,6 +10,7 @@ export type ConflictMode = 'merge' | 'replace';
 export type CalendarAction =
   | { type: 'assign'; listingIds: string[]; tourDate: string; mode?: ConflictMode }
   | { type: 'unassign'; listingIds: string[]; tourDayId: string }
+  | { type: 'clearUntimed'; tourDate: string }
   | { type: 'moveDay'; fromDate: string; toDate: string; mode?: ConflictMode }
   | { type: 'reorder'; tourDayId: string; listingIdsInOrder: string[] };
 
@@ -17,6 +19,8 @@ export type CalendarActionOk = {
   tourDayId: string | null;
   optimized: boolean;
   optimizeError?: string;
+  clearedCount?: number;
+  keptTimedCount?: number;
 };
 
 export type CalendarActionErr = {
@@ -352,6 +356,77 @@ export async function applyCalendarAction(
           tourDayId: action.tourDayId,
           optimized: opt.optimized,
           optimizeError: opt.optimizeError,
+        };
+      }
+
+      case 'clearUntimed': {
+        if (!action.tourDate) {
+          return { ok: false, error: 'tourDate required', status: 400 };
+        }
+        const { data: tourDay } = await supabase
+          .from('tour_days')
+          .select('id, locale_id')
+          .eq('locale_id', localeId)
+          .eq('tour_date', action.tourDate)
+          .maybeSingle();
+        if (!tourDay || tourDay.locale_id !== localeId) {
+          return {
+            ok: true,
+            tourDayId: null,
+            optimized: false,
+            clearedCount: 0,
+            keptTimedCount: 0,
+          };
+        }
+
+        const { data: stops, error: stopsError } = await supabase
+          .from('tour_stops')
+          .select('listing_id, appointment_time')
+          .eq('tour_day_id', tourDay.id);
+        if (stopsError) return { ok: false, error: stopsError.message, status: 400 };
+
+        const { clearIds, keptTimedCount } = partitionStopsForClearUntimed(stops ?? []);
+        if (clearIds.length === 0) {
+          return {
+            ok: true,
+            tourDayId: tourDay.id,
+            optimized: false,
+            clearedCount: 0,
+            keptTimedCount,
+          };
+        }
+
+        const { error: deleteError } = await supabase
+          .from('tour_stops')
+          .delete()
+          .eq('tour_day_id', tourDay.id)
+          .in('listing_id', clearIds);
+        if (deleteError) return { ok: false, error: deleteError.message, status: 400 };
+
+        const remaining = await stopCount(supabase, tourDay.id);
+        if (remaining === 0) {
+          await deleteEmptyDay(supabase, tourDay.id);
+          return {
+            ok: true,
+            tourDayId: null,
+            optimized: false,
+            clearedCount: clearIds.length,
+            keptTimedCount: 0,
+          };
+        }
+
+        await supabase
+          .from('tour_days')
+          .update({ encoded_polyline: null, route_signature: null })
+          .eq('id', tourDay.id);
+        const opt = await ensureStartThenOptimize(supabase, tourDay.id);
+        return {
+          ok: true,
+          tourDayId: tourDay.id,
+          optimized: opt.optimized,
+          optimizeError: opt.optimizeError,
+          clearedCount: clearIds.length,
+          keptTimedCount,
         };
       }
 

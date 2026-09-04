@@ -4576,8 +4576,24 @@ body.directions-overlay-open {
 
 .tours-workspace__day-actions {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
+  align-items: center;
   margin-inline-start: auto;
+}
+
+.tours-workspace__selection-toolbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+
+  & .secondary {
+    --control-pad-block: 0.28rem;
+    --control-pad-inline: 0.55rem;
+
+    font-size: 0.8rem;
+  }
 }
 
 .tours-workspace__conflict-actions {
