@@ -3,6 +3,7 @@
 export const LISTING_FIELD_LABELS = {
   totalMonthly: 'Total/mo',
   totalMoveIn: 'Move-in',
+  dollarsPerSqft: 'Value',
   deposit: 'Deposit',
   petDeposit: 'Pet dep',
   applicationFees: 'App fee',

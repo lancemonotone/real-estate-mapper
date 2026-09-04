@@ -14,7 +14,7 @@ function parseJsonAttr(raw) {
 
 function toursFavoritesOnlyMode() {
   try {
-    return localStorage.getItem("wayhome:tours-favorite-filter") === "favorites";
+    return localStorage.getItem("wayhome:favorites-filter") === "favorites";
   } catch {
     return false;
   }
@@ -71,7 +71,9 @@ async function initTourMap() {
     ? allStops.filter((stop) => {
         if (!toursFavoritesOnlyMode()) return true;
         if (stop?.kind && stop.kind !== "listing") return true;
-        return Boolean(stop?.favorite);
+        if (stop?.favorite) return true;
+        // Booked stops stay on the map even when not favorited.
+        return Boolean(stop?.hasAppointment || stop?.appointmentTime);
       })
     : [];
   const encodedPolyline = el.dataset.polyline || "";

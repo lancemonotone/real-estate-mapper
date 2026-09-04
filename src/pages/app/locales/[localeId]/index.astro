@@ -1,5 +1,6 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
+import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
 import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
 import ListingForm from '../../../../components/ListingForm.astro';
 import PlanNotice from '../../../../components/PlanNotice.astro';
@@ -81,6 +82,7 @@ const mapListings = rows
     lat: listing.lat as number,
     lng: listing.lng as number,
     photoUrl: listing.photo_url,
+    favorite: Boolean(listing.is_favorite),
   }));
 ---
 <AppLayout
@@ -101,85 +103,88 @@ const mapListings = rows
 
   <section class="locale-browse">
     <div class="locale-browse__list">
-      {
-        rows.length === 0 ? (
-          <div class="listings-empty glass panel stack">
-            <p class="muted">No listings in this Locale yet.</p>
-            {
-              listingCapReached && entitlementUi ? (
-                <PlanNotice
-                  variant="inline"
-                  isOwner={entitlementUi.isOwner}
-                  ownerDisplayName={entitlementUi.ownerDisplayName}
-                >
-                  <p class="plan-notice__text">{listingCapMessage}</p>
-                </PlanNotice>
-              ) : (
-                <button type="button" class="button" data-listing-overlay-open="new">
-                  Add your first listing
-                </button>
-              )
-            }
-          </div>
-        ) : (
-          <div class="matrix-panel">
-            <div class="matrix-panel__header">
-              <div class="matrix-panel__titles compare-header__titles">
-                <div class="locale-hero__heading">
-                  <h1 class="compare-header__title locale-hero__name">{locale.name}</h1>
-                  <a
-                    class="secondary icon-btn locale-hero__edit"
-                    href={`${base}/edit`}
-                    title="Edit Locale name, center, and radius"
-                    aria-label="Edit Locale name, center, and radius"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M12 20h9"></path>
-                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                    </svg>
-                  </a>
-                  <p class="muted locale-hero__count">
-                    {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
-                  </p>
-                </div>
-                {centerLine && <p class="muted compare-header__sub">{centerLine}</p>}
-                {
-                  listingCapReached && entitlementUi && (
-                    <PlanNotice
-                      variant="inline"
-                      isOwner={entitlementUi.isOwner}
-                      ownerDisplayName={entitlementUi.ownerDisplayName}
-                    >
-                      <p class="plan-notice__text">{listingCapMessage}</p>
-                    </PlanNotice>
-                  )
-                }
-              </div>
-              <div class="matrix-panel__actions compare-header__actions">
-                <label class="listings-sort">
-                  <span class="visually-hidden">Sort by</span>
-                  <select id="listings-sort" data-listings-sort>
-                    <option value="recent">Newest</option>
-                    <option value="distance">Distance</option>
-                    <option value="price">Lowest price</option>
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  class="button icon-btn compare-header__add"
-                  data-listing-overlay-open="new"
-                  aria-label="Add listing"
-                  title="Add listing"
-                  disabled={listingCapReached}
+      <div class="matrix-panel">
+        <div class="matrix-panel__header">
+          <div class="compare-header__top">
+            <div class="matrix-panel__titles compare-header__titles">
+              <div class="locale-hero__heading">
+                <h1 class="compare-header__title locale-hero__name">{locale.name}</h1>
+                <a
+                  class="secondary icon-btn locale-hero__edit"
+                  href={`${base}/edit`}
+                  title="Edit Locale name, center, and radius"
+                  aria-label="Edit Locale name, center, and radius"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M12 5v14"></path>
-                    <path d="M5 12h14"></path>
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                   </svg>
-                </button>
+                </a>
+                <p class="muted locale-hero__count">
+                  {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
+                </p>
               </div>
             </div>
-            <div class="matrix-scroll">
+            <div class="matrix-panel__actions compare-header__actions">
+              {
+                rows.length > 0 ? (
+                  <label class="listings-sort">
+                    <span class="visually-hidden">Sort by</span>
+                    <select id="listings-sort" data-listings-sort>
+                      <option value="recent">Newest</option>
+                      <option value="distance">Distance</option>
+                      <option value="price">Lowest price</option>
+                    </select>
+                  </label>
+                ) : null
+              }
+              <button
+                type="button"
+                class="button icon-btn compare-header__add"
+                data-listing-overlay-open="new"
+                aria-label="Add listing"
+                title="Add listing"
+                disabled={listingCapReached}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M12 5v14"></path>
+                  <path d="M5 12h14"></path>
+                </svg>
+              </button>
+              <FavoriteFilterButton />
+            </div>
+          </div>
+          {centerLine && <p class="muted compare-header__sub">{centerLine}</p>}
+          {
+            listingCapReached && entitlementUi && (
+              <PlanNotice
+                variant="inline"
+                isOwner={entitlementUi.isOwner}
+                ownerDisplayName={entitlementUi.ownerDisplayName}
+              >
+                <p class="plan-notice__text">{listingCapMessage}</p>
+              </PlanNotice>
+            )
+          }
+        </div>
+        {
+          rows.length === 0 ? (
+            <div class="listings-empty stack">
+              <p class="muted">No listings in this Locale yet.</p>
+              {
+                !listingCapReached ? (
+                  <button type="button" class="button" data-listing-overlay-open="new">
+                    Add your first listing
+                  </button>
+                ) : null
+              }
+            </div>
+          ) : (
+            <>
+              <p class="muted compare-empty-hint" data-favorites-empty hidden>
+                No favorited listings. Heart a listing or turn off the favorites filter.
+              </p>
+              <div class="matrix-scroll">
             <table
               class="data matrix-table matrix-table--listings"
               id="listings-table"
@@ -209,6 +214,7 @@ const mapListings = rows
                     <tr
                       data-listing-id={listing.id}
                       data-map-listing={listing.id}
+                      data-favorite={listing.is_favorite ? '1' : '0'}
                       data-sort-recent={String(Number.isFinite(created) ? created : 0)}
                       data-sort-distance={distanceM != null ? String(distanceM) : ''}
                       data-sort-sqft={listing.sqft != null ? String(listing.sqft) : ''}
@@ -278,10 +284,11 @@ const mapListings = rows
                 })}
               </tbody>
             </table>
-          </div>
-          </div>
-        )
-      }
+              </div>
+            </>
+          )
+        }
+      </div>
     </div>
 
     <div class="locale-browse__map">

@@ -19,7 +19,7 @@ function parseListings(raw) {
 
 function toursFavoritesOnlyMode() {
   try {
-    return localStorage.getItem("wayhome:tours-favorite-filter") === "favorites";
+    return localStorage.getItem("wayhome:favorites-filter") === "favorites";
   } catch {
     return false;
   }

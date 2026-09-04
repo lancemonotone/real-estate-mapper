@@ -13,6 +13,7 @@ import { planFillDateRange } from './fill-date-range';
 import { selectUnscheduledGeocodedForAutoPlan } from './auto-plan-pool';
 import { dateKeysInclusive } from './week';
 import { milesToMeters } from '../geo/locale-radius';
+import { ensureTourDayEndpointsFromLocaleDefaults } from './ensure-tour-endpoints';
 import { optimizeTourDay } from './optimize-tour-day';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -224,6 +225,10 @@ export async function applyFillDateRange(
         error: error?.message ?? `Could not open tour for ${group.tourDate}`,
         status: 400,
       };
+    }
+
+    if (group.existingCount === 0) {
+      await ensureTourDayEndpointsFromLocaleDefaults(supabase, localeId, tourDay.id);
     }
 
     const { data: existingStops } = await supabase
