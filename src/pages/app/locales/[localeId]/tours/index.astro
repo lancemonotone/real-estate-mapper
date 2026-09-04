@@ -330,7 +330,11 @@ const seed = {
         }
         <p class="muted" id="auto-plan-hint" hidden></p>
         <div id="auto-plan-clusters" class="tours-workspace__clusters stack" hidden></div>
-        <ul class="tours-stops tours-workspace__unscheduled" data-tours-unscheduled>
+        <ul
+          class="tours-stops tours-workspace__unscheduled"
+          data-tours-unscheduled
+          hidden={unassigned.length === 0}
+        >
           {
             unassigned.map((listing) => {
               const title = listing.name || listing.address || 'Untitled';

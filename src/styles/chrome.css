@@ -955,6 +955,10 @@ body.photo-gallery-open {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+
+  &[hidden] {
+    display: none !important;
+  }
 }
 
 /* Shared listing card chrome (tour stops, matrix tables, listing rows). */
@@ -3359,11 +3363,14 @@ body.directions-overlay-open {
 
   /* Compare (attributes) — fixed listing + compact cols; amenities flexes. */
   &.matrix-table--wrap {
-    --compact-col-max: 5rem;
-    --wide-col-min: 16rem;
+    --matrix-gap-inline: 0.35rem;
+    --compact-col-max: 4.25rem;
+    --wide-col-min: 14rem;
     --amenities-cell-max-block: 6rem;
 
-    inline-size: 100%;
+    /* Pack columns; do not stretch gaps across the full scrollport. */
+    inline-size: max-content;
+    max-inline-size: 100%;
     min-inline-size: calc(
       var(--listing-col) + (var(--data-cols) - 1) * var(--compact-col-max) +
         var(--wide-col-min)
@@ -3426,7 +3433,7 @@ body.directions-overlay-open {
     }
 
     @media (min-width: 768px) {
-      --wide-col-min: 18rem;
+      --wide-col-min: 16rem;
       --amenities-cell-max-block: 7rem;
     }
 
@@ -4490,6 +4497,17 @@ body.directions-overlay-open {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+
+  &[hidden] {
+    display: none !important;
+    min-block-size: 0;
+  }
+
+  /* Hide filtered-empty list, but keep a drop target visible while dragging. */
+  &:not(.is-drop-target):not(:has(> .tours-stops__item:not([hidden]))) {
+    display: none !important;
+    min-block-size: 0;
+  }
 
   &.is-drop-target {
     outline: 2px dashed var(--accent, #2563eb);

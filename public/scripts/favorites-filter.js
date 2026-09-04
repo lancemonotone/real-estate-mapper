@@ -74,6 +74,15 @@ function applyFavoriteFilter(root = document) {
     if (!hide) anyVisible = true;
   });
 
+  root.querySelectorAll('[data-tours-unscheduled]').forEach((list) => {
+    if (!(list instanceof HTMLElement)) return;
+    const items = [...list.querySelectorAll(':scope > .tours-stops__item')];
+    const anyItemVisible = items.some(
+      (el) => el instanceof HTMLElement && !el.hidden,
+    );
+    list.hidden = !anyItemVisible;
+  });
+
   root
     .querySelectorAll(
       '[data-matrix-favorite-empty], [data-tours-favorite-empty], [data-favorites-empty]',
