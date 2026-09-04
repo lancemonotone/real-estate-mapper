@@ -251,20 +251,6 @@ const stopCount = (stops ?? []).length;
                   listingId={stop.listing_id}
                   favorited={Boolean(listing?.is_favorite)}
                 />
-                {!hasCustomStart && !stop.is_start && (
-                  <form method="post" action="/api/tours/set-start">
-                    <input type="hidden" name="tour_day_id" value={tour.id} />
-                    <input type="hidden" name="listing_id" value={stop.listing_id} />
-                    <button
-                      type="submit"
-                      class="tour-stop-badge tour-stop-badge--endpoint tour-stop-set-start"
-                      title="Set as start"
-                      aria-label="Set as start"
-                    >
-                      {tourStartGlyph()}
-                    </button>
-                  </form>
-                )}
                 <form method="post" action="/api/tours/unassign">
                   <input type="hidden" name="tour_day_id" value={tour.id} />
                   <input type="hidden" name="listing_id" value={stop.listing_id} />

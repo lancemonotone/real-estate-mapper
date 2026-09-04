@@ -12,9 +12,9 @@ const base = `/app/locales/${localeId}`;
 
 const items: { section: LocaleNavSection; href: string; label: string }[] = [
   { section: 'listings', href: base, label: 'Listings' },
-  { section: 'travel', href: `${base}/travel-times`, label: 'Travel Times' },
-  { section: 'compare', href: `${base}/compare`, label: 'Compare' },
   { section: 'tours', href: `${base}/tours`, label: 'Tours' },
+  { section: 'compare', href: `${base}/compare`, label: 'Compare' },
+  { section: 'travel', href: `${base}/travel-times`, label: 'Travel Times' },
 ];
 ---
 <nav class="locale-nav" aria-label={`${Astro.props.localeName} sections`} data-locale-nav>

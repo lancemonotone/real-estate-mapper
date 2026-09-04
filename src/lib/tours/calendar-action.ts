@@ -3,6 +3,7 @@ import {
   assertNestEntitlement,
 } from '../nest/entitlements';
 import { partitionStopsForClearUntimed } from './clear-untimed';
+import { ensureTourDayEndpointsFromLocaleDefaults } from './ensure-tour-endpoints';
 import { optimizeTourDay } from './optimize-tour-day';
 
 export type ConflictMode = 'merge' | 'replace';
@@ -217,9 +218,13 @@ async function assignListings(
     };
   }
 
+  const wasNewDay = !existingDay;
   const target = existingDay
     ? { id: existingDay.id }
     : await upsertDay(supabase, localeId, tourDate);
+  if (wasNewDay) {
+    await ensureTourDayEndpointsFromLocaleDefaults(supabase, localeId, target.id);
+  }
   const resolution = resolveOccupiedDrop(existingCount > 0, mode);
   if (resolution === 'need-choice') {
     return { ok: false, error: 'need-choice', status: 409 };

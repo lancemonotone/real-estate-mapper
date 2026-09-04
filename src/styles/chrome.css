@@ -579,7 +579,7 @@ table.compare {
 }
 
 .compare-header {
-  --header-gap: 0.85rem;
+  --header-gap: 0.65rem;
 
   display: flex;
   flex-direction: column;
@@ -588,21 +588,26 @@ table.compare {
   margin-block-end: 1rem;
 
   @media (min-width: 768px) {
-    --header-gap: 1rem;
-
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: space-between;
+    --header-gap: 0.75rem;
   }
+}
+
+.compare-header__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  min-inline-size: 0;
 }
 
 .compare-header__titles {
   min-inline-size: 0;
+  flex: 1 1 12rem;
 }
 
 .compare-header__title {
   margin: 0;
-  margin-block-end: 0.25rem;
 }
 
 .compare-header__titles .locale-hero__heading {
@@ -620,9 +625,9 @@ table.compare {
 .compare-header__title-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 0.35rem 1rem;
-  min-block-size: 2.75rem;
+  min-block-size: 0;
 }
 
 .compare-header__title-row .compare-header__title {
@@ -660,12 +665,14 @@ table.compare {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.65rem;
+  flex-shrink: 0;
+}
 
-  @media (min-width: 768px) {
-    flex-shrink: 0;
-    align-self: flex-end;
-  }
+.compare-header__actions .matrix-favorite-filter,
+.matrix-panel__actions .matrix-favorite-filter {
+  order: 99;
 }
 
 .compare-header__refresh-status {
@@ -2797,11 +2804,18 @@ body.directions-overlay-open {
 
 .matrix-panel__header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
   min-inline-size: 0;
+
+  @media (min-width: 768px) {
+    gap: 0.75rem;
+  }
+}
+
+.matrix-panel__header .compare-header__top {
+  width: 100%;
 }
 
 .matrix-panel__titles {
@@ -2815,7 +2829,6 @@ body.directions-overlay-open {
 
   & .compare-header__sub {
     margin: 0;
-    margin-block-start: 0.25rem;
   }
 
   & .plan-notice {
@@ -4484,6 +4497,7 @@ body.directions-overlay-open {
 
 .tours-auto-plan__favorites {
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.35rem;
   margin-inline-end: auto;
