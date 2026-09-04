@@ -12,6 +12,13 @@ function autoPlanFavoritesOnly(root) {
   return el instanceof HTMLInputElement && el.checked;
 }
 
+function autoPlanSkipPassed(root) {
+  const el = root.querySelector('[data-auto-plan-skip-passed]');
+  // Default on when the control is missing.
+  if (!(el instanceof HTMLInputElement)) return true;
+  return el.checked;
+}
+
 function autoPlanRangeCookieName(localeId) {
   return `wayhome_ap_range_${localeId}`;
 }
@@ -1096,6 +1103,7 @@ async function boot() {
             startDate,
             endDate,
             favoritesOnly: autoPlanFavoritesOnly(root),
+            skipPassed: autoPlanSkipPassed(root),
           }),
         });
         const data = await res.json();
@@ -1117,11 +1125,17 @@ async function boot() {
           if (data.favoritesOnly) {
             parts.push('favorites only');
           }
+          if (data.skipPassed !== false) {
+            parts.push('skip passed');
+          }
           if (data.skippedMissingGeo > 0) {
             parts.push(`${data.skippedMissingGeo} missing location skipped`);
           }
           if (data.skippedNotFavorite > 0) {
             parts.push(`${data.skippedNotFavorite} not favorited skipped`);
+          }
+          if (data.skippedPassed > 0) {
+            parts.push(`${data.skippedPassed} passed skipped`);
           }
           if (overflowCount > 0) {
             parts.push(`${overflowCount} left unscheduled`);
@@ -1189,6 +1203,7 @@ async function boot() {
             startDate,
             endDate,
             favoritesOnly: autoPlanFavoritesOnly(root),
+            skipPassed: autoPlanSkipPassed(root),
           }),
         });
         const data = await res.json();

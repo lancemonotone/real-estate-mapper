@@ -17,7 +17,7 @@
 - Toast, not confirm, for partial clear / nothing to clear / bulk remove summary.
 - No em dashes in user-facing copy.
 - Branch from `staging`: `feature/tours-bulk-unschedule` (or continue favorites branch if stacking). Commit only if the user asks.
-- Next port checklist when merging.
+- Next port: docs only. See `docs/superpowers/plans/2026-09-04-next-astro-parity-backlog.md` (fold into the Next migration plan when that branch is edited). Do not implement in Next until scheduled.
 
 ## File map
 

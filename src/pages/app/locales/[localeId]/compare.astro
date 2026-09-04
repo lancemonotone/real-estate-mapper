@@ -1,7 +1,7 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
-import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
+import ListingReactions from '../../../../components/ListingReactions.astro';
 import { filterVisibleListings, loadNestEntitlementUi } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
 import { LISTING_FIELD_LABELS } from '../../../../lib/listings/field-labels';
@@ -44,7 +44,7 @@ const base = `/app/locales/${locale.id}`;
 const { data: listings } = await supabase
   .from('listings')
   .select(
-    'id, name, address, phone, photo_url, photo_urls, price_monthly, deposit, fees_monthly, application_fees, move_in_fees, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite',
+    'id, name, address, phone, photo_url, photo_urls, price_monthly, deposit, fees_monthly, application_fees, move_in_fees, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite, is_passed',
   )
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
@@ -69,6 +69,7 @@ const rowsUnsorted = filterVisibleListings(listings ?? [], snapshot) as Pick<
   | 'pet_deposit'
   | 'amenities'
   | 'is_favorite'
+  | 'is_passed'
 >[];
 
 type Row = (typeof rowsUnsorted)[number];
@@ -261,6 +262,7 @@ const columns: {
                 <tr
                   data-listing-id={listing.id}
                   data-favorite={listing.is_favorite ? '1' : '0'}
+                  data-passed={listing.is_passed ? '1' : '0'}
                 >
                   <th
                     scope="row"
@@ -303,9 +305,10 @@ const columns: {
                           <span class="muted matrix-listing__phone">{listing.phone}</span>
                         ) : null}
                       </a>
-                      <FavoriteHeart
+                      <ListingReactions
                         listingId={listing.id}
                         favorited={Boolean(listing.is_favorite)}
+                        passed={Boolean(listing.is_passed)}
                       />
                     </div>
                   </th>

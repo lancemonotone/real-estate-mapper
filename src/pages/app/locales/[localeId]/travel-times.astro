@@ -2,7 +2,7 @@
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
 import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
-import FavoriteHeart from '../../../../components/FavoriteHeart.astro';
+import ListingReactions from '../../../../components/ListingReactions.astro';
 import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
 import PlanNotice from '../../../../components/PlanNotice.astro';
 import { placeTypeLabel } from '../../../../lib/proximity/place-types';
@@ -15,6 +15,7 @@ import {
   routeSearchPlanClientConfig,
 } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
+import IconGlyph from '../../../../components/IconGlyph.astro';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -42,7 +43,7 @@ const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, phone, lat, lng, photo_url, photo_urls, is_favorite')
+  .select('id, name, address, phone, lat, lng, photo_url, photo_urls, is_favorite, is_passed')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -128,10 +129,7 @@ const criterionRows = criteria ?? [];
             title="Add column"
             disabled={!routeSearchPlan.canAddColumn || listingRows.length === 0}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M12 5v14"></path>
-              <path d="M5 12h14"></path>
-            </svg>
+            <IconGlyph name="plus" />
           </button>
           <FavoriteFilterButton />
         </div>
@@ -233,10 +231,7 @@ const criterionRows = criteria ?? [];
                           aria-label={`Delete ${c.label}`}
                           title={`Delete ${c.label}`}
                         >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M6 6l12 12"></path>
-                            <path d="M18 6L6 18"></path>
-                          </svg>
+                          <IconGlyph name="x" />
                         </button>
                       </div>
                       <small class="muted matrix-criterion-head__meta">
@@ -260,6 +255,7 @@ const criterionRows = criteria ?? [];
                   <tr
                     data-listing-id={listing.id}
                     data-favorite={listing.is_favorite ? '1' : '0'}
+                    data-passed={listing.is_passed ? '1' : '0'}
                   >
                     <th
                       scope="row"
@@ -302,9 +298,10 @@ const criterionRows = criteria ?? [];
                             <span class="muted matrix-listing__phone">{listing.phone}</span>
                           ) : null}
                         </a>
-                        <FavoriteHeart
+                        <ListingReactions
                           listingId={listing.id}
                           favorited={Boolean(listing.is_favorite)}
+                          passed={Boolean(listing.is_passed)}
                         />
                       </div>
                     </th>
@@ -362,10 +359,7 @@ const criterionRows = criteria ?? [];
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       {
@@ -461,10 +455,7 @@ const criterionRows = criteria ?? [];
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       <div class="place-picker">
@@ -555,10 +546,7 @@ const criterionRows = criteria ?? [];
             aria-label="Open in Google Maps"
             title="Open in Google Maps"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
-              <path d="M12 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
-            </svg>
+            <IconGlyph name="mapPin" />
           </a>
         </div>
       </div>

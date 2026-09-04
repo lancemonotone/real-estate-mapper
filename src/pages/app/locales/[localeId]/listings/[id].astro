@@ -1,7 +1,7 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../../components/DirectionsOverlay.astro';
-import FavoriteHeart from '../../../../../components/FavoriteHeart.astro';
+import ListingReactions from '../../../../../components/ListingReactions.astro';
 import ListingForm from '../../../../../components/ListingForm.astro';
 import PlanNotice from '../../../../../components/PlanNotice.astro';
 import PlaceTypePicker from '../../../../../components/PlaceTypePicker.astro';
@@ -27,6 +27,7 @@ import {
 import { buildListingDisplay } from '../../../../../lib/listings/listing-display';
 import { formatTravelMeta } from '../../../../../lib/listings/format-travel-meta';
 import { textQueryCacheKey } from '../../../../../lib/proximity/text-query';
+import IconGlyph from '../../../../../components/IconGlyph.astro';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -277,18 +278,20 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
         <div class="locale-hero__title">
           <h1 class="locale-hero__name" data-listing-title>{listingTitle}</h1>
           <div class="locale-hero__title-actions">
-            <FavoriteHeart listingId={listing.id} favorited={Boolean(listing.is_favorite)} />
+            <ListingReactions
+              listingId={listing.id}
+              favorited={Boolean(listing.is_favorite)}
+              passed={Boolean(listing.is_passed)}
+              inline
+            />
             <button
               type="button"
-              class="secondary icon-btn locale-hero__edit"
+              class="listing-favorite"
               data-listing-overlay-open="edit"
               title="Edit listing"
               aria-label="Edit listing"
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M12 20h9"></path>
-                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-              </svg>
+              <IconGlyph name="pencilLine" />
             </button>
           </div>
         </div>
@@ -316,11 +319,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
                         aria-label="Open listing source"
                         data-listing-source
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                          <path d="M14 4h6v6"></path>
-                          <path d="M10 14L20 4"></path>
-                          <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"></path>
-                        </svg>
+                        <IconGlyph name="externalLink" />
                       </a>
                     ) : null}
                   </div>
@@ -458,45 +457,35 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
           ) : (
             <div class="matrix-panel">
               <div class="matrix-panel__header">
-                <div class="matrix-panel__titles">
-                  <h2 class="listing-section__title compare-header__title">Travel Times</h2>
-                  <ul class="matrix-type-legend" aria-label="Place scope">
-                    <li>
-                      <span class="matrix-type__icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false">
-                          <path d="M4 6h16"></path>
-                          <path d="M4 12h16"></path>
-                          <path d="M4 18h10"></path>
-                          <path d="M16 16l2 2 4-4"></path>
-                        </svg>
-                      </span>
-                      On Travel Times
-                    </li>
-                    <li>
-                      <span class="matrix-type__icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false">
-                          <path d="M3 10.5L12 3l9 7.5"></path>
-                          <path d="M5 9.5V21h14V9.5"></path>
-                          <path d="M10 21v-6h4v6"></path>
-                        </svg>
-                      </span>
-                      Listing only
-                    </li>
-                  </ul>
-                </div>
-                <div class="matrix-panel__actions compare-header__actions">
-                  <button
-                    type="button"
-                    class="button icon-btn compare-header__add"
-                    data-listing-overlay-open="place"
-                    aria-label="Add place"
-                    title="Add place"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M12 5v14"></path>
-                      <path d="M5 12h14"></path>
-                    </svg>
-                  </button>
+                <div class="compare-header__top">
+                  <div class="matrix-panel__titles compare-header__titles">
+                    <h2 class="listing-section__title compare-header__title">Travel Times</h2>
+                    <ul class="matrix-type-legend" aria-label="Place scope">
+                      <li>
+                        <span class="matrix-type__icon" aria-hidden="true">
+                          <IconGlyph name="listCheck" />
+                        </span>
+                        On Travel Times
+                      </li>
+                      <li>
+                        <span class="matrix-type__icon" aria-hidden="true">
+                          <IconGlyph name="home" />
+                        </span>
+                        Listing only
+                      </li>
+                    </ul>
+                  </div>
+                  <div class="matrix-panel__actions compare-header__actions">
+                    <button
+                      type="button"
+                      class="button icon-btn compare-header__add"
+                      data-listing-overlay-open="place"
+                      aria-label="Add place"
+                      title="Add place"
+                    >
+                      <IconGlyph name="plus" />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div class="matrix-scroll">
@@ -573,12 +562,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
                             title="On Travel Times"
                             aria-label="On Travel Times"
                           >
-                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                              <path d="M4 6h16"></path>
-                              <path d="M4 12h16"></path>
-                              <path d="M4 18h10"></path>
-                              <path d="M16 16l2 2 4-4"></path>
-                            </svg>
+                            <IconGlyph name="listCheck" />
                           </span>
                         </td>
                       </tr>
@@ -635,11 +619,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
                           title="Listing only"
                           aria-label="Listing only"
                         >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M3 10.5L12 3l9 7.5"></path>
-                            <path d="M5 9.5V21h14V9.5"></path>
-                            <path d="M10 21v-6h4v6"></path>
-                          </svg>
+                          <IconGlyph name="home" />
                         </span>
                       </td>
                     </tr>
@@ -689,12 +669,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
             title="Tour"
             aria-label="Tour"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-              <path d="M3 10h18"></path>
-              <path d="M8 3v4"></path>
-              <path d="M16 3v4"></path>
-            </svg>
+            <IconGlyph name="calendar" />
           </button>
         </div>
       </div>
@@ -749,9 +724,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
                       aria-label="Previous photo"
                       title="Previous photo"
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M15 6l-6 6 6 6"></path>
-                      </svg>
+                      <IconGlyph name="chevronLeft" />
                     </button>
                     <span class="muted" data-hero-gallery-count>
                       1 / {photoUrls.length}
@@ -763,9 +736,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
                       aria-label="Next photo"
                       title="Next photo"
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M9 6l6 6-6 6"></path>
-                      </svg>
+                      <IconGlyph name="chevronRight" />
                     </button>
                   </div>
                 )
@@ -820,10 +791,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       <div class="listing-overlay__body">
@@ -863,10 +831,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
 
@@ -990,10 +955,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
           aria-label="Close"
           title="Close"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12"></path>
-            <path d="M18 6L6 18"></path>
-          </svg>
+          <IconGlyph name="x" />
         </button>
       </header>
       <div class="place-picker">
@@ -1094,10 +1056,7 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
             aria-label="Open in Google Maps"
             title="Open in Google Maps"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
-              <path d="M12 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
-            </svg>
+            <IconGlyph name="mapPin" />
           </a>
         </div>
       </div>

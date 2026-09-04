@@ -12,7 +12,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: { listingId?: string; favorite?: boolean };
+  let body: { listingId?: string; passed?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -20,8 +20,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   const listingId = typeof body.listingId === 'string' ? body.listingId : '';
-  if (!listingId || typeof body.favorite !== 'boolean') {
-    return Response.json({ ok: false, error: 'listingId and favorite required' }, { status: 400 });
+  if (!listingId || typeof body.passed !== 'boolean') {
+    return Response.json({ ok: false, error: 'listingId and passed required' }, { status: 400 });
   }
 
   const { data: listing } = await supabase
@@ -39,7 +39,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return Response.json({ ok: false, error: 'Not found' }, { status: 404 });
   }
 
-  const result = await applyListingReaction(supabase, listingId, 'favorite', body.favorite);
+  const result = await applyListingReaction(supabase, listingId, 'passed', body.passed);
   if (!result.ok) {
     return Response.json({ ok: false, error: result.error }, { status: result.status });
   }

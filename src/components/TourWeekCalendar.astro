@@ -1,4 +1,6 @@
 ---
+import IconGlyph from './IconGlyph.astro';
+
 interface DayMeta {
   id: string;
   stopCount: number;
@@ -48,9 +50,7 @@ function dayNum(key: string): string {
 >
   <div class="tour-week__nav">
     <button type="button" class="secondary icon-btn" data-tour-week-prev aria-label="Previous week">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M15 6l-6 6 6 6"></path>
-      </svg>
+      <IconGlyph name="chevronLeft" />
     </button>
     <button
       type="button"
@@ -79,9 +79,7 @@ function dayNum(key: string): string {
           data-jump-month-prev
           aria-label="Previous month"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M15 6l-6 6 6 6"></path>
-          </svg>
+          <IconGlyph name="chevronLeft" />
         </button>
         <span class="tour-week__jump-month-label" data-jump-month-label></span>
         <button
@@ -90,9 +88,7 @@ function dayNum(key: string): string {
           data-jump-month-next
           aria-label="Next month"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M9 6l6 6-6 6"></path>
-          </svg>
+          <IconGlyph name="chevronRight" />
         </button>
       </div>
       <div class="tour-week__jump-popover-grid" data-jump-month-grid></div>
@@ -106,9 +102,7 @@ function dayNum(key: string): string {
       aria-hidden="true"
     />
     <button type="button" class="secondary icon-btn" data-tour-week-next aria-label="Next week">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M9 6l6 6-6 6"></path>
-      </svg>
+      <IconGlyph name="chevronRight" />
     </button>
     <button
       type="button"

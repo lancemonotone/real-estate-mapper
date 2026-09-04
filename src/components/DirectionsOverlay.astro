@@ -3,6 +3,7 @@
  * Shared directions modal markup. Include once per page that opens routes.
  * Script: /scripts/directions-overlay.js
  */
+import IconGlyph from './IconGlyph.astro';
 ---
 <div
   id="directions-overlay"
@@ -17,10 +18,7 @@
     <header class="directions-overlay__header">
       <h2 id="directions-overlay-title">Route</h2>
       <button type="button" class="secondary icon-btn" data-overlay-close aria-label="Close" title="Close">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M6 6l12 12"></path>
-          <path d="M18 6L6 18"></path>
-        </svg>
+        <IconGlyph name="x" />
       </button>
     </header>
     <p id="directions-overlay-meta" class="directions-overlay__meta muted"></p>
@@ -35,10 +33,7 @@
         aria-label="Open in Google Maps"
         title="Open in Google Maps"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z"></path>
-          <path d="M12 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
-        </svg>
+        <IconGlyph name="mapPin" />
       </a>
     </p>
     <p id="directions-overlay-error" class="alert" hidden></p>
