@@ -971,6 +971,10 @@ body.photo-gallery-open {
   background: var(--glass-wash-strong);
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-md);
+
+  &[hidden] {
+    display: none !important;
+  }
 }
 
 .matrix-table tbody .matrix-table__listing > .matrix-listing,
@@ -1001,6 +1005,10 @@ body.photo-gallery-open {
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem 1rem;
+
+  &[hidden] {
+    display: none !important;
+  }
 }
 
 .tours-stops__item > .matrix-listing {

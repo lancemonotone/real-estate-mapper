@@ -4,9 +4,38 @@
 import { mountPlaceSearch } from './place-search.js';
 import { bindTourWeekJumpPopover } from './tour-week-jump-popover.js';
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const AUTO_PLAN_RANGE_MAX_AGE_SEC = 60 * 60 * 24 * 365;
+
 function autoPlanFavoritesOnly(root) {
   const el = root.querySelector('[data-auto-plan-favorites-only]');
   return el instanceof HTMLInputElement && el.checked;
+}
+
+function autoPlanRangeCookieName(localeId) {
+  return `wayhome_ap_range_${localeId}`;
+}
+
+function writeAutoPlanRangeCookie(localeId, startDate, endDate) {
+  if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate) || startDate > endDate) return;
+  const name = encodeURIComponent(autoPlanRangeCookieName(localeId));
+  const value = encodeURIComponent(`${startDate}_${endDate}`);
+  document.cookie = `${name}=${value}; Path=/; Max-Age=${AUTO_PLAN_RANGE_MAX_AGE_SEC}; SameSite=Lax`;
+}
+
+function bindAutoPlanRangePersistence(root, localeId, signal) {
+  const startEl = root.querySelector('[data-auto-plan-start]');
+  const endEl = root.querySelector('[data-auto-plan-end]');
+  if (!(startEl instanceof HTMLInputElement) || !(endEl instanceof HTMLInputElement)) return;
+
+  const persist = () => {
+    const startDate = startEl.value.trim();
+    const endDate = endEl.value.trim();
+    writeAutoPlanRangeCookie(localeId, startDate, endDate);
+  };
+
+  startEl.addEventListener('change', persist, { signal });
+  endEl.addEventListener('change', persist, { signal });
 }
 
 function applyTourDayRoute(payload) {
@@ -620,6 +649,7 @@ async function boot() {
 
   bindDragSources(root, signal);
   bindDropTargets(root, signal);
+  bindAutoPlanRangePersistence(root, cfg.localeId, signal);
 
   root.querySelector('[data-tour-week-prev]')?.addEventListener(
     'click',
@@ -842,6 +872,7 @@ async function boot() {
         }
         return;
       }
+      writeAutoPlanRangeCookie(cfg.localeId, startDate, endDate);
       if (applyBtn instanceof HTMLButtonElement) applyBtn.hidden = true;
       if (hint) {
         hint.hidden = false;
@@ -934,6 +965,7 @@ async function boot() {
         startEl instanceof HTMLInputElement ? startEl.value.trim() : '';
       const endDate = endEl instanceof HTMLInputElement ? endEl.value.trim() : '';
       if (!startDate || !endDate) return;
+      writeAutoPlanRangeCookie(cfg.localeId, startDate, endDate);
       if (applyBtn instanceof HTMLButtonElement) applyBtn.disabled = true;
       if (hint) {
         hint.hidden = false;

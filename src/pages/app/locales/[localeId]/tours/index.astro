@@ -27,6 +27,10 @@ import {
   routeSignatureForListingIds,
   sameRouteSignature,
 } from '../../../../../lib/tours/route-signature';
+import {
+  autoPlanRangeCookieName,
+  parseAutoPlanRangeCookie,
+} from '../../../../../lib/tours/auto-plan-range-cookie';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -110,6 +114,11 @@ const selectedDate = dayParamValid ?? firstScheduledDate;
 const weekAnchor = selectedDate ? parseDateKey(selectedDate) : new Date();
 const weekKeys = weekDateKeys(weekAnchor);
 const weekLabel = `${formatShortTourDate(weekKeys[0]!)} → ${formatShortTourDate(weekKeys[6]!)}`;
+const savedAutoPlanRange = parseAutoPlanRangeCookie(
+  Astro.cookies.get(autoPlanRangeCookieName(locale.id))?.value,
+);
+const autoPlanStartDefault = savedAutoPlanRange?.startDate ?? weekKeys[0]!;
+const autoPlanEndDefault = savedAutoPlanRange?.endDate ?? weekKeys[6]!;
 
 const assignedIds = tourCal.assignedListingIds;
 
@@ -293,7 +302,7 @@ const seed = {
                 <input
                   type="date"
                   data-auto-plan-start
-                  value={weekKeys[0]}
+                  value={autoPlanStartDefault}
                   required
                 />
               </label>
@@ -302,7 +311,7 @@ const seed = {
                 <input
                   type="date"
                   data-auto-plan-end
-                  value={weekKeys[6]}
+                  value={autoPlanEndDefault}
                   required
                 />
               </label>
