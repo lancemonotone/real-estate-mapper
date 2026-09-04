@@ -166,6 +166,7 @@ const mapStops = selectedStops
       glyph,
       role,
       kind: 'listing',
+      favorite: Boolean(s.listings!.is_favorite),
     };
   });
 
@@ -178,6 +179,7 @@ const mapListings = visibleListings
     lat: l.lat!,
     lng: l.lng!,
     photoUrl: l.photo_url,
+    favorite: Boolean(l.is_favorite),
   }));
 
 const routeSignatureCurrent = routeSignatureForListingIds(
@@ -240,7 +242,27 @@ const seed = {
         Drag listings onto tour days and set the stop order for each day.
       </p>
     </div>
+    <div class="compare-header__actions">
+      <button
+        type="button"
+        class="listing-favorite matrix-favorite-filter"
+        data-tours-favorite-filter
+        aria-pressed="false"
+        aria-label="Show favorites only"
+        title="Show favorites only"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M12 21s-6.7-4.35-9.33-8.1C.8 10.4 1.2 6.9 3.9 5.2 6.1 3.85 8.85 4.4 12 7.1c3.15-2.7 5.9-3.25 8.1-1.9 2.7 1.7 3.1 5.2 1.23 7.7C18.7 16.65 12 21 12 21z"
+          ></path>
+        </svg>
+      </button>
+    </div>
   </header>
+
+  <p class="muted compare-empty-hint" data-tours-favorite-empty hidden>
+    No favorited listings. Heart a listing or turn off the favorites filter.
+  </p>
 
   <div class="tours-workspace" data-tours-workspace>
     <aside
@@ -285,6 +307,10 @@ const seed = {
                 />
               </label>
               <div class="tours-auto-plan__actions">
+                <label class="tours-auto-plan__favorites">
+                  <input type="checkbox" data-auto-plan-favorites-only />
+                  <span>Favorites only</span>
+                </label>
                 <button type="button" class="secondary" data-tours-auto-plan>
                   Preview
                 </button>
@@ -311,6 +337,7 @@ const seed = {
                   data-listing-id={listing.id}
                   data-map-listing={listing.id}
                   data-drag-kind="listing"
+                  data-favorite={listing.is_favorite ? '1' : '0'}
                 >
                   <div class="matrix-listing tours-stops__link">
                     {listing.photo_url ? (
@@ -470,6 +497,7 @@ const seed = {
                       data-listing-id={stop.listing_id}
                       data-map-listing={stop.listing_id}
                       data-drag-kind="listing"
+                      data-favorite={listing?.is_favorite ? '1' : '0'}
                     >
                       <span class={badgeClass} aria-hidden="true">
                         {glyph}
@@ -882,6 +910,7 @@ const seed = {
     window.__WAYHOME_TOURS_CALENDAR__ = seed;
   </script>
   <script src="/scripts/tours-calendar.js" type="module"></script>
+  <script src="/scripts/tours-favorite-filter.js" type="module"></script>
   {
     selectedTour && (mapStops.length > 0 || hasCustomStart || hasCustomEnd) ? (
       <script src="/scripts/tour-map.js" type="module"></script>

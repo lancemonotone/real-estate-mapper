@@ -13,6 +13,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     localeId?: string;
     startDate?: string;
     endDate?: string;
+    favoritesOnly?: boolean;
   };
 
   if (!body.localeId || !body.startDate || !body.endDate) {
@@ -28,6 +29,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     body.startDate,
     body.endDate,
     user.id,
+    { favoritesOnly: body.favoritesOnly === true },
   );
 
   if (!result.ok) {

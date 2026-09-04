@@ -10,17 +10,23 @@ import {
   AUTO_PLAN_RADIUS_MILES,
 } from './cluster-listings';
 import { planFillDateRange } from './fill-date-range';
+import { selectUnscheduledGeocodedForAutoPlan } from './auto-plan-pool';
 import { dateKeysInclusive } from './week';
 import { milesToMeters } from '../geo/locale-radius';
 import { optimizeTourDay } from './optimize-tour-day';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+export type BuildFillPreviewOptions = {
+  favoritesOnly?: boolean;
+};
+
 export async function buildFillPreview(
   supabase: SupabaseClient,
   localeId: string,
   startDate: string,
   endDate: string,
+  options: BuildFillPreviewOptions = {},
 ) {
   if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate)) {
     return { ok: false as const, error: 'startDate and endDate must be YYYY-MM-DD', status: 400 };
@@ -59,17 +65,16 @@ export async function buildFillPreview(
 
   const { data: listings, error: listError } = await supabase
     .from('listings')
-    .select('id, name, address, lat, lng')
+    .select('id, name, address, lat, lng, is_favorite')
     .eq('locale_id', locale.id);
   if (listError) {
     return { ok: false as const, error: listError.message, status: 400 };
   }
 
-  const unassigned = (listings ?? []).filter((l) => !assignedIds.has(l.id));
-  const geocoded = unassigned.filter(
-    (l) => typeof l.lat === 'number' && typeof l.lng === 'number',
-  );
-  const skippedMissingGeo = unassigned.length - geocoded.length;
+  const { geocoded, skippedMissingGeo, skippedNotFavorite } =
+    selectUnscheduledGeocodedForAutoPlan(listings ?? [], assignedIds, {
+      favoritesOnly: options.favoritesOnly === true,
+    });
 
   const rangeSet = new Set(rangeDates);
   const toursInRange = (allTours ?? []).filter((t) => rangeSet.has(t.tour_date));
@@ -143,6 +148,8 @@ export async function buildFillPreview(
     overflowIds: plan.overflowIds,
     overflowLabels,
     skippedMissingGeo,
+    skippedNotFavorite,
+    favoritesOnly: options.favoritesOnly === true,
     radiusMiles: AUTO_PLAN_RADIUS_MILES,
     maxPerDay: AUTO_PLAN_MAX_PER_CLUSTER,
     unscheduledGeocoded: geocoded.length,
@@ -155,20 +162,24 @@ export async function applyFillDateRange(
   startDate: string,
   endDate: string,
   userId?: string,
+  options: BuildFillPreviewOptions = {},
 ) {
-  const preview = await buildFillPreview(supabase, localeId, startDate, endDate);
+  const preview = await buildFillPreview(supabase, localeId, startDate, endDate, options);
   if (!preview.ok) return preview;
 
   if (preview.assignments.length === 0) {
+    const emptyMessage =
+      preview.favoritesOnly && preview.unscheduledGeocoded === 0
+        ? 'No favorited unscheduled geocoded listings to place.'
+        : preview.unscheduledGeocoded === 0
+          ? 'No unscheduled geocoded listings to place.'
+          : 'Nothing to apply. All eligible listings overflowed or none left.';
     return {
       ok: true as const,
       tourDayIds: [] as string[],
       overflowIds: preview.overflowIds,
       optimized: [] as { tourDayId: string; ok: boolean; error?: string }[],
-      message:
-        preview.unscheduledGeocoded === 0
-          ? 'No unscheduled geocoded listings to place.'
-          : 'Nothing to apply — all eligible listings overflowed or none left.',
+      message: emptyMessage,
     };
   }
 

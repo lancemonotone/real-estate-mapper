@@ -17,6 +17,14 @@ function parseListings(raw) {
   }
 }
 
+function toursFavoritesOnlyMode() {
+  try {
+    return localStorage.getItem("wayhome:tours-favorite-filter") === "favorites";
+  } catch {
+    return false;
+  }
+}
+
 function cssVar(name) {
   return getComputedStyle(document.documentElement)
     .getPropertyValue(name)
@@ -58,7 +66,10 @@ async function initLocaleMap() {
   let circle = null;
   let pinHover = null;
   let title = el.dataset.title || "Locale";
-  const listings = parseListings(el.dataset.listings);
+  const listings = parseListings(el.dataset.listings).filter((listing) => {
+    if (!toursFavoritesOnlyMode()) return true;
+    return Boolean(listing.favorite);
+  });
 
   const ensureMap = async (lat, lng, radiusM) => {
     if (map) return;
@@ -96,6 +107,8 @@ async function initLocaleMap() {
       const pin = document.createElement("button");
       pin.type = "button";
       pin.className = "locale-map__listing-pin";
+      pin.dataset.mapListingId = listing.id || "";
+      pin.dataset.mapPinFavorite = listing.favorite ? "1" : "0";
       applyLocalePinTheme(pin);
       pin.title = listing.name || "Listing";
       pin.setAttribute("aria-label", listing.name || "Listing");
@@ -220,4 +233,5 @@ function bootLocaleMap() {
 }
 
 document.addEventListener("astro:page-load", bootLocaleMap);
+document.addEventListener("wayhome:locale-map-refresh", bootLocaleMap);
 bootLocaleMap();

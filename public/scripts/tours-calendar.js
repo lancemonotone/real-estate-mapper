@@ -4,6 +4,11 @@
 import { mountPlaceSearch } from './place-search.js';
 import { bindTourWeekJumpPopover } from './tour-week-jump-popover.js';
 
+function autoPlanFavoritesOnly(root) {
+  const el = root.querySelector('[data-auto-plan-favorites-only]');
+  return el instanceof HTMLInputElement && el.checked;
+}
+
 function applyTourDayRoute(payload) {
   if (!payload) return;
 
@@ -850,6 +855,7 @@ async function boot() {
             localeId: cfg.localeId,
             startDate,
             endDate,
+            favoritesOnly: autoPlanFavoritesOnly(root),
           }),
         });
         const data = await res.json();
@@ -868,13 +874,24 @@ async function boot() {
             `Preview: ${assignedCount} listing${assignedCount === 1 ? '' : 's'} into ${startDate} → ${endDate}`,
             `(${data.radiusMiles} mi · max ${data.maxPerDay}/day)`,
           ];
+          if (data.favoritesOnly) {
+            parts.push('favorites only');
+          }
           if (data.skippedMissingGeo > 0) {
             parts.push(`${data.skippedMissingGeo} missing location skipped`);
+          }
+          if (data.skippedNotFavorite > 0) {
+            parts.push(`${data.skippedNotFavorite} not favorited skipped`);
           }
           if (overflowCount > 0) {
             parts.push(`${overflowCount} left unscheduled`);
           }
-          hint.textContent = parts.join(' · ');
+          if (assignedCount === 0 && data.favoritesOnly && data.unscheduledGeocoded === 0) {
+            hint.textContent =
+              'No favorited unscheduled geocoded listings to place.';
+          } else {
+            hint.textContent = parts.join(' · ');
+          }
         }
 
         for (const group of data.assignments ?? []) {
@@ -930,6 +947,7 @@ async function boot() {
             localeId: cfg.localeId,
             startDate,
             endDate,
+            favoritesOnly: autoPlanFavoritesOnly(root),
           }),
         });
         const data = await res.json();
@@ -940,6 +958,8 @@ async function boot() {
             optFail.map((o) => o.error || 'Optimize failed').join('; '),
             true,
           );
+        } else if (data.message) {
+          showStatus(data.message, false);
         }
         reloadForDay(cfg.selectedDate || startDate);
       } catch (e) {

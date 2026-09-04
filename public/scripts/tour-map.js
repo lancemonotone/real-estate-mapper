@@ -12,6 +12,14 @@ function parseJsonAttr(raw) {
   }
 }
 
+function toursFavoritesOnlyMode() {
+  try {
+    return localStorage.getItem("wayhome:tours-favorite-filter") === "favorites";
+  } catch {
+    return false;
+  }
+}
+
 function cssVar(name) {
   return getComputedStyle(document.documentElement)
     .getPropertyValue(name)
@@ -58,7 +66,14 @@ async function initTourMap() {
 
   const key = el.dataset.key;
   const mapId = el.dataset.mapId;
-  const stops = JSON.parse(el.dataset.stops || "[]");
+  const allStops = JSON.parse(el.dataset.stops || "[]");
+  const stops = Array.isArray(allStops)
+    ? allStops.filter((stop) => {
+        if (!toursFavoritesOnlyMode()) return true;
+        if (stop?.kind && stop.kind !== "listing") return true;
+        return Boolean(stop?.favorite);
+      })
+    : [];
   const encodedPolyline = el.dataset.polyline || "";
   const customStart = parseJsonAttr(el.dataset.customStart);
   const customEnd = parseJsonAttr(el.dataset.customEnd);
