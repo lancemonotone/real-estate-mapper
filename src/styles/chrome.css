@@ -1125,11 +1125,11 @@ button.tour-stop-set-start {
   margin-inline-start: auto;
 
   & [data-tours-clear-time] {
-    --control-pad-block: 0.3rem;
-    --control-pad-inline: 0.55rem;
-    --control-descender: 0.08em;
-
-    font-size: 0.85rem;
+    /* Keep layout space when empty so the row doesn’t jump. */
+    &[data-has-time='0'] {
+      visibility: hidden;
+      pointer-events: none;
+    }
   }
 }
 
@@ -4700,11 +4700,53 @@ body.directions-overlay-open {
 }
 
 .tours-workspace__day-actions {
+  --day-action-size: 2rem;
+
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
   margin-inline-start: auto;
+
+  & .icon-btn {
+    --icon-size: 1.1rem;
+    --control-pad-block: 0.35rem;
+    --control-pad-inline: 0.35rem;
+
+    box-sizing: border-box;
+    inline-size: var(--day-action-size);
+    block-size: var(--day-action-size);
+    min-inline-size: var(--day-action-size);
+    min-block-size: var(--day-action-size);
+  }
+
+  /* Borders are globally off; keep a soft control face so icons share one hit box. */
+  & .secondary.icon-btn {
+    background: color-mix(in oklab, var(--text) 8%, transparent);
+    border-color: color-mix(in oklab, var(--text) 16%, transparent);
+    color: var(--text);
+
+    &:hover:not(:disabled) {
+      filter: none;
+      background: color-mix(in oklab, var(--text) 16%, transparent);
+      border-color: color-mix(in oklab, var(--text) 28%, transparent);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+    }
+  }
+
+  & .button.icon-btn:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  & .tour-stop-badge.tour-stop-badge--endpoint {
+    --badge-size: var(--day-action-size);
+
+    inline-size: var(--day-action-size);
+    block-size: var(--day-action-size);
+  }
 }
 
 .tours-workspace__selection-toolbar {
@@ -4712,13 +4754,6 @@ body.directions-overlay-open {
   flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
-
-  & .secondary {
-    --control-pad-block: 0.28rem;
-    --control-pad-inline: 0.55rem;
-
-    font-size: 0.8rem;
-  }
 }
 
 .tours-workspace__conflict-actions {

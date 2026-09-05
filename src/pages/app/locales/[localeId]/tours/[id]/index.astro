@@ -128,8 +128,13 @@ const stopCount = (stops ?? []).length;
       {stopCount}
     </span>
     <div class="locale-hero__actions">
-      <a class="button" href={`${toursBase}/${tour.id}/drive`}>
-        Drive
+      <a
+        class="button icon-btn"
+        href={`${toursBase}/${tour.id}/drive`}
+        title="Drive"
+        aria-label="Drive"
+      >
+        <IconGlyph name="route" />
       </a>
       <button type="button" class="button" data-tour-plan-route-open>
         Plan Route
@@ -253,12 +258,14 @@ const stopCount = (stops ?? []).length;
                 </label>
                 <button
                   type="button"
-                  class="secondary"
+                  class="secondary icon-btn"
                   data-tours-clear-time
                   data-listing-id={stop.listing_id}
-                  hidden={!stop.appointment_time}
+                  data-has-time={stop.appointment_time ? '1' : '0'}
+                  title="Clear time"
+                  aria-label="Clear time"
                 >
-                  Clear time
+                  <IconGlyph name="clockOff" />
                 </button>
                 <ListingReactions
                   listingId={stop.listing_id}
