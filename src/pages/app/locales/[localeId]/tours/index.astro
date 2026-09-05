@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../../layouts/AppLayout.astro';
 import FavoriteFilterButton from '../../../../../components/FavoriteFilterButton.astro';
+import ListingsCount from '../../../../../components/ListingsCount.astro';
 import ListingReactions from '../../../../../components/ListingReactions.astro';
 import PlanNotice from '../../../../../components/PlanNotice.astro';
 import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
@@ -131,6 +132,7 @@ const { data: listings } = await supabase
   .order('created_at', { ascending: false });
 
 const visibleListings = filterVisibleListings(listings ?? [], snapshot);
+const favoritedCount = visibleListings.filter((l) => l.is_favorite).length;
 
 const unassigned = visibleListings.filter((l) => !assignedIds.has(l.id));
 const railExpanded = unassigned.length > 0;
@@ -243,7 +245,10 @@ const seed = {
     <div class="compare-header__top">
       <div class="compare-header__titles">
         <div class="compare-header__title-row">
-          <h1 class="compare-header__title">Tours</h1>
+          <div class="locale-hero__heading">
+            <h1 class="compare-header__title">Tours</h1>
+            <ListingsCount total={visibleListings.length} favorited={favoritedCount} />
+          </div>
           <p
             id="tours-calendar-status"
             class="alert compare-header__status is-empty"
