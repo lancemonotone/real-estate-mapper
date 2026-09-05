@@ -251,6 +251,15 @@ const stopCount = (stops ?? []).length;
                     value={toTimeInputValue(stop.appointment_time)}
                   />
                 </label>
+                <button
+                  type="button"
+                  class="secondary"
+                  data-tours-clear-time
+                  data-listing-id={stop.listing_id}
+                  hidden={!stop.appointment_time}
+                >
+                  Clear time
+                </button>
                 <ListingReactions
                   listingId={stop.listing_id}
                   favorited={Boolean(listing?.is_favorite)}

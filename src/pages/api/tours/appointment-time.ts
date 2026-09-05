@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { resolveAppointmentListingIds } from '../../../lib/tours/appointment-listing-ids';
 import { appointmentTimeToMinutes } from '../../../lib/tours/appointment-order';
 import { optimizeTourDay } from '../../../lib/tours/optimize-tour-day';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
@@ -16,14 +17,17 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   const body = (await request.json()) as {
     tour_day_id?: string;
     listing_id?: string;
+    listing_ids?: string[];
     appointment_time?: string | null;
   };
 
   const tourDayId = body.tour_day_id?.trim();
-  const listingId = body.listing_id?.trim();
-  if (!tourDayId || !listingId) {
+  const listingIds = resolveAppointmentListingIds(body);
+  if (!tourDayId || listingIds.length === 0) {
     return new Response(
-      JSON.stringify({ error: 'tour_day_id and listing_id required' }),
+      JSON.stringify({
+        error: 'tour_day_id and listing_id or listing_ids required',
+      }),
       { status: 400 },
     );
   }
@@ -41,25 +45,35 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
     appointmentTime = raw.length === 5 ? `${raw}:00` : raw;
   }
 
-  const { data: stop, error: stopError } = await supabase
+  const { data: stops, error: stopError } = await supabase
     .from('tour_stops')
     .select('listing_id')
     .eq('tour_day_id', tourDayId)
-    .eq('listing_id', listingId)
-    .maybeSingle();
+    .in('listing_id', listingIds);
 
   if (stopError) {
     return new Response(JSON.stringify({ error: stopError.message }), { status: 500 });
   }
-  if (!stop) {
-    return new Response(JSON.stringify({ error: 'Stop not found' }), { status: 404 });
+
+  const found = new Set((stops ?? []).map((s) => s.listing_id as string));
+  const missing = listingIds.filter((id) => !found.has(id));
+  if (missing.length > 0) {
+    return new Response(
+      JSON.stringify({
+        error:
+          listingIds.length === 1
+            ? 'Stop not found'
+            : `Stop not found: ${missing.join(', ')}`,
+      }),
+      { status: 404 },
+    );
   }
 
   const { error: updateError } = await supabase
     .from('tour_stops')
     .update({ appointment_time: appointmentTime })
     .eq('tour_day_id', tourDayId)
-    .eq('listing_id', listingId);
+    .in('listing_id', listingIds);
 
   if (updateError) {
     return new Response(JSON.stringify({ error: updateError.message }), { status: 500 });
@@ -69,6 +83,7 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
   return new Response(
     JSON.stringify({
       ok: true,
+      cleared: appointmentTime == null ? listingIds.length : 0,
       optimized: opt.ok,
       optimizeError: opt.ok ? undefined : opt.error,
     }),
