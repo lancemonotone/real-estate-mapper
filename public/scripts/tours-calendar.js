@@ -218,6 +218,115 @@ let selectionAnchorId = null;
 /** Mobile: tap listing then tap day */
 let mobilePickIds = [];
 
+/**
+ * Stashed on dragstart — getData is unreliable during dragover.
+ * @type {{ kind: 'listing', listingIds: string[] } | { kind: 'day', fromDate: string } | null}
+ */
+let activeDrag = null;
+
+/** Viewport edge band for page auto-scroll while dragging. */
+const DRAG_SCROLL_EDGE_PX = 72;
+const DRAG_SCROLL_MAX_PX = 28;
+
+let dragScrollActive = false;
+let dragScrollClientY = null;
+let dragScrollRaf = 0;
+
+function dragScrollTick() {
+  dragScrollRaf = 0;
+  if (!dragScrollActive || dragScrollClientY == null) return;
+  const vh = window.innerHeight;
+  let dy = 0;
+  if (dragScrollClientY < DRAG_SCROLL_EDGE_PX) {
+    const t = 1 - dragScrollClientY / DRAG_SCROLL_EDGE_PX;
+    dy = -Math.max(2, Math.round(DRAG_SCROLL_MAX_PX * t * t));
+  } else if (dragScrollClientY > vh - DRAG_SCROLL_EDGE_PX) {
+    const t = 1 - (vh - dragScrollClientY) / DRAG_SCROLL_EDGE_PX;
+    dy = Math.max(2, Math.round(DRAG_SCROLL_MAX_PX * t * t));
+  }
+  if (dy === 0) return;
+  window.scrollBy(0, dy);
+  dragScrollRaf = requestAnimationFrame(dragScrollTick);
+}
+
+function onDocumentDragOverScroll(event) {
+  if (!dragScrollActive) return;
+  // Keep the drag session alive over non-targets so edge auto-scroll keeps receiving events.
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  dragScrollClientY = event.clientY;
+  if (!dragScrollRaf) dragScrollRaf = requestAnimationFrame(dragScrollTick);
+}
+
+function startDragPageScroll() {
+  if (dragScrollActive) return;
+  dragScrollActive = true;
+  document.addEventListener('dragover', onDocumentDragOverScroll, true);
+}
+
+function stopDragPageScroll() {
+  dragScrollActive = false;
+  dragScrollClientY = null;
+  if (dragScrollRaf) {
+    cancelAnimationFrame(dragScrollRaf);
+    dragScrollRaf = 0;
+  }
+  document.removeEventListener('dragover', onDocumentDragOverScroll, true);
+}
+
+function clearActiveDrag(root) {
+  activeDrag = null;
+  stopDragPageScroll();
+  const list = root?.querySelector?.('[data-tours-stops]');
+  if (list instanceof HTMLElement) clearReorderMarkers(list);
+}
+
+function clearReorderMarkers(list) {
+  list.querySelectorAll('.is-drop-before, .is-drop-after').forEach((el) => {
+    el.classList.remove('is-drop-before', 'is-drop-after');
+  });
+}
+
+/**
+ * Insert index among stops that are not being moved.
+ * @returns {{ index: number, markerEl: Element | null, where: 'before' | 'after' | null }}
+ */
+function reorderInsertAt(list, clientY, movingIds) {
+  const items = [...list.querySelectorAll('[data-drag-kind="listing"][data-listing-id]')].filter(
+    (el) => {
+      const id = el.getAttribute('data-listing-id');
+      return id && !id.startsWith('custom-') && !movingIds.includes(id);
+    },
+  );
+  if (items.length === 0) {
+    return { index: 0, markerEl: null, where: null };
+  }
+  for (let i = 0; i < items.length; i++) {
+    const el = items[i];
+    const rect = el.getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      return { index: i, markerEl: el, where: 'before' };
+    }
+  }
+  const last = items[items.length - 1];
+  return { index: items.length, markerEl: last, where: 'after' };
+}
+
+function buildReorderedIds(currentIds, movingIds, insertIndex) {
+  const remaining = currentIds.filter((id) => !movingIds.includes(id));
+  return [
+    ...remaining.slice(0, insertIndex),
+    ...movingIds,
+    ...remaining.slice(insertIndex),
+  ];
+}
+
+function paintReorderMarker(list, markerEl, where) {
+  clearReorderMarkers(list);
+  if (!(markerEl instanceof HTMLElement) || !where) return;
+  markerEl.classList.add(where === 'before' ? 'is-drop-before' : 'is-drop-after');
+}
+
 function dayListingIds(root) {
   const list = root.querySelector('[data-tours-stops]');
   if (!(list instanceof HTMLElement)) return [];
@@ -413,6 +522,8 @@ function bindDragSources(root, signal) {
         );
         event.dataTransfer.effectAllowed = 'move';
         el.classList.add('is-dragging');
+        activeDrag = { kind: 'listing', listingIds: ids };
+        startDragPageScroll();
       },
       { signal },
     );
@@ -420,6 +531,7 @@ function bindDragSources(root, signal) {
       'dragend',
       () => {
         el.classList.remove('is-dragging');
+        clearActiveDrag(root);
       },
       { signal },
     );
@@ -476,10 +588,107 @@ function bindDragSources(root, signal) {
           JSON.stringify({ kind: 'day', fromDate }),
         );
         event.dataTransfer.effectAllowed = 'move';
+        activeDrag = { kind: 'day', fromDate };
+        startDragPageScroll();
+      },
+      { signal },
+    );
+    dot.addEventListener(
+      'dragend',
+      () => {
+        clearActiveDrag(root);
       },
       { signal },
     );
   });
+}
+
+function bindDayReorder(root, signal) {
+  const list = root.querySelector('[data-tours-stops]');
+  if (!(list instanceof HTMLElement)) return;
+
+  const tourDayId = () => list.getAttribute('data-tour-day-id');
+
+  list.addEventListener(
+    'dragover',
+    (event) => {
+      if (!activeDrag || activeDrag.kind !== 'listing') return;
+      const movingIds = activeDrag.listingIds;
+      const currentIds = dayListingIds(root);
+      if (!movingIds.every((id) => currentIds.includes(id))) return;
+
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+
+      const { index, markerEl, where } = reorderInsertAt(
+        list,
+        event.clientY,
+        movingIds,
+      );
+      list.dataset.reorderIndex = String(index);
+      paintReorderMarker(list, markerEl, where);
+    },
+    { signal },
+  );
+
+  list.addEventListener(
+    'dragleave',
+    (event) => {
+      if (event.relatedTarget instanceof Node && list.contains(event.relatedTarget)) {
+        return;
+      }
+      clearReorderMarkers(list);
+      delete list.dataset.reorderIndex;
+    },
+    { signal },
+  );
+
+  list.addEventListener(
+    'drop',
+    async (event) => {
+      if (!activeDrag || activeDrag.kind !== 'listing') return;
+      const movingIds = activeDrag.listingIds;
+      const currentIds = dayListingIds(root);
+      if (!movingIds.every((id) => currentIds.includes(id))) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Recompute from drop Y — dragleave often clears dataset before drop.
+      const { index: insertIndex } = reorderInsertAt(
+        list,
+        event.clientY,
+        movingIds,
+      );
+      clearReorderMarkers(list);
+      delete list.dataset.reorderIndex;
+
+      const nextIds = buildReorderedIds(currentIds, movingIds, insertIndex);
+      const unchanged =
+        nextIds.length === currentIds.length &&
+        nextIds.every((id, i) => id === currentIds[i]);
+      if (unchanged) return;
+
+      const dayId = tourDayId();
+      const cfg = seed();
+      if (!dayId || !cfg) return;
+
+      try {
+        const result = await postAction({
+          type: 'reorder',
+          tourDayId: dayId,
+          listingIdsInOrder: nextIds,
+        });
+        if (result.optimizeError && !/at least 2 geocoded/i.test(result.optimizeError)) {
+          showStatus(result.optimizeError, true);
+        }
+        reloadForDay(cfg.selectedDate);
+      } catch (e) {
+        showStatus(e instanceof Error ? e.message : 'Reorder failed', true);
+      }
+    },
+    { signal },
+  );
 }
 
 function bindDropTargets(root, signal) {
@@ -821,6 +1030,8 @@ async function boot() {
     document.body.appendChild(dropHint);
   }
   document.addEventListener('dragend', hideDropHint, { signal });
+  document.addEventListener('dragend', () => clearActiveDrag(root), { signal });
+  signal.addEventListener('abort', () => clearActiveDrag(root));
 
   if (cfg.needsAutoroute && cfg.selectedTourId) {
     // v2: prior guard was set before optimize succeeded, leaving days stuck when
@@ -854,6 +1065,7 @@ async function boot() {
   }
 
   bindDragSources(root, signal);
+  bindDayReorder(root, signal);
   bindDropTargets(root, signal);
   bindAutoPlanRangePersistence(root, cfg.localeId, signal);
   bindDaySelectionToolbar(root, signal);

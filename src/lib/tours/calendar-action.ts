@@ -100,6 +100,7 @@ async function detachListingsFromLocale(
 async function ensureStartThenOptimize(
   supabase: SupabaseClient,
   tourDayId: string,
+  opts?: { preserveOrder?: boolean },
 ): Promise<{ optimized: boolean; optimizeError?: string }> {
   const { data: tour } = await supabase
     .from('tour_days')
@@ -133,11 +134,10 @@ async function ensureStartThenOptimize(
       .eq('listing_id', startListingId);
   }
 
-  const result = await optimizeTourDay(
-    supabase,
-    tourDayId,
-    startListingId ? { startListingId } : undefined,
-  );
+  const result = await optimizeTourDay(supabase, tourDayId, {
+    ...(startListingId ? { startListingId } : {}),
+    ...(opts?.preserveOrder ? { preserveOrder: true } : {}),
+  });
   if (!result.ok) {
     return { optimized: false, optimizeError: result.error };
   }
@@ -498,7 +498,10 @@ export async function applyCalendarAction(
           .from('tour_days')
           .update({ encoded_polyline: null, route_signature: null })
           .eq('id', action.tourDayId);
-        const opt = await ensureStartThenOptimize(supabase, action.tourDayId);
+        // Keep the manual visit order; do not let Google waypoint optimize undo it.
+        const opt = await ensureStartThenOptimize(supabase, action.tourDayId, {
+          preserveOrder: true,
+        });
         return {
           ok: true,
           tourDayId: action.tourDayId,
