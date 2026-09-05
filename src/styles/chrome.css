@@ -3626,6 +3626,14 @@ body.directions-overlay-open {
   text-align: start;
   justify-content: flex-start;
 
+  & .matrix-sort__priority {
+    margin-inline-start: 0.25rem;
+    font-size: 0.75em;
+    font-weight: 700;
+    opacity: 0.85;
+    font-variant-numeric: tabular-nums;
+  }
+
   &::after {
     content: "";
     display: inline-block;
