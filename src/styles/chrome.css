@@ -5128,3 +5128,146 @@ body.directions-overlay-open {
       color-mix(in oklab, var(--accent, #2563eb) 50%, transparent);
   }
 }
+
+.tours-drive {
+  --tours-drive-gap: 0.75rem;
+  --tours-drive-pad: 0.85rem;
+  --tours-drive-name-size: 1.15rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--tours-drive-gap);
+  max-inline-size: 40rem;
+  margin-inline: auto;
+
+  @media (min-width: 768px) {
+    --tours-drive-gap: 1rem;
+    --tours-drive-pad: 1rem;
+    --tours-drive-name-size: 1.25rem;
+  }
+}
+
+.tours-drive__head {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-block: var(--tours-drive-pad);
+  padding-inline: var(--tours-drive-pad);
+  margin-inline: calc(-1 * var(--tours-drive-pad));
+  background: color-mix(in oklab, var(--bg-0, #fff) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-block-end: 1px solid var(--border);
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+.tours-drive__head-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+}
+
+.tours-drive__title {
+  margin: 0;
+  font-size: clamp(1.35rem, 1.1rem + 1vw, 1.75rem);
+  line-height: 1.2;
+}
+
+.tours-drive__total {
+  margin: 0;
+  flex-basis: 100%;
+}
+
+.tours-drive__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.tours-drive__maps-error {
+  margin: 0;
+  flex-basis: 100%;
+}
+
+.tours-drive__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tours-drive__leg {
+  display: flex;
+  justify-content: center;
+  padding-block: 0.15rem;
+}
+
+.tours-drive__leg-chip {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+}
+
+.tours-drive__stop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.65rem 0.75rem;
+  padding: var(--tours-drive-pad);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: var(--glass-wash-strong, transparent);
+}
+
+.tours-drive__body {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.tours-drive__name {
+  margin: 0;
+  font-size: var(--tours-drive-name-size);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.tours-drive__time {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.tours-drive__address {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.tours-drive__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin-inline-start: auto;
+
+  & .button {
+    --control-pad-block: 0.55rem;
+    --control-pad-inline: 0.9rem;
+
+    font-size: 1rem;
+    min-block-size: 2.75rem;
+  }
+}
