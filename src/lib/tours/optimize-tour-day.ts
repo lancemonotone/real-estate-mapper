@@ -21,7 +21,7 @@ type OptimizeErr = { ok: false; error: string; status: number };
 export async function optimizeTourDay(
   supabase: SupabaseClient,
   tourDayId: string,
-  opts?: { startListingId?: string },
+  opts?: { startListingId?: string; preserveOrder?: boolean },
 ): Promise<OptimizeOk | OptimizeErr> {
   const { data: tour, error: tourError } = await supabase
     .from('tour_days')
@@ -88,7 +88,8 @@ export async function optimizeTourDay(
     appointmentTime: (s.appointment_time as string | null) ?? null,
     sortOrder: s.sort_order,
   }));
-  const useFixedOrder = dayHasAppointmentTimes(forOrder);
+  const useFixedOrder =
+    Boolean(opts?.preserveOrder) || dayHasAppointmentTimes(forOrder);
 
   try {
     const listingById = new Map(geocoded.map((l) => [l.id, l]));

@@ -1017,6 +1017,14 @@ body.photo-gallery-open {
   &[hidden] {
     display: none !important;
   }
+
+  &.is-drop-before {
+    box-shadow: inset 0 3px 0 0 var(--accent, #2563eb);
+  }
+
+  &.is-drop-after {
+    box-shadow: inset 0 -3px 0 0 var(--accent, #2563eb);
+  }
 }
 
 .tours-stops__item > .matrix-listing {
@@ -4627,8 +4635,6 @@ body.directions-overlay-open {
     inset-block-start: var(--app-sticky-inset);
     align-self: start;
     z-index: 12;
-    max-block-size: calc(100dvh - var(--app-sticky-inset) - 0.75rem);
-    overflow: hidden;
   }
 }
 
@@ -4640,12 +4646,6 @@ body.directions-overlay-open {
 .tours-workspace__day {
   min-inline-size: 0;
   min-block-size: 0;
-
-  @media (min-width: 1024px) {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
 }
 
 .tours-workspace__map {
