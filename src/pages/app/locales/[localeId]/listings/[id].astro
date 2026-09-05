@@ -293,6 +293,15 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
             >
               <IconGlyph name="pencilLine" />
             </button>
+            <button
+              type="button"
+              class="listing-favorite listing-delete"
+              data-listing-overlay-open="delete"
+              title="Delete listing"
+              aria-label="Delete listing"
+            >
+              <IconGlyph name="x" />
+            </button>
           </div>
         </div>
       </div>
@@ -769,6 +778,50 @@ const costFactGroups = display.factGroups.filter((group) => group.column === 'co
       }
     </div>
   </section>
+
+  <!-- Delete confirm overlay -->
+  <div
+    id="listing-overlay-delete"
+    class="compare-column-overlay"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="listing-overlay-delete-title"
+    data-listing-overlay="delete"
+  >
+    <div class="compare-column-overlay__backdrop" data-listing-overlay-close></div>
+    <div class="compare-column-overlay__panel glass">
+      <header class="compare-column-overlay__header">
+        <h2 id="listing-overlay-delete-title">Delete this listing?</h2>
+        <button
+          type="button"
+          class="secondary icon-btn"
+          data-listing-overlay-close
+          aria-label="Close"
+          title="Close"
+        >
+          <IconGlyph name="x" />
+        </button>
+      </header>
+      <p class="muted">
+        Permanently removes {listingTitle} from this Locale, including tour stops and proximity
+        data. This cannot be undone.
+      </p>
+      <div class="tours-workspace__conflict-actions">
+        <button
+          type="button"
+          class="button danger"
+          data-listing-delete-confirm
+          data-listing-id={listing.id}
+          data-locale-id={locale.id}
+        >
+          Delete
+        </button>
+        <button type="button" class="secondary" data-listing-overlay-close>Cancel</button>
+      </div>
+      <p class="alert" data-listing-delete-error hidden role="alert"></p>
+    </div>
+  </div>
 
   <!-- Edit overlay -->
   <div

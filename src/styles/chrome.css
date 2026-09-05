@@ -4178,6 +4178,10 @@ body.directions-overlay-open {
     color: var(--text);
   }
 
+  &.listing-delete:hover {
+    color: var(--danger);
+  }
+
   &.listing-passed[aria-pressed="true"] {
     color: var(--text);
 

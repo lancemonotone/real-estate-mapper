@@ -145,6 +145,55 @@ function initListingDetail() {
     { signal },
   );
 
+  document.querySelectorAll('[data-listing-delete-confirm]').forEach((el) => {
+    el.addEventListener(
+      'click',
+      async () => {
+        if (!(el instanceof HTMLButtonElement)) return;
+        const listingId = el.getAttribute('data-listing-id');
+        const localeId = el.getAttribute('data-locale-id');
+        if (!listingId || !localeId) return;
+
+        const overlay = document.querySelector('[data-listing-overlay="delete"]');
+        const errorEl =
+          overlay instanceof HTMLElement
+            ? overlay.querySelector('[data-listing-delete-error]')
+            : null;
+        if (errorEl instanceof HTMLElement) {
+          errorEl.hidden = true;
+          errorEl.textContent = '';
+        }
+
+        el.disabled = true;
+        try {
+          const res = await fetch('/api/listings/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ listingId }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            el.disabled = false;
+            if (errorEl instanceof HTMLElement) {
+              errorEl.hidden = false;
+              errorEl.textContent =
+                typeof data.error === 'string' ? data.error : 'Delete failed';
+            }
+            return;
+          }
+          window.location.href = `/app/locales/${encodeURIComponent(localeId)}`;
+        } catch {
+          el.disabled = false;
+          if (errorEl instanceof HTMLElement) {
+            errorEl.hidden = false;
+            errorEl.textContent = 'Delete failed';
+          }
+        }
+      },
+      { signal },
+    );
+  });
+
   maybeOpenNewListingFromQuery();
 }
 
