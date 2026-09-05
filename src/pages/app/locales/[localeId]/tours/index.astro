@@ -18,6 +18,7 @@ import {
 } from '../../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext, localeNeedsSetup } from '../../../../../lib/supabase/nest';
 import { formatShortTourDate, formatTourDate } from '../../../../../lib/tours/format-tour-date';
+import { tourDayDriveLabel } from '../../../../../lib/tours/tour-day-drive-total';
 import { toTimeInputValue } from '../../../../../lib/tours/appointment-order';
 import {
   tourEndGlyph,
@@ -213,6 +214,14 @@ const needsAutoroute = Boolean(
     !routeFresh &&
     (selectedStops.length >= 2 || hasCustomEnd),
 );
+
+const dayDriveLabel = selectedTour
+  ? tourDayDriveLabel({
+      needsAutoroute,
+      routeFresh,
+      legDurationSecs: selectedStops.map((s) => s.leg_duration_sec),
+    })
+  : null;
 
 const dropBlocked = Object.fromEntries(
   Object.entries(tourCal.dropBlockedByDate).map(([date, block]) => [date, block.reason]),
@@ -449,6 +458,19 @@ const seed = {
                 >
                   {listingCount}
                 </span>
+                {
+                  dayDriveLabel ? (
+                    <p class="muted tours-workspace__day-drive" data-tours-day-drive>
+                      {dayDriveLabel}
+                    </p>
+                  ) : (
+                    <p
+                      class="muted tours-workspace__day-drive"
+                      data-tours-day-drive
+                      hidden
+                    ></p>
+                  )
+                }
                 <div class="tours-workspace__day-actions">
                   <div class="tours-workspace__selection-toolbar">
                     <button type="button" class="secondary" data-tours-select-all>

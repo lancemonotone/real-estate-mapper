@@ -4685,6 +4685,12 @@ body.directions-overlay-open {
   font-size: 1.05rem;
 }
 
+.tours-workspace__day-drive {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
 .tours-workspace__day-actions {
   display: inline-flex;
   flex-wrap: wrap;
