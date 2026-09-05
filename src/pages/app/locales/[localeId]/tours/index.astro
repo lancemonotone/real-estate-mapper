@@ -472,6 +472,12 @@ const seed = {
                   )
                 }
                 <div class="tours-workspace__day-actions">
+                  <a
+                    class="button"
+                    href={`${toursBase}/${selectedTour.id}/drive`}
+                  >
+                    Drive
+                  </a>
                   <div class="tours-workspace__selection-toolbar">
                     <button type="button" class="secondary" data-tours-select-all>
                       Select all
@@ -486,6 +492,14 @@ const seed = {
                       disabled
                     >
                       Remove selected
+                    </button>
+                    <button
+                      type="button"
+                      class="secondary"
+                      data-tours-clear-times
+                      disabled
+                    >
+                      Clear times
                     </button>
                   </div>
                   <button
@@ -614,6 +628,15 @@ const seed = {
                             value={toTimeInputValue(stop.appointment_time)}
                           />
                         </label>
+                        <button
+                          type="button"
+                          class="secondary"
+                          data-tours-clear-time
+                          data-listing-id={stop.listing_id}
+                          hidden={!stop.appointment_time}
+                        >
+                          Clear time
+                        </button>
                         <ListingReactions
                           listingId={stop.listing_id}
                           favorited={Boolean(listing?.is_favorite)}

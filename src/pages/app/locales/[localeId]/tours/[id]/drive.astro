@@ -1,0 +1,318 @@
+---
+import AppLayout from '../../../../../../layouts/AppLayout.astro';
+import {
+  filterListingStops,
+  isTourDayVisible,
+  loadNestEntitlementUi,
+} from '../../../../../../lib/nest/entitlements';
+import { getVisibleLocaleContext } from '../../../../../../lib/supabase/nest';
+import { formatAppointmentTime } from '../../../../../../lib/tours/appointment-order';
+import { formatTourDate } from '../../../../../../lib/tours/format-tour-date';
+import {
+  googleMapsDayDirectionsUrl,
+  googleMapsDirectionsUrl,
+  type MapsLatLng,
+} from '../../../../../../lib/proximity/maps-url';
+import { tourDayDriveLabel } from '../../../../../../lib/tours/tour-day-drive-total';
+import {
+  formatTourLegChip,
+  listingTelHref,
+} from '../../../../../../lib/tours/tour-drive-labels';
+import {
+  routeSignatureForListingIds,
+  sameRouteSignature,
+} from '../../../../../../lib/tours/route-signature';
+import {
+  tourEndGlyph,
+  tourListingStopGlyph,
+  tourStartGlyph,
+} from '../../../../../../lib/tours/stop-glyph';
+
+const { localeId, id } = Astro.params;
+const supabase = Astro.locals.supabase!;
+const user = Astro.locals.user!;
+
+const { data: tour } = await supabase.from('tour_days').select('*').eq('id', id!).single();
+if (!tour || (localeId && tour.locale_id !== localeId)) {
+  return new Response('Not found', { status: 404 });
+}
+
+const localeContext = await getVisibleLocaleContext(
+  supabase,
+  tour.locale_id,
+  Astro.locals.devHuntPassPreview ?? false,
+);
+if (!localeContext) return new Response('Not found', { status: 404 });
+
+const { locale, snapshot } = localeContext;
+const entitlementUi = await loadNestEntitlementUi(
+  supabase,
+  locale.nest_id,
+  user.id,
+  Astro.locals.devHuntPassPreview ?? false,
+  snapshot,
+);
+if (!isTourDayVisible(snapshot, tour.id)) {
+  return new Response('Not found', { status: 404 });
+}
+
+const toursBase = `/app/locales/${tour.locale_id}/tours`;
+const base = `/app/locales/${tour.locale_id}`;
+const tourTitle = formatTourDate(tour.tour_date);
+
+const { data: stopsRaw } = await supabase
+  .from('tour_stops')
+  .select('*, listings(*)')
+  .eq('tour_day_id', tour.id)
+  .order('sort_order', { ascending: true, nullsFirst: false });
+
+const stops = filterListingStops(stopsRaw ?? [], snapshot);
+const hasCustomStart = tour.start_lat != null && tour.start_lng != null;
+const hasCustomEnd = tour.end_lat != null && tour.end_lng != null;
+const listingCount = stops.length;
+
+const routeSignatureCurrent = routeSignatureForListingIds(stops.map((s) => s.listing_id));
+const routeFresh = Boolean(
+  tour.encoded_polyline &&
+    tour.route_signature &&
+    sameRouteSignature(tour.route_signature, routeSignatureCurrent),
+);
+const needsAutoroute = Boolean(
+  stops.length > 0 && !routeFresh && (stops.length >= 2 || hasCustomEnd),
+);
+const dayDriveLabel = tourDayDriveLabel({
+  needsAutoroute,
+  routeFresh,
+  legDurationSecs: stops.map((s) => s.leg_duration_sec),
+});
+
+type RoutePoint = MapsLatLng & { kind: 'start' | 'listing' | 'end'; listingId?: string };
+
+const routePoints: RoutePoint[] = [];
+if (hasCustomStart) {
+  routePoints.push({
+    kind: 'start',
+    lat: tour.start_lat!,
+    lng: tour.start_lng!,
+  });
+}
+for (const stop of stops) {
+  const listing = stop.listings;
+  if (listing?.lat == null || listing?.lng == null) continue;
+  routePoints.push({
+    kind: 'listing',
+    listingId: stop.listing_id,
+    lat: listing.lat,
+    lng: listing.lng,
+  });
+}
+if (hasCustomEnd) {
+  routePoints.push({
+    kind: 'end',
+    lat: tour.end_lat!,
+    lng: tour.end_lng!,
+  });
+}
+
+const dayMaps = googleMapsDayDirectionsUrl(routePoints);
+const openInMapsHref = dayMaps.ok ? dayMaps.url : null;
+const openInMapsError =
+  !dayMaps.ok && dayMaps.reason === 'too_many_waypoints'
+    ? 'Too many stops for one Maps link (max 9 waypoints between start and end).'
+    : null;
+
+function navigateFromPrevious(stopListingId: string): string | null {
+  const idx = routePoints.findIndex(
+    (p) => p.kind === 'listing' && p.listingId === stopListingId,
+  );
+  if (idx <= 0) return null;
+  const origin = routePoints[idx - 1]!;
+  const dest = routePoints[idx]!;
+  return googleMapsDirectionsUrl({
+    origin: { lat: origin.lat, lng: origin.lng },
+    destination: { lat: dest.lat, lng: dest.lng },
+    travelMode: 'DRIVE',
+  });
+}
+
+const lastListingPoint = [...routePoints].reverse().find((p) => p.kind === 'listing');
+const endNavigateHref =
+  hasCustomEnd && lastListingPoint && tour.end_lat != null && tour.end_lng != null
+    ? googleMapsDirectionsUrl({
+        origin: { lat: lastListingPoint.lat, lng: lastListingPoint.lng },
+        destination: { lat: tour.end_lat, lng: tour.end_lng },
+        travelMode: 'DRIVE',
+      })
+    : null;
+---
+<AppLayout
+  title={`Drive · ${tourTitle}`}
+  crumbs={[
+    { href: '/app', label: 'Home' },
+    { href: base, label: locale.name },
+    { href: toursBase, label: 'Tours' },
+    { href: `${toursBase}?day=${tour.tour_date}`, label: tourTitle },
+    { label: 'Drive' },
+  ]}
+  locale={{ id: locale.id, name: locale.name }}
+  localeSection="tours"
+  nestId={locale.nest_id}
+  entitlementUi={entitlementUi}
+>
+  <div class="tours-drive" data-tours-drive>
+    <header class="tours-drive__head">
+      <div class="tours-drive__head-text">
+        <h1 class="tours-drive__title">{tourTitle}</h1>
+        <span
+          class="locale-hero__stop-count"
+          aria-label={listingCount === 1 ? '1 stop' : `${listingCount} stops`}
+        >
+          {listingCount}
+        </span>
+        {
+          dayDriveLabel ? (
+            <p class="muted tours-drive__total">{dayDriveLabel}</p>
+          ) : null
+        }
+      </div>
+      <div class="tours-drive__head-actions">
+        {
+          openInMapsHref ? (
+            <a
+              class="button"
+              href={openInMapsHref}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in Maps
+            </a>
+          ) : openInMapsError ? (
+            <p class="muted tours-drive__maps-error" role="status">
+              {openInMapsError}
+            </p>
+          ) : null
+        }
+        <a class="button secondary" href={`${toursBase}?day=${tour.tour_date}`}>
+          Back to Tours
+        </a>
+      </div>
+    </header>
+
+    {
+      listingCount === 0 && !hasCustomStart && !hasCustomEnd ? (
+        <p class="muted">No stops on this day.</p>
+      ) : (
+        <ol class="tours-drive__list">
+          {
+            hasCustomStart ? (
+              <li class="tours-drive__stop tours-drive__stop--endpoint">
+                <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
+                  {tourStartGlyph()}
+                </span>
+                <div class="tours-drive__body">
+                  <p class="tours-drive__name">
+                    {tour.start_name || tour.start_address || 'Start'}
+                  </p>
+                  {
+                    tour.start_address ? (
+                      <p class="muted tours-drive__address">{tour.start_address}</p>
+                    ) : null
+                  }
+                </div>
+              </li>
+            ) : null
+          }
+          {
+            stops.map((stop, index) => {
+              const listing = stop.listings;
+              const title = listing?.name || listing?.address || stop.listing_id;
+              const appt = formatAppointmentTime(stop.appointment_time);
+              const tel = listingTelHref(listing?.phone);
+              const navigateHref = navigateFromPrevious(stop.listing_id);
+              const { glyph } = tourListingStopGlyph({
+                hasCustomStart,
+                hasCustomEnd,
+                index,
+                listingCount,
+              });
+              const legChip =
+                index > 0 || hasCustomStart
+                  ? formatTourLegChip(stop.leg_duration_sec, stop.leg_distance_m)
+                  : null;
+              const showLeg =
+                (index > 0 || hasCustomStart) && routeFresh && legChip;
+
+              return (
+                <>
+                  {showLeg ? (
+                    <li class="tours-drive__leg" aria-hidden="true">
+                      <span class="tours-drive__leg-chip">{legChip}</span>
+                    </li>
+                  ) : null}
+                  <li class="tours-drive__stop">
+                    <span class="tour-stop-badge" aria-hidden="true">
+                      {glyph}
+                    </span>
+                    <div class="tours-drive__body">
+                      <p class="tours-drive__name">{title}</p>
+                      {appt ? <p class="tours-drive__time">{appt}</p> : null}
+                      {listing?.address ? (
+                        <p class="muted tours-drive__address">{listing.address}</p>
+                      ) : null}
+                    </div>
+                    <div class="tours-drive__actions">
+                      {tel ? (
+                        <a class="button" href={tel}>
+                          Call
+                        </a>
+                      ) : null}
+                      {navigateHref ? (
+                        <a
+                          class="button secondary"
+                          href={navigateHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Navigate
+                        </a>
+                      ) : null}
+                    </div>
+                  </li>
+                </>
+              );
+            })
+          }
+          {
+            hasCustomEnd ? (
+              <li class="tours-drive__stop tours-drive__stop--endpoint">
+                <span class="tour-stop-badge tour-stop-badge--endpoint" aria-hidden="true">
+                  {tourEndGlyph()}
+                </span>
+                <div class="tours-drive__body">
+                  <p class="tours-drive__name">
+                    {tour.end_name || tour.end_address || 'End'}
+                  </p>
+                  {tour.end_address ? (
+                    <p class="muted tours-drive__address">{tour.end_address}</p>
+                  ) : null}
+                </div>
+                {endNavigateHref ? (
+                  <div class="tours-drive__actions">
+                    <a
+                      class="button secondary"
+                      href={endNavigateHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Navigate
+                    </a>
+                  </div>
+                ) : null}
+              </li>
+            ) : null
+          }
+        </ol>
+      )
+    }
+  </div>
+</AppLayout>
