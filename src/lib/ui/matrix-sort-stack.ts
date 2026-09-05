@@ -16,7 +16,8 @@ export function applyMatrixSortClick(
 ): MatrixSortKey[] {
   const idx = stack.findIndex((k) => k.colIndex === colIndex);
   if (idx === -1) {
-    return [...stack, { colIndex, dir: 'asc' }];
+    // Newest column becomes primary; existing keys shift down as tiebreakers.
+    return [{ colIndex, dir: 'asc' }, ...stack];
   }
   const current = stack[idx]!;
   if (current.dir === 'asc') {

@@ -34,7 +34,7 @@ Matrix tables (Compare, Travel Times) support only **one** active sort column. C
 |-------|--------|
 | Interaction | Every click participates (no Shift+click) |
 | Cycle | Inactive → **ascending** (append). Active: **asc → desc → off** |
-| Priority on add | Newest column is **last** (weakest tiebreaker). First activated stays `#1` |
+| Priority on add | Newest column is **primary** (`#1`). Prior keys shift down as tiebreakers |
 | Re-click priority | Direction / off only; does **not** change order in the stack |
 | Off | Remove from stack; remaining keys keep relative order and renumber |
 | Scope | All `table.matrix-table[data-sortable]` (Compare + Travel Times) |
@@ -55,8 +55,8 @@ Index `0` is primary. Comparator walks the list until a non-zero result.
 
 ### Header clicks
 
-1. Column **not** in stack → push `{ colIndex, dir: 'asc' }`, apply sort.
-2. Column **in** stack with `asc` → set `desc`.
+1. Column **not** in stack → insert `{ colIndex, dir: 'asc' }` at the **front** (new primary), apply sort.
+2. Column **in** stack with `asc` → set `desc` (priority unchanged).
 3. Column **in** stack with `desc` → remove from stack; renumber remaining.
 4. If stack becomes empty → leave row order as last sorted order (do not restore SSR default mid-session).
 

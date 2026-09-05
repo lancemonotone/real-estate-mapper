@@ -7,11 +7,11 @@ import {
 } from '../src/lib/ui/matrix-sort-stack';
 
 describe('applyMatrixSortClick', () => {
-  it('appends a new column as ascending (newest last)', () => {
+  it('prepends a new column as ascending (newest is primary)', () => {
     const stack: MatrixSortKey[] = [{ colIndex: 1, dir: 'asc' }];
     expect(applyMatrixSortClick(stack, 3)).toEqual([
-      { colIndex: 1, dir: 'asc' },
       { colIndex: 3, dir: 'asc' },
+      { colIndex: 1, dir: 'asc' },
     ]);
   });
 
