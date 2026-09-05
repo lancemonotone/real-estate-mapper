@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
+import ListingsCount from '../../../../components/ListingsCount.astro';
 import ListingReactions from '../../../../components/ListingReactions.astro';
 import ListingForm from '../../../../components/ListingForm.astro';
 import PlanNotice from '../../../../components/PlanNotice.astro';
@@ -73,6 +74,7 @@ const rows = filterVisibleListings(listings ?? [], snapshot).map((listing) => {
       : null;
   return { listing, distanceM };
 });
+const favoritedCount = rows.filter(({ listing }) => listing.is_favorite).length;
 
 const mapListings = rows
   .filter(({ listing }) => listing.lat != null && listing.lng != null)
@@ -118,9 +120,7 @@ const mapListings = rows
                 >
                   <IconGlyph name="pencilLine" />
                 </a>
-                <p class="muted locale-hero__count">
-                  {rows.length === 1 ? '1 listing' : `${rows.length} listings`}
-                </p>
+                <ListingsCount total={rows.length} favorited={favoritedCount} />
               </div>
             </div>
             <div class="matrix-panel__actions compare-header__actions">

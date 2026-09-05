@@ -1,0 +1,17 @@
+---
+interface Props {
+  total: number;
+  favorited: number;
+}
+
+const { total, favorited } = Astro.props;
+const label = total === 1 ? '1 listing' : `${total} listings`;
+---
+<p
+  class="muted locale-hero__count"
+  data-listings-count
+  data-count-all={String(total)}
+  data-count-favorites={String(favorited)}
+>
+  {label}
+</p>

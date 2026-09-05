@@ -2,6 +2,7 @@
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
 import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
+import ListingsCount from '../../../../components/ListingsCount.astro';
 import ListingReactions from '../../../../components/ListingReactions.astro';
 import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
 import PlanNotice from '../../../../components/PlanNotice.astro';
@@ -71,6 +72,7 @@ for (const row of results ?? []) {
 }
 
 const listingRows = visibleListings;
+const favoritedCount = listingRows.filter((l) => l.is_favorite).length;
 const criterionRows = criteria ?? [];
 ---
 <AppLayout
@@ -89,7 +91,10 @@ const criterionRows = criteria ?? [];
     <div class="matrix-panel__header">
       <div class="compare-header__top">
         <div class="matrix-panel__titles compare-header__titles">
-          <h1 class="compare-header__title">Travel Times</h1>
+          <div class="locale-hero__heading">
+            <h1 class="compare-header__title">Travel Times</h1>
+            <ListingsCount total={listingRows.length} favorited={favoritedCount} />
+          </div>
         </div>
         <div class="matrix-panel__actions compare-header__actions">
           {

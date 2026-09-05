@@ -1,6 +1,9 @@
 const STORAGE_KEY = 'wayhome:favorites-filter';
 const LEGACY_KEYS = ['wayhome:matrix-favorite-filter', 'wayhome:tours-favorite-filter'];
 
+/** @type {Map<string, boolean>} */
+const favoriteStateById = new Map();
+
 function readMode() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -35,6 +38,49 @@ function syncFilterButton(btn, mode) {
     favoritesOnly ? 'Showing favorites only. Show all listings.' : 'Show favorites only',
   );
   btn.title = favoritesOnly ? 'Favorites only. Click for all.' : 'Show favorites only';
+}
+
+function formatListingsCount(n) {
+  return n === 1 ? '1 listing' : `${n} listings`;
+}
+
+function syncListingsCounts(root, mode) {
+  root.querySelectorAll('[data-listings-count]').forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    const all = Number(el.dataset.countAll ?? '0');
+    const favorites = Number(el.dataset.countFavorites ?? '0');
+    const n = mode === 'favorites' ? favorites : all;
+    el.textContent = formatListingsCount(Number.isFinite(n) ? Math.max(0, n) : 0);
+  });
+}
+
+function adjustFavoritedCount(root, favorited) {
+  root.querySelectorAll('[data-listings-count]').forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    let fav = Number(el.dataset.countFavorites ?? '0');
+    if (!Number.isFinite(fav)) fav = 0;
+    fav = favorited ? fav + 1 : Math.max(0, fav - 1);
+    el.dataset.countFavorites = String(fav);
+  });
+}
+
+function seedFavoriteStates(root = document) {
+  root.querySelectorAll('[data-favorite][data-listing-id]').forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    const id = el.dataset.listingId;
+    if (!id || id === 'custom-start' || id === 'custom-end') return;
+    favoriteStateById.set(id, el.dataset.favorite === '1');
+  });
+}
+
+/**
+ * @returns {boolean} true when the stored favorite state changed
+ */
+function rememberFavoriteState(listingId, favorited) {
+  const prev = favoriteStateById.get(listingId);
+  if (prev === favorited) return false;
+  favoriteStateById.set(listingId, favorited);
+  return true;
 }
 
 function applyFavoriteFilter(root = document) {
@@ -92,6 +138,8 @@ function applyFavoriteFilter(root = document) {
       el.hidden = !(mode === 'favorites' && anyRows && !anyVisible);
     });
 
+  syncListingsCounts(root, mode);
+
   document.dispatchEvent(
     new CustomEvent('wayhome:favorites-filter-changed', { detail: { mode } }),
   );
@@ -104,6 +152,8 @@ function initFavoriteFilter() {
     ),
   ].filter((el) => el instanceof HTMLButtonElement);
   if (!buttons.length) return;
+
+  seedFavoriteStates(document);
 
   const mode = readMode();
   for (const btn of buttons) {
@@ -131,6 +181,9 @@ document.addEventListener('listing-favorite-changed', (event) => {
         el.dataset.favorite = favorited ? '1' : '0';
       }
     });
+    if (rememberFavoriteState(String(listingId), favorited)) {
+      adjustFavoritedCount(document, favorited);
+    }
   }
   applyFavoriteFilter(document);
 });

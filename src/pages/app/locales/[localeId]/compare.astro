@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../layouts/AppLayout.astro';
 import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
+import ListingsCount from '../../../../components/ListingsCount.astro';
 import ListingReactions from '../../../../components/ListingReactions.astro';
 import { filterVisibleListings, loadNestEntitlementUi } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
@@ -80,6 +81,7 @@ const rows = [...rowsUnsorted].sort((a, b) =>
     { dpsf: dollarsPerSqft(sumListingMonthlyTotal(b), b.sqft) },
   ),
 );
+const favoritedCount = rows.filter((l) => l.is_favorite).length;
 
 const incompleteValueCount = rows.filter(
   (l) => dollarsPerSqft(sumListingMonthlyTotal(l), l.sqft) == null,
@@ -206,7 +208,10 @@ const columns: {
     <div class="matrix-panel__header">
       <div class="compare-header__top">
         <div class="matrix-panel__titles compare-header__titles">
-          <h1 class="compare-header__title">Compare</h1>
+          <div class="locale-hero__heading">
+            <h1 class="compare-header__title">Compare</h1>
+            <ListingsCount total={rows.length} favorited={favoritedCount} />
+          </div>
         </div>
         <div class="matrix-panel__actions compare-header__actions">
           <FavoriteFilterButton />
