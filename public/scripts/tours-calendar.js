@@ -82,6 +82,16 @@ function applyTourDayRoute(payload) {
 
   const cfg = seed();
   if (cfg) cfg.needsAutoroute = false;
+
+  const driveEl = document.querySelector('[data-tours-day-drive]');
+  if (driveEl instanceof HTMLElement) {
+    const label =
+      typeof payload.driveLabel === 'string' && payload.driveLabel.trim()
+        ? payload.driveLabel.trim()
+        : '';
+    driveEl.textContent = label;
+    driveEl.hidden = !label;
+  }
 }
 
 function seed() {
