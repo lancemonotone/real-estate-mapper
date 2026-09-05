@@ -241,6 +241,10 @@ function paintSelection(root) {
   if (removeBtn instanceof HTMLButtonElement) {
     removeBtn.disabled = selectedListingIds.length === 0;
   }
+  const clearTimesBtn = root.querySelector('[data-tours-clear-times]');
+  if (clearTimesBtn instanceof HTMLButtonElement) {
+    clearTimesBtn.disabled = selectedListingIds.length === 0;
+  }
 }
 
 function toastClearUntimed(result) {
@@ -755,6 +759,52 @@ function bindDaySelectionToolbar(root, signal) {
     },
     { signal },
   );
+
+  root.querySelector('[data-tours-clear-times]')?.addEventListener(
+    'click',
+    async () => {
+      const cfg = seed();
+      const tourDayId = root
+        .querySelector('[data-tours-stops]')
+        ?.getAttribute('data-tour-day-id');
+      if (!cfg || !tourDayId || selectedListingIds.length === 0) return;
+      const ids = selectedListingIds.filter((id) => {
+        const el = root.querySelector(
+          `[data-drag-kind="listing"][data-listing-id="${id}"]`,
+        );
+        return el instanceof HTMLElement && el.dataset.hasAppointment === '1';
+      });
+      if (ids.length === 0) {
+        showStatus('No appointment times in selection.', false);
+        return;
+      }
+      try {
+        const res = await fetch('/api/tours/appointment-time', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            tour_day_id: tourDayId,
+            listing_ids: ids,
+            appointment_time: null,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not clear times');
+        if (data.optimizeError) {
+          showStatus(data.optimizeError, true);
+        } else {
+          showStatus(
+            `Cleared times on ${ids.length} stop${ids.length === 1 ? '' : 's'}.`,
+            false,
+          );
+        }
+        reloadForDay(cfg.selectedDate);
+      } catch (e) {
+        showStatus(e instanceof Error ? e.message : 'Could not clear times', true);
+      }
+    },
+    { signal },
+  );
 }
 
 async function boot() {
@@ -935,6 +985,10 @@ async function boot() {
         if (stopItem instanceof HTMLElement) {
           stopItem.dataset.hasAppointment = appointment_time ? '1' : '0';
         }
+        const clearBtn = stopItem?.querySelector('[data-tours-clear-time]');
+        if (clearBtn instanceof HTMLButtonElement) {
+          clearBtn.hidden = !appointment_time;
+        }
         try {
           const res = await fetch('/api/tours/appointment-time', {
             method: 'POST',
@@ -953,6 +1007,50 @@ async function boot() {
           reloadForDay(cfg.selectedDate);
         } catch (e) {
           showStatus(e instanceof Error ? e.message : 'Could not save time', true);
+        }
+      },
+      { signal },
+    );
+  });
+
+  root.querySelectorAll('[data-tours-clear-time]').forEach((btn) => {
+    if (!(btn instanceof HTMLButtonElement)) return;
+    btn.addEventListener('mousedown', (e) => e.stopPropagation(), { signal });
+    btn.addEventListener('pointerdown', (e) => e.stopPropagation(), { signal });
+    btn.addEventListener(
+      'click',
+      async (e) => {
+        e.stopPropagation();
+        const listingId = btn.getAttribute('data-listing-id');
+        const tourDayId = root
+          .querySelector('[data-tours-stops]')
+          ?.getAttribute('data-tour-day-id');
+        if (!listingId || !tourDayId) return;
+        const stopItem = btn.closest('.tours-stops__item');
+        const input = stopItem?.querySelector('[data-appointment-time]');
+        if (input instanceof HTMLInputElement) input.value = '';
+        if (stopItem instanceof HTMLElement) {
+          stopItem.dataset.hasAppointment = '0';
+        }
+        btn.hidden = true;
+        try {
+          const res = await fetch('/api/tours/appointment-time', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              tour_day_id: tourDayId,
+              listing_id: listingId,
+              appointment_time: null,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Could not clear time');
+          if (data.optimizeError) {
+            showStatus(data.optimizeError, true);
+          }
+          reloadForDay(cfg.selectedDate);
+        } catch (err) {
+          showStatus(err instanceof Error ? err.message : 'Could not clear time', true);
         }
       },
       { signal },
