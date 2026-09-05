@@ -1,3 +1,4 @@
+import { tourDayDriveLabel } from './tour-day-drive-total';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 import { tourListingStopGlyph } from './stop-glyph';
@@ -6,6 +7,7 @@ type Client = SupabaseClient<Database>;
 
 export type TourDayMapPayload = {
   encodedPolyline: string;
+  driveLabel: string | null;
   mapStops: {
     id: string;
     name: string;
@@ -97,6 +99,11 @@ export async function loadTourDayMapPayload(
 
   return {
     encodedPolyline: tour.encoded_polyline ?? '',
+    driveLabel: tourDayDriveLabel({
+      needsAutoroute: false,
+      routeFresh: Boolean(tour.encoded_polyline),
+      legDurationSecs: stopRows.map((stop) => stop.leg_duration_sec),
+    }),
     mapStops,
     orderedListingIds: stopRows.map((stop) => stop.listing_id),
     customStart: hasCustomStart
