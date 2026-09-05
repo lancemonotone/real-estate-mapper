@@ -83,6 +83,39 @@ function rememberFavoriteState(listingId, favorited) {
   return true;
 }
 
+function syncToursUnscheduledRail(root, mode) {
+  const rail = root.querySelector('[data-tours-rail]');
+  if (!(rail instanceof HTMLElement)) return;
+
+  const list = rail.querySelector('[data-tours-unscheduled]');
+  const items =
+    list instanceof HTMLElement
+      ? [...list.querySelectorAll(':scope > .tours-stops__item')].filter(
+          (el) => el instanceof HTMLElement,
+        )
+      : [];
+  const visibleCount = items.filter((el) => !el.hidden).length;
+  const shouldCollapse = visibleCount === 0;
+
+  rail.classList.toggle('is-collapsed', shouldCollapse);
+
+  const toggle = rail.querySelector('[data-tours-rail-toggle]');
+  if (toggle instanceof HTMLElement) {
+    toggle.setAttribute('aria-expanded', shouldCollapse ? 'false' : 'true');
+    toggle.setAttribute(
+      'aria-label',
+      shouldCollapse ? 'Expand unscheduled' : 'Collapse unscheduled',
+    );
+    toggle.setAttribute('title', shouldCollapse ? 'Expand' : 'Collapse');
+  }
+
+  const title = rail.querySelector('.tours-workspace__rail-title');
+  if (title instanceof HTMLElement) {
+    const n = mode === 'favorites' ? visibleCount : items.length;
+    title.textContent = `Unscheduled (${n})`;
+  }
+}
+
 function applyFavoriteFilter(root = document) {
   const btn =
     root.querySelector('[data-favorites-filter]') ||
@@ -128,6 +161,8 @@ function applyFavoriteFilter(root = document) {
     );
     list.hidden = !anyItemVisible;
   });
+
+  syncToursUnscheduledRail(root, mode);
 
   root
     .querySelectorAll(
