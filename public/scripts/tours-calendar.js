@@ -1199,7 +1199,7 @@ async function boot() {
         }
         const clearBtn = stopItem?.querySelector('[data-tours-clear-time]');
         if (clearBtn instanceof HTMLButtonElement) {
-          clearBtn.hidden = !appointment_time;
+          clearBtn.dataset.hasTime = appointment_time ? '1' : '0';
         }
         try {
           const res = await fetch('/api/tours/appointment-time', {
@@ -1244,7 +1244,7 @@ async function boot() {
         if (stopItem instanceof HTMLElement) {
           stopItem.dataset.hasAppointment = '0';
         }
-        btn.hidden = true;
+        btn.dataset.hasTime = '0';
         try {
           const res = await fetch('/api/tours/appointment-time', {
             method: 'POST',

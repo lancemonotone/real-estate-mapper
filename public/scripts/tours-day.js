@@ -135,7 +135,7 @@ function initTourDay() {
       const stopItem = input.closest('.tours-stops__item');
       const clearBtn = stopItem?.querySelector('[data-tours-clear-time]');
       if (clearBtn instanceof HTMLButtonElement) {
-        clearBtn.hidden = !appointment_time;
+        clearBtn.dataset.hasTime = appointment_time ? '1' : '0';
       }
       try {
         const res = await fetch('/api/tours/appointment-time', {
@@ -168,7 +168,7 @@ function initTourDay() {
       const stopItem = btn.closest('.tours-stops__item');
       const input = stopItem?.querySelector('[data-appointment-time]');
       if (input instanceof HTMLInputElement) input.value = '';
-      btn.hidden = true;
+      btn.dataset.hasTime = '0';
       try {
         const res = await fetch('/api/tours/appointment-time', {
           method: 'POST',

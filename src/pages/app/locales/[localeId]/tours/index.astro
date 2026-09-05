@@ -473,33 +473,51 @@ const seed = {
                 }
                 <div class="tours-workspace__day-actions">
                   <a
-                    class="button"
+                    class="button icon-btn"
                     href={`${toursBase}/${selectedTour.id}/drive`}
+                    title="Drive"
+                    aria-label="Drive"
                   >
-                    Drive
+                    <IconGlyph name="route" />
                   </a>
                   <div class="tours-workspace__selection-toolbar">
-                    <button type="button" class="secondary" data-tours-select-all>
-                      Select all
-                    </button>
-                    <button type="button" class="secondary" data-tours-clear-selection>
-                      Clear
+                    <button
+                      type="button"
+                      class="secondary icon-btn"
+                      data-tours-select-all
+                      title="Select all"
+                      aria-label="Select all"
+                    >
+                      <IconGlyph name="listChecks" />
                     </button>
                     <button
                       type="button"
-                      class="secondary"
+                      class="secondary icon-btn"
+                      data-tours-clear-selection
+                      title="Clear selection"
+                      aria-label="Clear selection"
+                    >
+                      <IconGlyph name="listX" />
+                    </button>
+                    <button
+                      type="button"
+                      class="secondary icon-btn"
                       data-tours-remove-selected
+                      title="Remove selected"
+                      aria-label="Remove selected"
                       disabled
                     >
-                      Remove selected
+                      <IconGlyph name="trash2" />
                     </button>
                     <button
                       type="button"
-                      class="secondary"
+                      class="secondary icon-btn"
                       data-tours-clear-times
+                      title="Clear times"
+                      aria-label="Clear times"
                       disabled
                     >
-                      Clear times
+                      <IconGlyph name="clockOff" />
                     </button>
                   </div>
                   <button
@@ -630,12 +648,14 @@ const seed = {
                         </label>
                         <button
                           type="button"
-                          class="secondary"
+                          class="secondary icon-btn"
                           data-tours-clear-time
                           data-listing-id={stop.listing_id}
-                          hidden={!stop.appointment_time}
+                          data-has-time={stop.appointment_time ? '1' : '0'}
+                          title="Clear time"
+                          aria-label="Clear time"
                         >
-                          Clear time
+                          <IconGlyph name="clockOff" />
                         </button>
                         <ListingReactions
                           listingId={stop.listing_id}
