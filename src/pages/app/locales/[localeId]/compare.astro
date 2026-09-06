@@ -3,6 +3,7 @@ import AppLayout from '../../../../layouts/AppLayout.astro';
 import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
 import ListingsCount from '../../../../components/ListingsCount.astro';
 import ListingReactions from '../../../../components/ListingReactions.astro';
+import MatrixListingText from '../../../../components/MatrixListingText.astro';
 import { filterVisibleListings, loadNestEntitlementUi } from '../../../../lib/nest/entitlements';
 import { getVisibleLocaleContext } from '../../../../lib/supabase/nest';
 import { LISTING_FIELD_LABELS } from '../../../../lib/listings/field-labels';
@@ -45,7 +46,7 @@ const base = `/app/locales/${locale.id}`;
 const { data: listings } = await supabase
   .from('listings')
   .select(
-    'id, name, address, phone, photo_url, photo_urls, price_monthly, deposit, fees_monthly, application_fees, move_in_fees, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite, is_passed',
+    'id, name, address, phone, source_url, photo_url, photo_urls, price_monthly, deposit, fees_monthly, application_fees, move_in_fees, sqft, beds, baths, pet_rent_monthly, pet_deposit, amenities, is_favorite, is_passed',
   )
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
@@ -56,6 +57,7 @@ const rowsUnsorted = filterVisibleListings(listings ?? [], snapshot) as Pick<
   | 'name'
   | 'address'
   | 'phone'
+  | 'source_url'
   | 'photo_url'
   | 'photo_urls'
   | 'price_monthly'
@@ -301,15 +303,13 @@ const columns: {
                           No photo
                         </span>
                       )}
-                      <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
-                        <span class="matrix-listing__name">{title}</span>
-                        {listing.address && listing.name ? (
-                          <span class="muted matrix-listing__address">{listing.address}</span>
-                        ) : null}
-                        {listing.phone ? (
-                          <span class="muted matrix-listing__phone">{listing.phone}</span>
-                        ) : null}
-                      </a>
+                      <MatrixListingText
+                        href={`${base}/listings/${listing.id}`}
+                        title={title}
+                        address={listing.address && listing.name ? listing.address : null}
+                        phone={listing.phone}
+                        sourceUrl={listing.source_url}
+                      />
                       <ListingReactions
                         listingId={listing.id}
                         favorited={Boolean(listing.is_favorite)}
