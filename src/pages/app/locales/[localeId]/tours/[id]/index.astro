@@ -1,6 +1,7 @@
 ---
 import AppLayout from '../../../../../../layouts/AppLayout.astro';
 import ListingReactions from '../../../../../../components/ListingReactions.astro';
+import MatrixListingText from '../../../../../../components/MatrixListingText.astro';
 import {
   filterListingStops,
   isTourDayVisible,
@@ -238,20 +239,21 @@ const dayPinStyle = dayPinColor
                       No photo
                     </span>
                   )}
-                  <a class="matrix-listing__text" href={href}>
-                    <span class="matrix-listing__name">{title}</span>
-                    {listing?.address && listing?.name ? (
-                      <span class="muted matrix-listing__address">{listing.address}</span>
-                    ) : null}
-                    {listing?.phone ? (
-                      <span class="muted matrix-listing__phone">{listing.phone}</span>
-                    ) : null}
-                    {stop.leg_duration_sec != null ? (
-                      <span class="muted matrix-listing__address">
-                        Next leg ~{Math.round(stop.leg_duration_sec / 60)} min
-                      </span>
-                    ) : null}
-                  </a>
+                  <MatrixListingText
+                    href={href}
+                    title={title}
+                    address={listing?.address && listing?.name ? listing.address : null}
+                    phone={listing?.phone}
+                    sourceUrl={listing?.source_url}
+                  >
+                    {
+                      stop.leg_duration_sec != null ? (
+                        <span class="muted matrix-listing__address">
+                          Next leg ~{Math.round(stop.leg_duration_sec / 60)} min
+                        </span>
+                      ) : null
+                    }
+                  </MatrixListingText>
                 </div>
               ) : (
                 <div class="tours-stops__main">

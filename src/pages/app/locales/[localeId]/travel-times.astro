@@ -4,6 +4,7 @@ import DirectionsOverlay from '../../../../components/DirectionsOverlay.astro';
 import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.astro';
 import ListingsCount from '../../../../components/ListingsCount.astro';
 import ListingReactions from '../../../../components/ListingReactions.astro';
+import MatrixListingText from '../../../../components/MatrixListingText.astro';
 import PlaceTypePicker from '../../../../components/PlaceTypePicker.astro';
 import PlanNotice from '../../../../components/PlanNotice.astro';
 import { placeTypeLabel } from '../../../../lib/proximity/place-types';
@@ -44,7 +45,7 @@ const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, phone, lat, lng, photo_url, photo_urls, is_favorite, is_passed')
+  .select('id, name, address, phone, source_url, lat, lng, photo_url, photo_urls, is_favorite, is_passed')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -294,15 +295,13 @@ const criterionRows = criteria ?? [];
                             No photo
                           </span>
                         )}
-                        <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
-                          <span class="matrix-listing__name">{title}</span>
-                          {listing.address && listing.name ? (
-                            <span class="muted matrix-listing__address">{listing.address}</span>
-                          ) : null}
-                          {listing.phone ? (
-                            <span class="muted matrix-listing__phone">{listing.phone}</span>
-                          ) : null}
-                        </a>
+                        <MatrixListingText
+                          href={`${base}/listings/${listing.id}`}
+                          title={title}
+                          address={listing.address && listing.name ? listing.address : null}
+                          phone={listing.phone}
+                          sourceUrl={listing.source_url}
+                        />
                         <ListingReactions
                           listingId={listing.id}
                           favorited={Boolean(listing.is_favorite)}

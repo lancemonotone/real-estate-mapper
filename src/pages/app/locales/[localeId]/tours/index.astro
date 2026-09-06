@@ -3,6 +3,7 @@ import AppLayout from '../../../../../layouts/AppLayout.astro';
 import FavoriteFilterButton from '../../../../../components/FavoriteFilterButton.astro';
 import ListingsCount from '../../../../../components/ListingsCount.astro';
 import ListingReactions from '../../../../../components/ListingReactions.astro';
+import MatrixListingText from '../../../../../components/MatrixListingText.astro';
 import PlanNotice from '../../../../../components/PlanNotice.astro';
 import TourWeekCalendar from '../../../../../components/TourWeekCalendar.astro';
 import '../../../../../styles/locale-map.css';
@@ -132,7 +133,7 @@ const assignedIds = tourCal.assignedListingIds;
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, name, address, phone, lat, lng, photo_path, photo_url, photo_urls, is_favorite, is_passed')
+  .select('id, name, address, phone, source_url, lat, lng, photo_path, photo_url, photo_urls, is_favorite, is_passed')
   .eq('locale_id', locale.id)
   .order('created_at', { ascending: false });
 
@@ -403,15 +404,13 @@ const seed = {
                         No photo
                       </span>
                     )}
-                    <a class="matrix-listing__text" href={href}>
-                      <span class="matrix-listing__name">{title}</span>
-                      {listing.address && listing.name ? (
-                        <span class="muted matrix-listing__address">{listing.address}</span>
-                      ) : null}
-                      {listing.phone ? (
-                        <span class="muted matrix-listing__phone">{listing.phone}</span>
-                      ) : null}
-                    </a>
+                    <MatrixListingText
+                      href={href}
+                      title={title}
+                      address={listing.address && listing.name ? listing.address : null}
+                      phone={listing.phone}
+                      sourceUrl={listing.source_url}
+                    />
                   </div>
                   <div class="tours-stops__actions">
                     <ListingReactions
@@ -647,15 +646,13 @@ const seed = {
                               No photo
                             </span>
                           )}
-                          <a class="matrix-listing__text" href={href}>
-                            <span class="matrix-listing__name">{title}</span>
-                            {listing?.address && listing?.name ? (
-                              <span class="muted matrix-listing__address">{listing.address}</span>
-                            ) : null}
-                            {listing?.phone ? (
-                              <span class="muted matrix-listing__phone">{listing.phone}</span>
-                            ) : null}
-                          </a>
+                          <MatrixListingText
+                            href={href}
+                            title={title}
+                            address={listing?.address && listing?.name ? listing.address : null}
+                            phone={listing?.phone}
+                            sourceUrl={listing?.source_url}
+                          />
                         </div>
                       ) : (
                         <div class="tours-stops__main">

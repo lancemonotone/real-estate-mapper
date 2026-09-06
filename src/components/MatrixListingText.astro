@@ -1,0 +1,46 @@
+---
+import IconGlyph from './IconGlyph.astro';
+
+interface Props {
+  href: string;
+  title: string;
+  address?: string | null;
+  phone?: string | null;
+  /** External listing URL (Zillow, etc.). Button omitted when missing. */
+  sourceUrl?: string | null;
+}
+
+const { href, title, address = null, phone = null, sourceUrl = null } = Astro.props;
+const externalHref = typeof sourceUrl === 'string' ? sourceUrl.trim() : '';
+---
+<div class="matrix-listing__text">
+  <span class="matrix-listing__name-row">
+    <a class="matrix-listing__name" href={href} draggable="false">{title}</a>
+    {
+      externalHref ? (
+        <a
+          class="secondary icon-btn matrix-listing__open-tab"
+          href={externalHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open listing source"
+          aria-label={`Open listing source for ${title}`}
+          draggable="false"
+        >
+          <IconGlyph name="externalLink" />
+        </a>
+      ) : null
+    }
+  </span>
+  {
+    address ? (
+      <a class="muted matrix-listing__address" href={href} draggable="false">{address}</a>
+    ) : null
+  }
+  {
+    phone ? (
+      <a class="muted matrix-listing__phone" href={href} draggable="false">{phone}</a>
+    ) : null
+  }
+  <slot />
+</div>

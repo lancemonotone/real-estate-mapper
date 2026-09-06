@@ -4,6 +4,7 @@ import FavoriteFilterButton from '../../../../components/FavoriteFilterButton.as
 import ListingsCount from '../../../../components/ListingsCount.astro';
 import ListingReactions from '../../../../components/ListingReactions.astro';
 import ListingForm from '../../../../components/ListingForm.astro';
+import MatrixListingText from '../../../../components/MatrixListingText.astro';
 import PlanNotice from '../../../../components/PlanNotice.astro';
 import '../../../../styles/locale-map.css';
 import {
@@ -261,15 +262,13 @@ const mapListings = rows
                               No photo
                             </span>
                           )}
-                          <a class="matrix-listing__text" href={`${base}/listings/${listing.id}`}>
-                            <span class="matrix-listing__name">{title}</span>
-                            {listing.address && listing.name ? (
-                              <span class="muted matrix-listing__address">{listing.address}</span>
-                            ) : null}
-                            {listing.phone ? (
-                              <span class="muted matrix-listing__phone">{listing.phone}</span>
-                            ) : null}
-                          </a>
+                          <MatrixListingText
+                            href={`${base}/listings/${listing.id}`}
+                            title={title}
+                            address={listing.address && listing.name ? listing.address : null}
+                            phone={listing.phone}
+                            sourceUrl={listing.source_url}
+                          />
                           <ListingReactions
                             listingId={listing.id}
                             favorited={Boolean(listing.is_favorite)}

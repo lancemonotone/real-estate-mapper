@@ -518,6 +518,7 @@ a.secondary.icon-btn {
   --control-pad-inline: 0.35rem;
   --control-descender: 0;
 
+  align-self: baseline;
   padding-block: var(--control-pad-block);
   padding-inline: var(--control-pad-inline);
   line-height: 0;
@@ -3609,13 +3610,39 @@ body.directions-overlay-open {
   }
 }
 
+.matrix-listing__name-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2em;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+
 .matrix-listing__name {
-  display: block;
+  display: inline;
+  flex: 0 1 auto;
+  align-self: baseline;
+  min-inline-size: 0;
   font-weight: 600;
   color: var(--primary);
   line-height: 1.3;
   overflow-wrap: break-word;
   white-space: normal;
+  text-decoration: none;
+}
+
+.matrix-listing__open-tab {
+  --icon-size: 0.9em;
+  --control-pad-block: 0.1rem;
+  --control-pad-inline: 0.1rem;
+
+  flex: 0 0 auto;
+  align-self: baseline;
+  min-inline-size: 0;
+  min-block-size: 0;
+  color: var(--primary);
+  border-color: transparent;
+  background: transparent;
 }
 
 .matrix-listing__address,
@@ -3625,6 +3652,7 @@ body.directions-overlay-open {
   line-height: 1.3;
   overflow-wrap: break-word;
   white-space: normal;
+  text-decoration: none;
 }
 
 .matrix-sort {
