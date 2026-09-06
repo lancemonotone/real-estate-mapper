@@ -19,6 +19,10 @@ import {
   sameRouteSignature,
 } from '../../../../../../lib/tours/route-signature';
 import IconGlyph from '../../../../../../components/IconGlyph.astro';
+import {
+  TOUR_DAY_PIN_INK,
+  tourDayPinColor,
+} from '../../../../../../lib/tours/tour-day-pin-colors';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -105,6 +109,10 @@ const mapStops = (stops ?? [])
 const browserKey = import.meta.env.PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? '';
 const mapId = import.meta.env.PUBLIC_GOOGLE_MAPS_MAP_ID ?? '';
 const stopCount = (stops ?? []).length;
+const dayPinColor = tourDayPinColor(tour.tour_date);
+const dayPinStyle = dayPinColor
+  ? `background: ${dayPinColor}; color: ${TOUR_DAY_PIN_INK}`
+  : undefined;
 ---
 <AppLayout
   title={tourTitle}
@@ -123,6 +131,7 @@ const stopCount = (stops ?? []).length;
     <h1 class="locale-hero__name">{tourTitle}</h1>
     <span
       class="locale-hero__stop-count"
+      style={dayPinStyle}
       aria-label={stopCount === 1 ? '1 stop' : `${stopCount} stops`}
     >
       {stopCount}
@@ -208,7 +217,11 @@ const stopCount = (stops ?? []).length;
               data-listing-id={stop.listing_id}
               data-map-listing={stop.listing_id}
             >
-              <span class={badgeClass} aria-hidden="true">
+              <span
+                class={badgeClass}
+                style={role === 'stop' ? dayPinStyle : undefined}
+                aria-hidden="true"
+              >
                 {glyph}
               </span>
               {href ? (
@@ -345,6 +358,7 @@ const stopCount = (stops ?? []).length;
         data-key={browserKey}
         data-map-id={mapId}
         data-polyline={mapPolyline}
+        data-tour-date={tour.tour_date}
         data-custom-start={hasCustomStart
           ? JSON.stringify({
               lat: tour.start_lat,

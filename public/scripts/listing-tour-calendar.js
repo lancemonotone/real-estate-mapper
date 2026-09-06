@@ -2,6 +2,7 @@
  * Listing page “add to tour” week calendar — always merge, no conflict dialog.
  */
 import { bindTourWeekJumpPopover } from './tour-week-jump-popover.js';
+import { TOUR_DAY_PIN_INK, tourDayPinColor } from './tour-day-pin-colors.js';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -44,8 +45,13 @@ function renderWeekCell(key, index, cal) {
     dropBlockedReason === 'hidden' ? ', hidden on Free plan' : ''
   }`;
 
+  const dayColor = hasTour ? tourDayPinColor(key) : null;
+  const dotStyle =
+    hasTour && dayColor
+      ? ` style="background:${dayColor};color:${TOUR_DAY_PIN_INK}"`
+      : '';
   const dot = hasTour
-    ? `<span class="tour-week__dot" data-tour-day-dot>${meta.stopCount}</span>`
+    ? `<span class="tour-week__dot" data-tour-day-dot${dotStyle}>${meta.stopCount}</span>`
     : '<span class="tour-week__dot tour-week__dot--empty" aria-hidden="true"></span>';
 
   return `<button

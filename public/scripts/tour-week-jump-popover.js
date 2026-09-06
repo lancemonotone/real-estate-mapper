@@ -2,6 +2,7 @@
  * Month popover for tour week date jump — shows dots on scheduled tour dates.
  * Native <input type="date"> pickers cannot mark dates.
  */
+import { tourDayPinColor } from './tour-day-pin-colors.js';
 
 function parseDateKey(key) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || '').trim());
@@ -117,6 +118,10 @@ export function bindTourWeekJumpPopover(weekRoot, opts) {
         ? 'tour-week__jump-dot'
         : 'tour-week__jump-dot tour-week__jump-dot--empty';
       dot.setAttribute('aria-hidden', 'true');
+      if (marked.has(key)) {
+        const color = tourDayPinColor(key);
+        if (color) dot.style.background = color;
+      }
       btn.appendChild(dot);
 
       grid.appendChild(btn);

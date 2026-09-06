@@ -1,5 +1,9 @@
 ---
 import IconGlyph from './IconGlyph.astro';
+import {
+  TOUR_DAY_PIN_INK,
+  tourDayPinColor,
+} from '../lib/tours/tour-day-pin-colors';
 
 interface DayMeta {
   id: string;
@@ -150,6 +154,7 @@ function dayNum(key: string): string {
                   data-tour-day-dot
                   draggable="true"
                   title="Drag to move this tour day"
+                  style={`background: ${tourDayPinColor(key) ?? 'var(--primary)'}; color: ${TOUR_DAY_PIN_INK}`}
                 >
                   {meta!.stopCount}
                 </span>

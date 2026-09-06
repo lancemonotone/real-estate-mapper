@@ -27,6 +27,10 @@ import {
   tourListingStopGlyph,
   tourStartGlyph,
 } from '../../../../../../lib/tours/stop-glyph';
+import {
+  TOUR_DAY_PIN_INK,
+  tourDayPinColor,
+} from '../../../../../../lib/tours/tour-day-pin-colors';
 
 const { localeId, id } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -70,6 +74,10 @@ const stops = filterListingStops(stopsRaw ?? [], snapshot);
 const hasCustomStart = tour.start_lat != null && tour.start_lng != null;
 const hasCustomEnd = tour.end_lat != null && tour.end_lng != null;
 const listingCount = stops.length;
+const dayPinColor = tourDayPinColor(tour.tour_date);
+const dayPinStyle = dayPinColor
+  ? `background: ${dayPinColor}; color: ${TOUR_DAY_PIN_INK}`
+  : undefined;
 
 const routeSignatureCurrent = routeSignatureForListingIds(stops.map((s) => s.listing_id));
 const routeFresh = Boolean(
@@ -165,6 +173,7 @@ const endNavigateHref =
         <h1 class="tours-drive__title">{tourTitle}</h1>
         <span
           class="locale-hero__stop-count"
+          style={dayPinStyle}
           aria-label={listingCount === 1 ? '1 stop' : `${listingCount} stops`}
         >
           {listingCount}
@@ -229,12 +238,16 @@ const endNavigateHref =
               const appt = formatAppointmentTime(stop.appointment_time);
               const tel = listingTelHref(listing?.phone);
               const navigateHref = navigateFromPrevious(stop.listing_id);
-              const { glyph } = tourListingStopGlyph({
+              const { glyph, role } = tourListingStopGlyph({
                 hasCustomStart,
                 hasCustomEnd,
                 index,
                 listingCount,
               });
+              const badgeClass =
+                role === 'stop'
+                  ? 'tour-stop-badge tour-stop-badge--stop'
+                  : 'tour-stop-badge tour-stop-badge--endpoint';
               const legChip =
                 index > 0 || hasCustomStart
                   ? formatTourLegChip(stop.leg_duration_sec, stop.leg_distance_m)
@@ -250,7 +263,11 @@ const endNavigateHref =
                     </li>
                   ) : null}
                   <li class="tours-drive__stop">
-                    <span class="tour-stop-badge" aria-hidden="true">
+                    <span
+                      class={badgeClass}
+                      style={role === 'stop' ? dayPinStyle : undefined}
+                      aria-hidden="true"
+                    >
                       {glyph}
                     </span>
                     <div class="tours-drive__body">
