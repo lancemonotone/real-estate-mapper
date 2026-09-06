@@ -15,6 +15,34 @@
   }
 }
 
+.locale-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  align-items: center;
+  margin-block: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.locale-map-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.locale-map-legend__swatch {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--primary-contrast, #fff) 55%, transparent);
+}
+
+.locale-map-legend__label {
+  line-height: 1.2;
+}
+
 .locale-map-missing {
   margin-block: 1rem;
   color: #666;

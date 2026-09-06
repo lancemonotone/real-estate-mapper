@@ -2,6 +2,7 @@ import { createPinHoverController } from "./map-pin-hover.js";
 import { fitMapForPinTooltips } from "./map-fit.js";
 import { loadGoogleMapsJs } from "./google-maps-loader.js";
 import { nudgeMapLayout, whenMapVisible } from "./map-lazy.js";
+import { TOUR_DAY_PIN_INK, tourDayPinColor } from "./tour-day-pin-colors.js";
 
 function parseJsonAttr(raw) {
   if (!raw) return null;
@@ -26,16 +27,19 @@ function cssVar(name) {
     .trim();
 }
 
-function themePinPalette() {
+function themePinPalette(tourDate) {
   const primary = cssVar("--primary") || "#0d9488";
   const primaryContrast = cssVar("--primary-contrast") || "#ffffff";
   const accent = cssVar("--accent") || "#2563eb";
   const endpointGlyph = cssVar("--bg-0") || "#0b1220";
+  const dayColor = tourDayPinColor(tourDate);
+  const stopBg = dayColor || primary;
+  const stopGlyph = dayColor ? TOUR_DAY_PIN_INK : primaryContrast;
   return {
     stop: {
-      background: primary,
-      borderColor: primary,
-      glyphColor: primaryContrast,
+      background: stopBg,
+      borderColor: stopBg,
+      glyphColor: stopGlyph,
     },
     endpoint: {
       background: accent,
@@ -77,6 +81,7 @@ async function initTourMap() {
       })
     : [];
   const encodedPolyline = el.dataset.polyline || "";
+  const tourDate = el.dataset.tourDate || "";
   const customStart = parseJsonAttr(el.dataset.customStart);
   const customEnd = parseJsonAttr(el.dataset.customEnd);
 
@@ -119,7 +124,7 @@ async function initTourMap() {
 
   const pinHover = createPinHoverController(map, InfoWindow);
   const bounds = new google.maps.LatLngBounds();
-  const palette = themePinPalette();
+  const palette = themePinPalette(tourDate);
 
   function addMarker(stop, glyph, role, header) {
     const position = { lat: stop.lat, lng: stop.lng };

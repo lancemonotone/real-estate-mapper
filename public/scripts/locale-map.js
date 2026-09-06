@@ -2,6 +2,10 @@ import { createPinHoverController } from "./map-pin-hover.js";
 import { fitMapForPinTooltips } from "./map-fit.js";
 import { loadGoogleMapsJs } from "./google-maps-loader.js";
 import { nudgeMapLayout as nudgeMap, whenMapVisible } from "./map-lazy.js";
+import {
+  assignTourDayPinColors,
+  formatPinLegendDate,
+} from "./tour-day-pin-colors.js";
 
 function milesToMeters(miles) {
   return miles * 1609.344;
@@ -31,12 +35,52 @@ function cssVar(name) {
     .trim();
 }
 
-function applyLocalePinTheme(pin) {
-  const primary = cssVar("--primary");
-  const contrast = cssVar("--primary-contrast");
-  if (primary) pin.style.background = primary;
-  if (contrast) {
-    pin.style.boxShadow = `0 0 0 2px color-mix(in srgb, ${contrast} 70%, transparent)`;
+function applyLocalePinTheme(pin, pinColor) {
+  const fill = pinColor || cssVar("--text-muted") || "#94a3b8";
+  const ringBase = pinColor
+    ? cssVar("--primary-contrast") || "#0b1220"
+    : cssVar("--bg-0") || "#0b1220";
+  pin.style.background = fill;
+  if (ringBase) {
+    pin.style.boxShadow = `0 0 0 2px color-mix(in srgb, ${ringBase} 70%, transparent)`;
+  }
+}
+
+function ensureLegendHost(mapEl) {
+  const parent = mapEl.parentElement;
+  if (!(parent instanceof HTMLElement)) return null;
+  let host = parent.querySelector("[data-locale-map-legend]");
+  if (!(host instanceof HTMLElement)) {
+    host = document.createElement("div");
+    host.className = "locale-map-legend";
+    host.dataset.localeMapLegend = "";
+    host.hidden = true;
+    mapEl.after(host);
+  }
+  return host;
+}
+
+function renderTourDayLegend(mapEl, legend) {
+  const host = ensureLegendHost(mapEl);
+  if (!(host instanceof HTMLElement)) return;
+  host.replaceChildren();
+  if (!legend.length) {
+    host.hidden = true;
+    return;
+  }
+  host.hidden = false;
+  for (const entry of legend) {
+    const item = document.createElement("span");
+    item.className = "locale-map-legend__item";
+    const swatch = document.createElement("span");
+    swatch.className = "locale-map-legend__swatch";
+    swatch.style.background = entry.color;
+    swatch.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.className = "locale-map-legend__label";
+    label.textContent = formatPinLegendDate(entry.tourDate);
+    item.append(swatch, label);
+    host.append(item);
   }
 }
 
@@ -70,6 +114,9 @@ async function initLocaleMap() {
     if (!toursFavoritesOnlyMode()) return true;
     return Boolean(listing.favorite);
   });
+  const { colorByDate, legend } = assignTourDayPinColors(
+    listings.map((listing) => listing.tourDate),
+  );
 
   const ensureMap = async (lat, lng, radiusM) => {
     if (map) return;
@@ -109,7 +156,11 @@ async function initLocaleMap() {
       pin.className = "locale-map__listing-pin";
       pin.dataset.mapListingId = listing.id || "";
       pin.dataset.mapPinFavorite = listing.favorite ? "1" : "0";
-      applyLocalePinTheme(pin);
+      const tourDate =
+        typeof listing.tourDate === "string" ? listing.tourDate.trim() : "";
+      const pinColor = tourDate ? colorByDate[tourDate] : null;
+      if (tourDate) pin.dataset.mapPinTourDate = tourDate;
+      applyLocalePinTheme(pin, pinColor);
       pin.title = listing.name || "Listing";
       pin.setAttribute("aria-label", listing.name || "Listing");
       pin.addEventListener("click", (e) => {
@@ -126,6 +177,8 @@ async function initLocaleMap() {
       });
       pinHover.bind(marker, pin, listing);
     }
+
+    renderTourDayLegend(el, legend);
   };
 
   /** Frame the locale radius. Do not expand to out-of-radius pins (that shrinks the circle). */

@@ -12,6 +12,7 @@ import {
   nearestAllowedRadiusMiles,
 } from '../../../../lib/geo/locale-radius';
 import { haversineMeters } from '../../../../lib/geo/haversine';
+import { loadListingTourDatesByLocale } from '../../../../lib/tours/listing-tour-dates';
 import {
   filterVisibleListings,
   isListingCapReached,
@@ -76,6 +77,8 @@ const rows = filterVisibleListings(listings ?? [], snapshot).map((listing) => {
 });
 const favoritedCount = rows.filter(({ listing }) => listing.is_favorite).length;
 
+const listingTourDates = await loadListingTourDatesByLocale(supabase, locale.id);
+
 const mapListings = rows
   .filter(({ listing }) => listing.lat != null && listing.lng != null)
   .map(({ listing }) => ({
@@ -86,6 +89,7 @@ const mapListings = rows
     lng: listing.lng as number,
     photoUrl: listing.photo_url,
     favorite: Boolean(listing.is_favorite),
+    tourDate: listingTourDates.get(listing.id) ?? null,
   }));
 ---
 <AppLayout

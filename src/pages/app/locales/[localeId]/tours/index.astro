@@ -35,6 +35,10 @@ import {
   parseAutoPlanRangeCookie,
 } from '../../../../../lib/tours/auto-plan-range-cookie';
 import IconGlyph from '../../../../../components/IconGlyph.astro';
+import {
+  TOUR_DAY_PIN_INK,
+  tourDayPinColor,
+} from '../../../../../lib/tours/tour-day-pin-colors';
 
 const { localeId } = Astro.params;
 const supabase = Astro.locals.supabase!;
@@ -138,6 +142,17 @@ const favoritedCount = visibleListings.filter((l) => l.is_favorite).length;
 const unassigned = visibleListings.filter((l) => !assignedIds.has(l.id));
 const railExpanded = unassigned.length > 0;
 
+const listingTourDates = new Map<string, string>();
+for (const tour of tours) {
+  const date = tour.tour_date as string;
+  if (!date) continue;
+  for (const stop of stopsByDay.get(tour.id) ?? []) {
+    const listingId = stop.listing_id as string;
+    const prev = listingTourDates.get(listingId);
+    if (!prev || date < prev) listingTourDates.set(listingId, date);
+  }
+}
+
 let selectedTour = selectedDate ? tours.find((t) => t.tour_date === selectedDate) ?? null : null;
 const selectedHiddenTour =
   selectedDate && !selectedTour
@@ -156,6 +171,12 @@ const hasCustomStart =
   selectedTour?.start_lat != null && selectedTour?.start_lng != null;
 const hasCustomEnd = selectedTour?.end_lat != null && selectedTour?.end_lng != null;
 const listingCount = selectedStops.length;
+const selectedDayPinColor = selectedTour
+  ? tourDayPinColor(selectedTour.tour_date)
+  : null;
+const selectedDayPinStyle = selectedDayPinColor
+  ? `background: ${selectedDayPinColor}; color: ${TOUR_DAY_PIN_INK}`
+  : undefined;
 
 const mapStops = selectedStops
   .map((s, index) => ({ s, index }))
@@ -195,6 +216,7 @@ const mapListings = visibleListings
     lng: l.lng!,
     photoUrl: l.photo_url,
     favorite: Boolean(l.is_favorite),
+    tourDate: listingTourDates.get(l.id) ?? null,
   }));
 
 const routeSignatureCurrent = routeSignatureForListingIds(
@@ -452,6 +474,7 @@ const seed = {
                 </h2>
                 <span
                   class="locale-hero__stop-count"
+                  style={selectedDayPinStyle}
                   aria-label={
                     listingCount === 1 ? '1 stop' : `${listingCount} stops`
                   }
@@ -598,7 +621,11 @@ const seed = {
                       data-passed={listing?.is_passed ? '1' : '0'}
                       data-has-appointment={stop.appointment_time ? '1' : '0'}
                     >
-                      <span class={badgeClass} aria-hidden="true">
+                      <span
+                        class={badgeClass}
+                        style={role === 'stop' ? selectedDayPinStyle : undefined}
+                        aria-hidden="true"
+                      >
                         {glyph}
                       </span>
                       {href ? (
@@ -749,6 +776,7 @@ const seed = {
             data-key={browserKey}
             data-map-id={mapId}
             data-polyline={mapPolyline}
+            data-tour-date={selectedTour.tour_date}
             data-rev={[
               mapPolyline,
               ...mapStops.map((s) => s.id),
