@@ -235,14 +235,17 @@ const needsAutoroute = Boolean(
   selectedTour &&
     selectedStops.length > 0 &&
     !routeFresh &&
-    (selectedStops.length >= 2 || hasCustomEnd),
+    (selectedStops.length >= 2 || hasCustomStart || hasCustomEnd),
 );
 
 const dayDriveLabel = selectedTour
   ? tourDayDriveLabel({
       needsAutoroute,
       routeFresh,
-      legDurationSecs: selectedStops.map((s) => s.leg_duration_sec),
+      legDurationSecs: [
+        ...selectedStops.map((s) => s.leg_duration_sec),
+        selectedTour.end_leg_duration_sec,
+      ],
     })
   : null;
 

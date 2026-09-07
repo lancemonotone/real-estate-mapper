@@ -45,8 +45,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     typeof body.customEndAddress === 'string' ? body.customEndAddress.trim() : '';
 
   if (tourDayId) {
+    const preserveOrder = body.preserveOrder === true;
     const opt = await optimizeTourDay(supabase, tourDayId, {
       startListingId,
+      ...(preserveOrder ? { preserveOrder: true } : {}),
     });
     if (!opt.ok) {
       return Response.json({ error: opt.error }, { status: opt.status });

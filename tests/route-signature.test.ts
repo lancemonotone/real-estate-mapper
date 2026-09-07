@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ROUTE_CACHE_VERSION,
   routeSignatureForListingIds,
   sameRouteSignature,
 } from '../src/lib/tours/route-signature';
@@ -12,9 +13,29 @@ describe('routeSignatureForListingIds', () => {
     );
   });
 
-  it('sameRouteSignature ignores order and whitespace', () => {
-    expect(sameRouteSignature('a,b', 'b, a')).toBe(true);
-    expect(sameRouteSignature('a,b', 'a,c')).toBe(false);
+  it('prefixes the cache version', () => {
+    expect(routeSignatureForListingIds(['a', 'b']).startsWith(`${ROUTE_CACHE_VERSION}|`)).toBe(
+      true,
+    );
+  });
+
+  it('sameRouteSignature matches versioned forms and ignores listing order', () => {
+    expect(
+      sameRouteSignature(
+        routeSignatureForListingIds(['a', 'b']),
+        routeSignatureForListingIds(['b', 'a']),
+      ),
+    ).toBe(true);
+    expect(
+      sameRouteSignature(
+        routeSignatureForListingIds(['a', 'b']),
+        routeSignatureForListingIds(['a', 'c']),
+      ),
+    ).toBe(false);
+  });
+
+  it('treats legacy unversioned signatures as stale', () => {
+    expect(sameRouteSignature('a,b', routeSignatureForListingIds(['a', 'b']))).toBe(false);
   });
 });
 

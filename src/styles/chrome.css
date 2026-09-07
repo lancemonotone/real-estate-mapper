@@ -5328,17 +5328,23 @@ body.directions-overlay-open {
 }
 
 .tours-drive__actions {
+  --tours-drive-action-size: 2.75rem;
+
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
   align-items: center;
   margin-inline-start: auto;
 
-  & .button {
-    --control-pad-block: 0.55rem;
-    --control-pad-inline: 0.9rem;
+  & .icon-btn {
+    --icon-size: 1.25rem;
+    --control-pad-block: 0.45rem;
+    --control-pad-inline: 0.45rem;
 
-    font-size: 1rem;
-    min-block-size: 2.75rem;
+    box-sizing: border-box;
+    inline-size: var(--tours-drive-action-size);
+    block-size: var(--tours-drive-action-size);
+    min-inline-size: var(--tours-drive-action-size);
+    min-block-size: var(--tours-drive-action-size);
   }
 }

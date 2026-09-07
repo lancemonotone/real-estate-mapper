@@ -266,13 +266,20 @@ async function assignListings(
           end_place_id: null,
           encoded_polyline: null,
           route_signature: null,
+          end_leg_duration_sec: null,
+          end_leg_distance_m: null,
         })
         .eq('id', target.id);
     }
   } else {
     await supabase
       .from('tour_days')
-      .update({ encoded_polyline: null, route_signature: null })
+      .update({
+          encoded_polyline: null,
+          route_signature: null,
+          end_leg_duration_sec: null,
+          end_leg_distance_m: null,
+        })
       .eq('id', target.id);
   }
 
@@ -291,6 +298,8 @@ async function assignListings(
           ...source,
           encoded_polyline: null,
           route_signature: null,
+          end_leg_duration_sec: null,
+          end_leg_distance_m: null,
         })
         .eq('id', target.id);
     }
@@ -353,7 +362,12 @@ export async function applyCalendarAction(
 
         await supabase
           .from('tour_days')
-          .update({ encoded_polyline: null, route_signature: null })
+          .update({
+          encoded_polyline: null,
+          route_signature: null,
+          end_leg_duration_sec: null,
+          end_leg_distance_m: null,
+        })
           .eq('id', action.tourDayId);
         const opt = await ensureStartThenOptimize(supabase, action.tourDayId);
         return {
@@ -422,7 +436,12 @@ export async function applyCalendarAction(
 
         await supabase
           .from('tour_days')
-          .update({ encoded_polyline: null, route_signature: null })
+          .update({
+          encoded_polyline: null,
+          route_signature: null,
+          end_leg_duration_sec: null,
+          end_leg_distance_m: null,
+        })
           .eq('id', tourDay.id);
         const opt = await ensureStartThenOptimize(supabase, tourDay.id);
         return {
@@ -496,7 +515,12 @@ export async function applyCalendarAction(
 
         await supabase
           .from('tour_days')
-          .update({ encoded_polyline: null, route_signature: null })
+          .update({
+          encoded_polyline: null,
+          route_signature: null,
+          end_leg_duration_sec: null,
+          end_leg_distance_m: null,
+        })
           .eq('id', action.tourDayId);
         // Keep the manual visit order; do not let Google waypoint optimize undo it.
         const opt = await ensureStartThenOptimize(supabase, action.tourDayId, {
