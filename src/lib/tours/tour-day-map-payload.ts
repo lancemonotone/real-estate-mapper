@@ -44,7 +44,7 @@ export async function loadTourDayMapPayload(
   const { data: tour, error: tourError } = await supabase
     .from('tour_days')
     .select(
-      'encoded_polyline, start_lat, start_lng, start_address, start_name, end_lat, end_lng, end_address, end_name',
+      'encoded_polyline, start_lat, start_lng, start_address, start_name, end_lat, end_lng, end_address, end_name, end_leg_duration_sec, end_leg_distance_m',
     )
     .eq('id', tourDayId)
     .maybeSingle();
@@ -102,7 +102,10 @@ export async function loadTourDayMapPayload(
     driveLabel: tourDayDriveLabel({
       needsAutoroute: false,
       routeFresh: Boolean(tour.encoded_polyline),
-      legDurationSecs: stopRows.map((stop) => stop.leg_duration_sec),
+      legDurationSecs: [
+        ...stopRows.map((stop) => stop.leg_duration_sec),
+        tour.end_leg_duration_sec,
+      ],
     }),
     mapStops,
     orderedListingIds: stopRows.map((stop) => stop.listing_id),

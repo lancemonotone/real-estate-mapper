@@ -60,7 +60,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   } else {
     await supabase
       .from('tour_days')
-      .update({ encoded_polyline: null, route_signature: null })
+      .update({
+        encoded_polyline: null,
+        route_signature: null,
+        end_leg_duration_sec: null,
+        end_leg_distance_m: null,
+      })
       .eq('id', tourDayId);
     await optimizeTourDay(supabase, tourDayId);
   }

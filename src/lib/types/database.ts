@@ -116,6 +116,8 @@ export type TourDay = {
   end_lng: number | null;
   end_name: string | null;
   end_place_id: string | null;
+  end_leg_duration_sec: number | null;
+  end_leg_distance_m: number | null;
   created_at: string;
 };
 

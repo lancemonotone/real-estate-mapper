@@ -1,5 +1,6 @@
 ---
 import AppLayout from '../../../../../../layouts/AppLayout.astro';
+import IconGlyph from '../../../../../../components/IconGlyph.astro';
 import {
   filterListingStops,
   isTourDayVisible,
@@ -86,12 +87,17 @@ const routeFresh = Boolean(
     sameRouteSignature(tour.route_signature, routeSignatureCurrent),
 );
 const needsAutoroute = Boolean(
-  stops.length > 0 && !routeFresh && (stops.length >= 2 || hasCustomEnd),
+  stops.length > 0 &&
+    !routeFresh &&
+    (stops.length >= 2 || hasCustomStart || hasCustomEnd),
 );
 const dayDriveLabel = tourDayDriveLabel({
   needsAutoroute,
   routeFresh,
-  legDurationSecs: stops.map((s) => s.leg_duration_sec),
+  legDurationSecs: [
+    ...stops.map((s) => s.leg_duration_sec),
+    tour.end_leg_duration_sec,
+  ],
 });
 
 type RoutePoint = MapsLatLng & { kind: 'start' | 'listing' | 'end'; listingId?: string };
@@ -167,7 +173,13 @@ const endNavigateHref =
   nestId={locale.nest_id}
   entitlementUi={entitlementUi}
 >
-  <div class="tours-drive" data-tours-drive>
+  <div
+    class="tours-drive"
+    data-tours-drive
+    data-tour-day-id={tour.id}
+    data-needs-autoroute={needsAutoroute ? '1' : '0'}
+  >
+    <p class="muted tours-drive__status" data-tours-drive-status hidden role="status"></p>
     <header class="tours-drive__head">
       <div class="tours-drive__head-text">
         <h1 class="tours-drive__title">{tourTitle}</h1>
@@ -188,12 +200,14 @@ const endNavigateHref =
         {
           openInMapsHref ? (
             <a
-              class="button"
+              class="button icon-btn"
               href={openInMapsHref}
               target="_blank"
               rel="noopener noreferrer"
+              title="Open in Maps"
+              aria-label="Open in Maps"
             >
-              Open in Maps
+              <IconGlyph name="navigation" />
             </a>
           ) : openInMapsError ? (
             <p class="muted tours-drive__maps-error" role="status">
@@ -201,8 +215,13 @@ const endNavigateHref =
             </p>
           ) : null
         }
-        <a class="button secondary" href={`${toursBase}?day=${tour.tour_date}`}>
-          Back to Tours
+        <a
+          class="secondary icon-btn"
+          href={`${toursBase}?day=${tour.tour_date}`}
+          title="Back to Tours"
+          aria-label="Back to Tours"
+        >
+          <IconGlyph name="chevronLeft" />
         </a>
       </div>
     </header>
@@ -255,6 +274,10 @@ const endNavigateHref =
               const showLeg =
                 (index > 0 || hasCustomStart) && routeFresh && legChip;
 
+              const endLegChip =
+                hasCustomEnd && routeFresh
+                  ? formatTourLegChip(tour.end_leg_duration_sec, tour.end_leg_distance_m)
+                  : null;
               return (
                 <>
                   {showLeg ? (
@@ -279,22 +302,36 @@ const endNavigateHref =
                     </div>
                     <div class="tours-drive__actions">
                       {tel ? (
-                        <a class="button" href={tel}>
-                          Call
+                        <a
+                          class="button icon-btn"
+                          href={tel}
+                          title="Call"
+                          aria-label="Call"
+                        >
+                          <IconGlyph name="phone" />
                         </a>
                       ) : null}
                       {navigateHref ? (
                         <a
-                          class="button secondary"
+                          class="secondary icon-btn"
                           href={navigateHref}
                           target="_blank"
                           rel="noopener noreferrer"
+                          title="Navigate"
+                          aria-label="Navigate"
                         >
-                          Navigate
+                          <IconGlyph name="navigation" />
                         </a>
                       ) : null}
                     </div>
                   </li>
+                  {
+                    index === listingCount - 1 && endLegChip ? (
+                      <li class="tours-drive__leg" aria-hidden="true">
+                        <span class="tours-drive__leg-chip">{endLegChip}</span>
+                      </li>
+                    ) : null
+                  }
                 </>
               );
             })
@@ -316,12 +353,14 @@ const endNavigateHref =
                 {endNavigateHref ? (
                   <div class="tours-drive__actions">
                     <a
-                      class="button secondary"
+                      class="secondary icon-btn"
                       href={endNavigateHref}
                       target="_blank"
                       rel="noopener noreferrer"
+                      title="Navigate"
+                      aria-label="Navigate"
                     >
-                      Navigate
+                      <IconGlyph name="navigation" />
                     </a>
                   </div>
                 ) : null}
@@ -333,3 +372,5 @@ const endNavigateHref =
     }
   </div>
 </AppLayout>
+
+<script src="/scripts/tours-drive.js" type="module"></script>

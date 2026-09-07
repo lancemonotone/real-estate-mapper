@@ -6,6 +6,10 @@ import {
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { routeSignatureForListingIds } from '../../../lib/tours/route-signature';
+import {
+  customEndIncomingLeg,
+  incomingLegForPathIndex,
+} from '../../../lib/tours/route-leg-assignment';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const supabase = createSupabaseServerClient(request, cookies);
@@ -37,6 +41,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (!locale) return Response.json({ error: 'Locale not found' }, { status: 404 });
 
   const hasCustomStart = Boolean(body.customStart?.lat != null && body.customStart?.lng != null);
+  const hasCustomEnd = Boolean(body.customEnd?.lat != null && body.customEnd?.lng != null);
   if (!hasCustomStart && !body.startListingId) {
     return Response.json(
       { error: 'startListingId or customStart required' },
@@ -70,6 +75,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return entitlementDenialResponse(entitlement.denial);
   }
 
+  const fullPathIds = body.fullPathIds ?? body.listingIdsInOrder;
+  const endLeg = hasCustomEnd
+    ? customEndIncomingLeg(body.legs ?? [], fullPathIds)
+    : null;
+
   const { data: tourDay, error } = await supabase
     .from('tour_days')
     .upsert(
@@ -78,6 +88,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         tour_date: body.tourDate,
         encoded_polyline: body.encodedPolyline ?? null,
         route_signature: routeSignatureForListingIds(body.listingIdsInOrder),
+        end_leg_duration_sec: endLeg?.durationSec ?? null,
+        end_leg_distance_m: endLeg?.distanceM ?? null,
         start_address: hasCustomStart ? body.customStart?.address ?? null : null,
         start_lat: hasCustomStart ? body.customStart!.lat : null,
         start_lng: hasCustomStart ? body.customStart!.lng : null,
@@ -96,10 +108,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   await supabase.from('tour_stops').delete().eq('tour_day_id', tourDay.id);
 
-  const fullPathIds = body.fullPathIds ?? body.listingIdsInOrder;
   const rows = body.listingIdsInOrder.map((listingId, i) => {
     const fullIdx = fullPathIds.indexOf(listingId);
-    const leg = fullIdx >= 0 ? body.legs?.[fullIdx] : body.legs?.[i];
+    const leg =
+      fullIdx >= 0 ? incomingLegForPathIndex(body.legs ?? [], fullIdx) : null;
     return {
       tour_day_id: tourDay.id,
       listing_id: listingId,

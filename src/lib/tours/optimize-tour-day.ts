@@ -9,6 +9,7 @@ import {
   orderStopsForAutoroute,
 } from './appointment-order';
 import { routeSignatureForListingIds } from './route-signature';
+import { incomingLegForPathIndex, customEndIncomingLeg } from './route-leg-assignment';
 
 type OptimizeOk = { ok: true };
 type OptimizeErr = { ok: false; error: string; status: number };
@@ -122,7 +123,7 @@ export async function optimizeTourDay(
     for (let fullIdx = 0; fullIdx < result.fullPathIds.length; fullIdx++) {
       const listingId = result.fullPathIds[fullIdx];
       if (!listingId) continue;
-      const leg = result.legs[fullIdx];
+      const leg = incomingLegForPathIndex(result.legs, fullIdx);
       await supabase
         .from('tour_stops')
         .update({
@@ -134,11 +135,14 @@ export async function optimizeTourDay(
         .eq('tour_day_id', tourDayId)
         .eq('listing_id', listingId);
     }
+    const endLeg = customEnd ? customEndIncomingLeg(result.legs, result.fullPathIds) : null;
     await supabase
       .from('tour_days')
       .update({
         encoded_polyline: result.encodedPolyline ?? null,
         route_signature: routeSignatureForListingIds(listingIds),
+        end_leg_duration_sec: endLeg?.durationSec ?? null,
+        end_leg_distance_m: endLeg?.distanceM ?? null,
       })
       .eq('id', tourDayId);
 
@@ -147,7 +151,12 @@ export async function optimizeTourDay(
     const message = e instanceof Error ? e.message : 'Optimize failed';
     await supabase
       .from('tour_days')
-      .update({ encoded_polyline: null, route_signature: null })
+      .update({
+        encoded_polyline: null,
+        route_signature: null,
+        end_leg_duration_sec: null,
+        end_leg_distance_m: null,
+      })
       .eq('id', tourDayId);
     return { ok: false, error: message, status: 500 };
   }

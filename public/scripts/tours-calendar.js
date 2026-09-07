@@ -1045,7 +1045,7 @@ async function boot() {
         const res = await fetch('/api/tours/optimize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ tourDayId: cfg.selectedTourId }),
+          body: JSON.stringify({ tourDayId: cfg.selectedTourId, preserveOrder: true }),
         });
         if (res.ok) {
           sessionStorage.removeItem(arKey);
