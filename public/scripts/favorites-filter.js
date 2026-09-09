@@ -95,18 +95,21 @@ function syncToursUnscheduledRail(root, mode) {
         )
       : [];
   const visibleCount = items.filter((el) => !el.hidden).length;
-  const shouldCollapse = visibleCount === 0;
+  const isEmpty = visibleCount === 0;
 
-  rail.classList.toggle('is-collapsed', shouldCollapse);
+  rail.hidden = isEmpty;
+  if (isEmpty) rail.classList.add('is-collapsed');
 
   const toggle = rail.querySelector('[data-tours-rail-toggle]');
   if (toggle instanceof HTMLElement) {
-    toggle.setAttribute('aria-expanded', shouldCollapse ? 'false' : 'true');
+    const collapsed = rail.classList.contains('is-collapsed');
+    toggle.hidden = isEmpty;
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     toggle.setAttribute(
       'aria-label',
-      shouldCollapse ? 'Expand unscheduled' : 'Collapse unscheduled',
+      collapsed ? 'Expand unscheduled' : 'Collapse unscheduled',
     );
-    toggle.setAttribute('title', shouldCollapse ? 'Expand' : 'Collapse');
+    toggle.setAttribute('title', collapsed ? 'Expand' : 'Collapse');
   }
 
   const title = rail.querySelector('.tours-workspace__rail-title');

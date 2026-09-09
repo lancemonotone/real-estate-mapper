@@ -321,6 +321,7 @@ const columns: {
                     <td
                       class:list={[col.wide ? 'matrix-table__wide' : 'matrix-table__compact']}
                       data-sort-value={col.sortValue(listing)}
+                      data-label={col.label}
                     >
                       {col.wide ? (
                         <div class="matrix-amenities-cell">{col.cell(listing)}</div>

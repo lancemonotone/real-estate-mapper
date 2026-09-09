@@ -309,6 +309,7 @@ const seed = {
     <aside
       class:list={['tours-workspace__rail', !railExpanded && 'is-collapsed']}
       data-tours-rail
+      hidden={unassigned.length === 0}
     >
       <div class="tours-workspace__rail-head">
         <h2 class="tours-workspace__rail-title">Unscheduled ({unassigned.length})</h2>
@@ -319,6 +320,7 @@ const seed = {
           aria-expanded={railExpanded ? 'true' : 'false'}
           aria-label={railExpanded ? 'Collapse unscheduled' : 'Expand unscheduled'}
           title={railExpanded ? 'Collapse' : 'Expand'}
+          hidden={unassigned.length === 0}
         >
           <IconGlyph name="chevronLeft" class="tours-workspace__rail-chevron" />
         </button>

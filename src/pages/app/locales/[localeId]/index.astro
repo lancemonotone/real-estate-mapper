@@ -276,9 +276,9 @@ const mapListings = rows
                           />
                         </div>
                       </th>
-                      <td><span class="matrix-data-cell">{distanceLabel}</span></td>
-                      <td><span class="matrix-data-cell">{formatSqft(listing.sqft)}</span></td>
-                      <td><span class="matrix-data-cell">{formatListingMonthlyTotal(listing)}</span></td>
+                      <td data-label="Distance"><span class="matrix-data-cell">{distanceLabel}</span></td>
+                      <td data-label={LISTING_FIELD_LABELS.sqft}><span class="matrix-data-cell">{formatSqft(listing.sqft)}</span></td>
+                      <td data-label={LISTING_FIELD_LABELS.totalMonthly}><span class="matrix-data-cell">{formatListingMonthlyTotal(listing)}</span></td>
                     </tr>
                   );
                 })}

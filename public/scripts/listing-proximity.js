@@ -13,7 +13,6 @@ import {
   iconBtn,
   iconMapPin,
   iconPencil,
-  iconRoute,
   iconX,
 } from './ui-icons.js';
 import { loadGoogleMapsJs } from './google-maps-loader.js';
@@ -138,20 +137,6 @@ async function ensurePickerBaseMap() {
 
 function mapsConfig() {
   return window.__WAYHOME_LISTING_PROX__ || window.__WAYHOME_MAPS__ || {};
-}
-
-function openRouteOverlay({ origin, destination, travelMode, title, durationLabel, externalUrl }) {
-  const cfg = mapsConfig();
-  window.openDirectionsOverlay?.({
-    origin,
-    destination,
-    travelMode,
-    title,
-    durationLabel,
-    externalUrl,
-    mapKey: cfg.mapKey,
-    mapId: cfg.mapId,
-  });
 }
 
 function setProxResultStatus(message, { error = false, planLimit = false } = {}) {
@@ -628,33 +613,10 @@ function fillCompareCellActions(li, result) {
     );
   }
 
-  if (canOverlay) {
-    actions.appendChild(
-      iconBtn({
-        label: 'Show the route on a map overlay',
-        icon: iconRoute,
-        onClick: () =>
-          openRouteOverlay({
-            origin,
-            destination: {
-              lat: result.place_lat,
-              lng: result.place_lng,
-              placeId: result.place_id,
-              name: result.place_name,
-            },
-            travelMode: li.dataset.travelMode || 'DRIVE',
-            title: result.place_name ? `Listing → ${result.place_name}` : 'Route',
-            durationLabel: formatMeta(result.duration_sec, result.distance_m),
-            externalUrl: href,
-          }),
-      }),
-    );
-  }
-
   if (href) {
     actions.appendChild(
       iconBtn({
-        label: 'Open turn-by-turn directions in Google Maps',
+        label: 'Open in Google Maps',
         icon: iconMapPin,
         href,
       }),
@@ -819,33 +781,10 @@ function initListingPlaceActions() {
       }),
     );
 
-    if (canOverlay) {
-      actions.appendChild(
-        iconBtn({
-          label: 'Show the route on a map overlay',
-          icon: iconRoute,
-          onClick: () =>
-            openRouteOverlay({
-              origin,
-              destination: {
-                lat,
-                lng,
-                placeId: li.dataset.placeId,
-                name: placeName,
-              },
-              travelMode,
-              title: `Listing → ${placeName}`,
-              durationLabel: formatMeta(durationSec, distanceM),
-              externalUrl: href,
-            }),
-        }),
-      );
-    }
-
     if (href) {
       actions.appendChild(
         iconBtn({
-          label: 'Open turn-by-turn directions in Google Maps',
+          label: 'Open in Google Maps',
           icon: iconMapPin,
           href,
         }),

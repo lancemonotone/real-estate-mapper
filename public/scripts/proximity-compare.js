@@ -12,7 +12,7 @@ import {
   readPlaceTypeValue,
   setPlaceTypeValue,
 } from './place-type-picker.js';
-import { iconBan, iconBtn, iconMapPin, iconPencil, iconRoute } from './ui-icons.js';
+import { iconBan, iconBtn, iconMapPin, iconPencil } from './ui-icons.js';
 import { loadGoogleMapsJs } from './google-maps-loader.js';
 
 function formatDuration(sec) {
@@ -83,32 +83,6 @@ function directionsUrl(td, result) {
     params.set('destination', `${result.place_lat},${result.place_lng}`);
   }
   return `https://www.google.com/maps/dir/?${params.toString()}`;
-}
-
-function openCellRoute(td, result, href) {
-  const originLat = Number(td.dataset.listingLat);
-  const originLng = Number(td.dataset.listingLng);
-  const maps = window.__WAYHOME_MAPS__ || {};
-  const listingName =
-    td.closest('tr')?.querySelector('.matrix-listing__name')?.textContent?.trim() ||
-    td.closest('tr')?.querySelector('th')?.textContent?.trim() ||
-    'Listing';
-  const durationLabel = formatMeta(result.duration_sec, result.distance_m);
-  window.openDirectionsOverlay?.({
-    origin: { lat: originLat, lng: originLng },
-    destination: {
-      lat: result.place_lat,
-      lng: result.place_lng,
-      placeId: result.place_id,
-      name: result.place_name,
-    },
-    travelMode: td.dataset.travelMode || 'DRIVE',
-    title: `${listingName} → ${result.place_name || 'Place'}`,
-    durationLabel,
-    externalUrl: href,
-    mapKey: maps.mapKey,
-    mapId: maps.mapId,
-  });
 }
 
 function columnLabelForTd(td) {
@@ -286,13 +260,6 @@ function renderCell(td, result) {
     if (place.childNodes.length) wrap.appendChild(place);
 
     const href = directionsUrl(td, result);
-    const originLat = Number(td.dataset.listingLat);
-    const originLng = Number(td.dataset.listingLng);
-    const canOverlay =
-      Number.isFinite(originLat) &&
-      Number.isFinite(originLng) &&
-      result.place_lat != null &&
-      result.place_lng != null;
 
     const actions = document.createElement('div');
     actions.className = 'cell-actions';
@@ -315,20 +282,10 @@ function renderCell(td, result) {
       );
     }
 
-    if (canOverlay) {
-      actions.appendChild(
-        iconBtn({
-          label: 'Show the route on a map overlay',
-          icon: iconRoute,
-          onClick: () => openCellRoute(td, result, href),
-        }),
-      );
-    }
-
     if (href) {
       actions.appendChild(
         iconBtn({
-          label: 'Open turn-by-turn directions in Google Maps',
+          label: 'Open in Google Maps',
           icon: iconMapPin,
           href,
         }),
