@@ -3144,6 +3144,10 @@ body.directions-overlay-open {
   );
   table-layout: fixed;
 
+  & tbody tr[hidden] {
+    display: none !important;
+  }
+
   & th,
   & td {
     padding: 0;
