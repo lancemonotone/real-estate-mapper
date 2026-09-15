@@ -5229,6 +5229,11 @@ button.tours-workspace__rail-toggle[hidden],
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
+
+  /* Text “i” info control shares icon-btn chrome; baseline align drops it vs SVG chevrons. */
+  & .icon-btn {
+    align-self: center;
+  }
 }
 
 .tour-week__label {
