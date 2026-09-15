@@ -3620,11 +3620,6 @@ body.directions-overlay-open {
         white-space: normal;
       }
 
-      & thead .matrix-table__listing {
-        background: transparent;
-        box-shadow: none;
-      }
-
       & tbody {
         display: table-row-group;
         gap: unset;
@@ -3637,15 +3632,23 @@ body.directions-overlay-open {
         border-radius: 0;
       }
 
+      /* Keep listing col from collapsing under fixed-layout + many compact cols. */
+      & thead .matrix-table__listing,
       & tbody .matrix-table__listing {
         position: sticky;
         inset-inline-start: 0;
         z-index: 1;
         inline-size: var(--listing-col);
         width: var(--listing-col);
-        min-inline-size: 0;
+        min-inline-size: var(--listing-col);
         max-inline-size: var(--listing-col);
         overflow: hidden;
+      }
+
+      & thead .matrix-table__listing {
+        z-index: 2;
+        background: transparent;
+        box-shadow: none;
       }
 
       & tbody .matrix-table__listing > .matrix-listing {
@@ -3672,6 +3675,10 @@ body.directions-overlay-open {
         min-block-size: 100%;
         padding-block-end: 0;
         color: inherit;
+      }
+
+      @media (min-width: 1024px) {
+        --listing-col: 28.75rem;
       }
     }
   }
