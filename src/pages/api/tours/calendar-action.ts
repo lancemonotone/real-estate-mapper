@@ -1,3 +1,4 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import {
   applyCalendarAction,
@@ -63,7 +64,10 @@ function parseAction(raw: unknown): CalendarAction | null {
   return null;
 }
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async ({request, cookies, locals}) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase = createSupabaseServerClient(request, cookies);
   const {
     data: { user },

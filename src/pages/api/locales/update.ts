@@ -1,3 +1,4 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import {
   isAllowedRadiusMiles,
@@ -11,6 +12,9 @@ import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =

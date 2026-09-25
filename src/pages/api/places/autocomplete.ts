@@ -1,9 +1,13 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import { autocompletePlaces } from '../../../lib/google/places-autocomplete';
 import { searchTextPlaces } from '../../../lib/google/places-text';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =

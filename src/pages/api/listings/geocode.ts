@@ -1,10 +1,14 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { geocodeAddress } from '../../../lib/google/geocode';
 import { ensureLocaleCoversPoint } from '../../../lib/geo/ensure-locale-covers';
 import { invalidateListingProximityResults } from '../../../lib/proximity/invalidate';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async ({request, cookies, locals}) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase = createSupabaseServerClient(request, cookies);
   const {
     data: { user },

@@ -1,9 +1,13 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import { applyListingReaction } from '../../../lib/listings/reaction';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { getLocaleForNestMember } from '../../../lib/supabase/nest';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async ({request, cookies, locals}) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase = createSupabaseServerClient(request, cookies);
   const {
     data: { user },

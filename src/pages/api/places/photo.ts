@@ -1,3 +1,4 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import {
   fetchPlacePhotoBytes,
@@ -6,6 +7,9 @@ import {
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 export const GET: APIRoute = async ({ request, cookies, locals, url }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =

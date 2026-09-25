@@ -1,3 +1,4 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import type { TravelMode } from '../../../lib/types/database';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
@@ -12,6 +13,9 @@ function isTravelMode(mode: string): mode is TravelMode {
 }
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =
@@ -99,6 +103,9 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
 };
 
 export const PATCH: APIRoute = async ({ request, cookies, locals }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =
@@ -183,6 +190,9 @@ export const PATCH: APIRoute = async ({ request, cookies, locals }) => {
 };
 
 export const DELETE: APIRoute = async ({ request, cookies, locals, url }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =

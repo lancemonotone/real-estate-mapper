@@ -1,3 +1,4 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import { resolveAppointmentListingIds } from '../../../lib/tours/appointment-listing-ids';
 import { appointmentTimeToMinutes } from '../../../lib/tours/appointment-order';
@@ -5,6 +6,9 @@ import { optimizeTourDay } from '../../../lib/tours/optimize-tour-day';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =

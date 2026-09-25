@@ -1,3 +1,4 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { extractListingFromHtml } from '../../../lib/listings/url-extract';
@@ -5,7 +6,10 @@ import { extractListingFromHtml } from '../../../lib/listings/url-extract';
 const MAX_BYTES = 1_500_000;
 const TIMEOUT_MS = 8000;
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async ({request, cookies, locals}) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase = createSupabaseServerClient(request, cookies);
   const {
     data: { user },

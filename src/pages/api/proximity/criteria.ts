@@ -1,3 +1,4 @@
+import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import {
   fillLocalePoisForTextQuery,
@@ -30,6 +31,9 @@ function isCriterionKind(kind: string): kind is ProximityCriterionKind {
 }
 
 export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =
@@ -291,6 +295,9 @@ export const POST: APIRoute = async ({ request, cookies, locals }) => {
 };
 
 export const DELETE: APIRoute = async ({ request, cookies, locals, url }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =

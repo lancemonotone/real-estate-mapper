@@ -1,3 +1,4 @@
+import { forbidDemoMutation } from '../../../../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import {
   AGENT_LIST_SELECT,
@@ -69,6 +70,9 @@ export const GET: APIRoute = async ({ params, request, cookies, locals }) => {
 };
 
 export const PUT: APIRoute = async ({ params, request, cookies, locals }) => {
+  const denied = forbidDemoMutation(locals);
+  if (denied) return denied;
+
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =
