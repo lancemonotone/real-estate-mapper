@@ -1,5 +1,7 @@
 ---
 import AuthLayout from '../layouts/AuthLayout.astro';
+import { getDemoVisitorToken } from '../lib/demo/nest';
+import { tokensMatch } from '../lib/demo/session';
 import { createSupabaseServerClient } from '../lib/supabase/server';
 import { ensureNestForUser, isInviteRedirect } from '../lib/supabase/nest';
 
@@ -9,10 +11,14 @@ const {
 } = await supabase.auth.getUser();
 
 const redirectTo = Astro.url.searchParams.get('redirect') || '/app';
+const entryToken = Astro.url.searchParams.get('v') ?? '';
 
 if (user) {
   return Astro.redirect(redirectTo);
 }
+
+const demoEntryOk =
+  Boolean(entryToken) && tokensMatch(getDemoVisitorToken(), entryToken);
 
 let errorMessage = '';
 
@@ -39,11 +45,32 @@ const signupHref = `/signup?redirect=${encodeURIComponent(redirectTo)}`;
 ---
 <AuthLayout title="Sign in">
   <h1>Sign in</h1>
-  {errorMessage && <p class="alert" role="alert">{errorMessage}</p>}
-  <form method="post" class="stack">
+  <p
+    class="alert"
+    role="alert"
+    data-login-error
+    hidden={!errorMessage}
+  >
+    {errorMessage}
+  </p>
+  <form method="post" class="stack" data-login-form>
     <label>Email <input type="email" name="email" required /></label>
     <label>Password <input type="password" name="password" required /></label>
     <button type="submit">Sign in</button>
   </form>
   <p><a href={signupHref}>Need an account? Sign up</a></p>
 </AuthLayout>
+{
+  demoEntryOk && (
+    <script is:inline>
+      document.documentElement.dataset.demoEntry = '1';
+    </script>
+  )
+}
+{
+  demoEntryOk && (
+    <script>
+      import '../client/login-demo-theater';
+    </script>
+  )
+}
