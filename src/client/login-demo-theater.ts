@@ -40,13 +40,13 @@ async function runDemoTheater() {
   await fillSlowly(email, 'demo@visitor', half);
   await fillSlowly(password, '••••••••••••', half);
 
-  const body = new URLSearchParams();
-  body.set('token', token);
-
   const res = await fetch('/api/auth/demo-start', {
     method: 'POST',
-    headers: { Accept: 'application/json' },
-    body,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token }),
     credentials: 'same-origin',
     redirect: 'manual',
   });
