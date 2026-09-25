@@ -20,6 +20,12 @@ async function saveForm(form: HTMLFormElement): Promise<void> {
   if (status) status.textContent = 'Saving…';
 
   try {
+    if (document.documentElement.dataset.demo === '1') {
+      markSaved(form);
+      if (status) status.textContent = 'Saved';
+      return;
+    }
+
     const res = await fetch(form.action, {
       method: 'POST',
       headers: { Accept: 'application/json' },

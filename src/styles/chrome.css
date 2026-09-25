@@ -459,6 +459,40 @@ html:has(.app-shell) {
   }
 }
 
+.demo-toast {
+  --demo-toast-inset: 1rem;
+
+  position: fixed;
+  inset-block-end: var(--demo-toast-inset);
+  inset-inline-end: var(--demo-toast-inset);
+  z-index: 80;
+  max-inline-size: min(20rem, calc(100vw - 2rem));
+  padding-block: 0.65rem;
+  padding-inline: 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--glass-wash-strong, #fff);
+  color: var(--text);
+  font-size: 0.9rem;
+  box-shadow: var(--shadow-soft, 0 8px 24px rgb(0 0 0 / 12%));
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.35rem);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+
+  &[data-visible='1'] {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  @media (min-width: 768px) {
+    --demo-toast-inset: 1.25rem;
+  }
+}
+
 .app-header__logout {
   display: inline;
   margin: 0;
