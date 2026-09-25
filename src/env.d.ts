@@ -8,6 +8,8 @@ declare namespace App {
     user?: User;
     supabase?: SupabaseClient<Database>;
     devHuntPassPreview?: boolean;
+    isDemo?: boolean;
+    demoNestId?: string;
     profile?: Pick<
       Database['public']['Tables']['profiles']['Row'],
       'ui_theme_id' | 'ui_show_borders'
@@ -25,6 +27,9 @@ interface ImportMetaEnv {
   readonly PUBLIC_SITE_URL: string;
   readonly PUBLIC_DEV_TOOLS?: string;
   readonly DEV_TOOLS?: string;
+  readonly DEMO_VISITOR_TOKEN?: string;
+  readonly DEMO_NEST_ID?: string;
+  readonly DEMO_SESSION_SECRET?: string;
 }
 
 interface ImportMeta {
