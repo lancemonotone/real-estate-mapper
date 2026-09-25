@@ -1,16 +1,24 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
-import { ensureNestForUser, getPrimaryNestId } from '../../lib/supabase/nest';
-import { loadNestEntitlementUi } from '../../lib/nest/entitlements/ui-context';
+import { resolveAppNestId } from '../../lib/demo/resolve-nest';
+import {
+  loadDemoNestEntitlementUi,
+  loadNestEntitlementUi,
+} from '../../lib/nest/entitlements/ui-context';
 import { PLAN_LIMITS } from '../../lib/nest/entitlements/constants';
 
 const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
+const isDemo = Astro.locals.isDemo === true;
 
-let nestId = await getPrimaryNestId(supabase, user.id);
-if (!nestId) nestId = await ensureNestForUser(supabase, user.id);
+const nestId = await resolveAppNestId(Astro.locals, supabase, user.id);
+if (!nestId) {
+  return Astro.redirect('/login');
+}
 
-const entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id);
+const entitlementUi = isDemo
+  ? await loadDemoNestEntitlementUi(supabase, nestId)
+  : await loadNestEntitlementUi(supabase, nestId, user.id);
 const freeLimits = PLAN_LIMITS.free;
 const proLimits = PLAN_LIMITS.pro;
 ---

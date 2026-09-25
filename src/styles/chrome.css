@@ -434,6 +434,31 @@ html:has(.app-shell) {
   }
 }
 
+.app-header__nav .demo-banner {
+  --control-pad-inline: 0.4rem;
+  --control-pad-block: 0.18rem;
+
+  max-inline-size: 9rem;
+  font-size: 0.72rem;
+  color: var(--text-muted, var(--muted, #64748b));
+
+  @media (min-width: 768px) {
+    --control-pad-inline: 0.5rem;
+    --control-pad-block: 0.2rem;
+    max-inline-size: none;
+  }
+}
+
+.app-header__demo-name {
+  display: none;
+  font-size: 0.85rem;
+  color: var(--text-muted, var(--muted, #64748b));
+
+  @media (min-width: 768px) {
+    display: inline;
+  }
+}
+
 .app-header__logout {
   display: inline;
   margin: 0;

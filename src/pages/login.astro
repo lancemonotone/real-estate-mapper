@@ -59,18 +59,18 @@ const signupHref = `/signup?redirect=${encodeURIComponent(redirectTo)}`;
     <button type="submit">Sign in</button>
   </form>
   <p><a href={signupHref}>Need an account? Sign up</a></p>
+  {
+    demoEntryOk && (
+      <script is:inline>
+        document.documentElement.dataset.demoEntry = '1';
+      </script>
+    )
+  }
+  {
+    demoEntryOk && (
+      <script>
+        import '../client/login-demo-theater';
+      </script>
+    )
+  }
 </AuthLayout>
-{
-  demoEntryOk && (
-    <script is:inline>
-      document.documentElement.dataset.demoEntry = '1';
-    </script>
-  )
-}
-{
-  demoEntryOk && (
-    <script>
-      import '../client/login-demo-theater';
-    </script>
-  )
-}

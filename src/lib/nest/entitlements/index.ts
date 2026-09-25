@@ -31,7 +31,11 @@ export {
   type TourDropBlockReason,
   type TourDropDecision,
 } from './tour-calendar';
-export { loadNestEntitlementUi, type NestEntitlementUi } from './ui-context';
+export {
+  loadDemoNestEntitlementUi,
+  loadNestEntitlementUi,
+  type NestEntitlementUi,
+} from './ui-context';
 export {
   buildRouteSearchPlanContext,
   isListingCapReached,

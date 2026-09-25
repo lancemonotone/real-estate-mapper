@@ -76,3 +76,43 @@ export async function loadNestEntitlementUi(
     proximityRefreshRemaining: snapshot.proximityRefreshRemaining,
   };
 }
+
+/** Entitlement chrome for synthetic Demo visitor (no nest_members row). */
+export async function loadDemoNestEntitlementUi(
+  supabase: Client,
+  nestId: string,
+  existingSnapshot?: NestEntitlementSnapshot | null,
+): Promise<NestEntitlementUi | null> {
+  const snapshot =
+    existingSnapshot ?? (await loadNestEntitlements(supabase, nestId));
+  if (!snapshot) return null;
+
+  const members = await listNestMembers(supabase, nestId);
+  const owner = members.find((row) => row.role === 'owner');
+
+  let daysUntilExpiry: number | null = null;
+  let showExpiryNag = false;
+  const passExpiresAt = snapshot.billing.pass_expires_at;
+
+  if (passExpiresAt && isNestPro(snapshot.billing)) {
+    const ms = new Date(passExpiresAt).getTime() - Date.now();
+    daysUntilExpiry = Math.ceil(ms / 86_400_000);
+    showExpiryNag = daysUntilExpiry >= 0 && daysUntilExpiry <= 7;
+  }
+
+  const hiddenTotal =
+    snapshot.hidden.locales + snapshot.hidden.listings + snapshot.hidden.tourDays;
+
+  return {
+    plan: snapshot.plan,
+    role: 'member',
+    isOwner: false,
+    ownerDisplayName: owner?.displayName ?? null,
+    passExpiresAt,
+    daysUntilExpiry,
+    showExpiryNag,
+    hidden: snapshot.hidden,
+    hiddenTotal,
+    proximityRefreshRemaining: snapshot.proximityRefreshRemaining,
+  };
+}

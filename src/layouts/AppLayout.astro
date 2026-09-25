@@ -10,8 +10,12 @@ import IconGlyph from '../components/IconGlyph.astro';
 import LocaleNav from '../components/LocaleNav.astro';
 import NestEntitlementBanner from '../components/NestEntitlementBanner.astro';
 import SiteFavicon from '../components/SiteFavicon.astro';
+import { DEMO_BANNER_TEXT, DEMO_DISPLAY_NAME } from '../lib/demo/constants';
 import type { NestEntitlementUi } from '../lib/nest/entitlements/ui-context';
-import { loadNestEntitlementUi } from '../lib/nest/entitlements/ui-context';
+import {
+  loadDemoNestEntitlementUi,
+  loadNestEntitlementUi,
+} from '../lib/nest/entitlements/ui-context';
 import type { LocaleNavSection } from '../lib/ui/locale-nav';
 
 type Crumb = { href?: string; label: string };
@@ -37,16 +41,19 @@ const {
 } = Astro.props;
 const user = Astro.locals.user;
 const supabase = Astro.locals.supabase;
+const isDemo = Astro.locals.isDemo === true;
 const devHuntPassPreview = Astro.locals.devHuntPassPreview ?? false;
 
 let entitlementUi = entitlementUiProp ?? null;
 if (!entitlementUi && nestId && user && supabase) {
-  entitlementUi = await loadNestEntitlementUi(
-    supabase,
-    nestId,
-    user.id,
-    Astro.locals.devHuntPassPreview ?? false,
-  );
+  entitlementUi = isDemo
+    ? await loadDemoNestEntitlementUi(supabase, nestId)
+    : await loadNestEntitlementUi(
+        supabase,
+        nestId,
+        user.id,
+        Astro.locals.devHuntPassPreview ?? false,
+      );
 }
 
 let themeId = resolveUiThemeId(null);
@@ -55,7 +62,7 @@ const profile = Astro.locals.profile;
 if (profile) {
   themeId = resolveUiThemeId(profile.ui_theme_id);
   bordersMode = resolveUiBorders(profile.ui_show_borders);
-} else if (user && supabase) {
+} else if (!isDemo && user && supabase) {
   const { data: loadedProfile } = await supabase
     .from('profiles')
     .select('ui_theme_id, ui_show_borders')
@@ -66,7 +73,12 @@ if (profile) {
 }
 ---
 <!doctype html>
-<html lang="en" data-theme={themeId} data-ui-borders={bordersMode}>
+<html
+  lang="en"
+  data-theme={themeId}
+  data-ui-borders={bordersMode}
+  data-demo={isDemo ? '1' : undefined}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
@@ -94,6 +106,20 @@ if (profile) {
         )
       }
       <nav class="app-header__nav" aria-label="App">
+        {
+          isDemo && (
+            <span class="badge demo-banner" role="status">
+              {DEMO_BANNER_TEXT}
+            </span>
+          )
+        }
+        {
+          isDemo && (
+            <span class="app-header__demo-name" title={DEMO_DISPLAY_NAME}>
+              {DEMO_DISPLAY_NAME}
+            </span>
+          )
+        }
         {
           devHuntPassPreview && (
             <a

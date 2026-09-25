@@ -3,29 +3,37 @@ import AppLayout from '../../layouts/AppLayout.astro';
 import NestMemberList from '../../components/NestMemberList.astro';
 import { generateInviteToken } from '../../lib/crypto/invite-token';
 import { isDevToolsEnabled } from '../../lib/dev/hunt-pass-preview';
-import { getPrimaryNestId, listNestMembers } from '../../lib/supabase/nest';
+import { forbidDemoMutation } from '../../lib/demo/forbid';
+import { resolveAppNestId } from '../../lib/demo/resolve-nest';
+import { listNestMembers } from '../../lib/supabase/nest';
 import type { NestMemberProfile } from '../../lib/types/database';
 import { listUiThemes, resolveUiThemeId } from '../../lib/ui/themes';
 import { resolveUiBorders } from '../../lib/ui/borders';
 
 const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
-const nestId = await getPrimaryNestId(supabase, user.id);
+const isDemo = Astro.locals.isDemo === true;
+const nestId = await resolveAppNestId(Astro.locals, supabase, user.id);
 const themes = listUiThemes();
-const devToolsEnabled = isDevToolsEnabled();
+const devToolsEnabled = isDevToolsEnabled() && !isDemo;
 
 let inviteUrl: string | null = null;
 let errorMessage = '';
 let notice = '';
 
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('ui_theme_id, ui_show_borders, dev_hunt_pass_preview')
-  .eq('id', user.id)
-  .maybeSingle();
-const currentThemeId = resolveUiThemeId(profile?.ui_theme_id);
-const bordersOn = resolveUiBorders(profile?.ui_show_borders) === 'on';
-const huntPassPreviewOn = Boolean(profile?.dev_hunt_pass_preview);
+let currentThemeId = resolveUiThemeId(null);
+let bordersOn = true;
+let huntPassPreviewOn = false;
+if (!isDemo) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('ui_theme_id, ui_show_borders, dev_hunt_pass_preview')
+    .eq('id', user.id)
+    .maybeSingle();
+  currentThemeId = resolveUiThemeId(profile?.ui_theme_id);
+  bordersOn = resolveUiBorders(profile?.ui_show_borders) === 'on';
+  huntPassPreviewOn = Boolean(profile?.dev_hunt_pass_preview);
+}
 
 let nestMembers: NestMemberProfile[] = [];
 if (nestId) {
@@ -35,16 +43,21 @@ if (nestId) {
 if (!nestId) {
   errorMessage = 'No Nest found.';
 } else if (Astro.request.method === 'POST') {
-  const { raw, hash } = generateInviteToken();
-  const { error } = await supabase
-    .from('nests')
-    .update({ invite_token_hash: hash })
-    .eq('id', nestId);
-  if (error) {
-    errorMessage = error.message;
+  const denied = forbidDemoMutation(Astro.locals);
+  if (denied) {
+    errorMessage = 'Demo · not saved';
   } else {
-    inviteUrl = `${Astro.url.origin}/invite/${raw}`;
-    notice = 'Invite link rotated. Copy it now. The raw token is not stored.';
+    const { raw, hash } = generateInviteToken();
+    const { error } = await supabase
+      .from('nests')
+      .update({ invite_token_hash: hash })
+      .eq('id', nestId);
+    if (error) {
+      errorMessage = error.message;
+    } else {
+      inviteUrl = `${Astro.url.origin}/invite/${raw}`;
+      notice = 'Invite link rotated. Copy it now. The raw token is not stored.';
+    }
   }
 }
 

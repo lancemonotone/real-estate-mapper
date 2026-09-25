@@ -2,11 +2,13 @@
 import AppLayout from '../../layouts/AppLayout.astro';
 import NestMemberList from '../../components/NestMemberList.astro';
 import PlanNotice from '../../components/PlanNotice.astro';
+import { resolveAppNestId } from '../../lib/demo/resolve-nest';
 import { loadNestEntitlements, isLocaleCapReached, PLAN_MESSAGES } from '../../lib/nest/entitlements';
-import { loadNestEntitlementUi } from '../../lib/nest/entitlements/ui-context';
 import {
-  ensureNestForUser,
-  getPrimaryNestId,
+  loadDemoNestEntitlementUi,
+  loadNestEntitlementUi,
+} from '../../lib/nest/entitlements/ui-context';
+import {
   listLocalesForNest,
   listNestMembers,
   localeNeedsSetup,
@@ -15,10 +17,11 @@ import { nearestAllowedRadiusMiles } from '../../lib/geo/locale-radius';
 
 const user = Astro.locals.user!;
 const supabase = Astro.locals.supabase!;
+const isDemo = Astro.locals.isDemo === true;
 
-let nestId = await getPrimaryNestId(supabase, user.id);
+const nestId = await resolveAppNestId(Astro.locals, supabase, user.id);
 if (!nestId) {
-  nestId = await ensureNestForUser(supabase, user.id);
+  return Astro.redirect('/login');
 }
 
 const { data: nest } = await supabase
@@ -32,7 +35,9 @@ const devPreview = Astro.locals.devHuntPassPreview ?? false;
 const entitlementSnapshot = await loadNestEntitlements(supabase, nestId, {
   devHuntPassPreview: devPreview,
 });
-const entitlementUi = await loadNestEntitlementUi(supabase, nestId, user.id, devPreview);
+const entitlementUi = isDemo
+  ? await loadDemoNestEntitlementUi(supabase, nestId, entitlementSnapshot)
+  : await loadNestEntitlementUi(supabase, nestId, user.id, devPreview, entitlementSnapshot);
 const visibleLocales = entitlementSnapshot
   ? locales.filter((locale) => entitlementSnapshot.visibleLocaleIds.has(locale.id))
   : locales;
