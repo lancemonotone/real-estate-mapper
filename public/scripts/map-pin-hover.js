@@ -32,7 +32,7 @@ const PIN_INFO_WIDTH_PX = 100;
 export function buildListingInfoContent(listing, header) {
   const wrap = document.createElement('div');
   wrap.className = 'map-pin-info';
-  // Inline sizes beat Maps measuring unwrapped text before CSS applies.
+  // Inline sizes/background beat Maps measuring before CSS applies / transparent shells.
   wrap.style.cssText = [
     `width:${PIN_INFO_WIDTH_PX}px`,
     `max-width:${PIN_INFO_WIDTH_PX}px`,
@@ -40,6 +40,9 @@ export function buildListingInfoContent(listing, header) {
     'white-space:normal',
     'overflow-wrap:anywhere',
     'word-break:break-word',
+    'background:#ffffff',
+    'background-color:#ffffff',
+    'color:#202124',
   ].join(';');
 
   if (header != null && String(header).trim()) {
@@ -62,6 +65,7 @@ export function buildListingInfoContent(listing, header) {
       'max-width:100%',
       'display:block',
       'object-fit:cover',
+      'background:#e8eaed',
     ].join(';');
     wrap.appendChild(img);
   }

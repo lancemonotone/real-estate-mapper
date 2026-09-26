@@ -316,7 +316,12 @@ const defaultTab: SettingsTab = inviteUrl || notice ? 'invite' : 'theme';
           if (status) status.textContent = data.error || 'Could not save theme';
           return;
         }
-        if (status) status.textContent = '';
+        if (status) {
+          status.textContent =
+            document.documentElement.dataset.demo === '1'
+              ? 'Demo · kept for this session'
+              : '';
+        }
       } catch {
         if (status) status.textContent = 'Could not save theme';
       }
@@ -338,7 +343,12 @@ const defaultTab: SettingsTab = inviteUrl || notice ? 'invite' : 'theme';
           if (status) status.textContent = data.error || 'Could not save border preference';
           return;
         }
-        if (status) status.textContent = '';
+        if (status) {
+          status.textContent =
+            document.documentElement.dataset.demo === '1'
+              ? 'Demo · kept for this session'
+              : '';
+        }
       } catch {
         if (status) status.textContent = 'Could not save border preference';
       }
@@ -360,7 +370,8 @@ const defaultTab: SettingsTab = inviteUrl || notice ? 'invite' : 'theme';
         if (!res.ok) {
           devPreview.checked = !dev_hunt_pass_preview;
           if (devPreviewStatus) {
-            devPreviewStatus.textContent = data.error || 'Could not save preview setting';
+            devPreviewStatus.textContent =
+              data.error || 'Could not save preview setting';
           }
           return;
         }

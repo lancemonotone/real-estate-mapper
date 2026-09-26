@@ -50,11 +50,54 @@ function applyTourDayRoute(payload) {
 
   const mapEl = document.getElementById('tour-map');
   if (mapEl instanceof HTMLElement) {
-    mapEl.dataset.stops = JSON.stringify(payload.mapStops ?? []);
+    /** Preserve favorite / appointment flags so favorites-filter map pins stay visible. */
+    const prevStops = (() => {
+      try {
+        const raw = JSON.parse(mapEl.dataset.stops || '[]');
+        return Array.isArray(raw) ? raw : [];
+      } catch {
+        return [];
+      }
+    })();
+    const prevById = new Map(prevStops.map((s) => [s.id, s]));
+
+    const nextStops = (payload.mapStops ?? []).map((stop) => {
+      const prev = prevById.get(stop.id);
+      const fromDom = document.querySelector(
+        `[data-tours-stops] [data-listing-id="${CSS.escape(String(stop.id))}"]`,
+      );
+      let domFavorite = null;
+      let domAppointment = null;
+      if (fromDom instanceof HTMLElement) {
+        domFavorite = fromDom.dataset.favorite === '1';
+        const timeInput = fromDom.querySelector('[data-appointment-time]');
+        domAppointment =
+          fromDom.dataset.hasAppointment === '1' ||
+          (timeInput instanceof HTMLInputElement && timeInput.value.trim().length > 0);
+      }
+      return {
+        ...stop,
+        favorite:
+          typeof stop.favorite === 'boolean'
+            ? stop.favorite
+            : domFavorite != null
+              ? domFavorite
+              : Boolean(prev?.favorite),
+        hasAppointment:
+          typeof stop.hasAppointment === 'boolean'
+            ? stop.hasAppointment
+            : domAppointment != null
+              ? domAppointment
+              : Boolean(prev?.hasAppointment || prev?.appointmentTime),
+        appointmentTime: stop.appointmentTime ?? prev?.appointmentTime ?? null,
+      };
+    });
+
+    mapEl.dataset.stops = JSON.stringify(nextStops);
     mapEl.dataset.polyline = payload.encodedPolyline ?? '';
     mapEl.dataset.rev = [
       payload.encodedPolyline ?? '',
-      ...(payload.mapStops ?? []).map((stop) => stop.id),
+      ...nextStops.map((stop) => stop.id),
     ].join('|');
     mapEl.dataset.customStart = payload.customStart
       ? JSON.stringify(payload.customStart)
@@ -166,11 +209,48 @@ function reloadForDay(day) {
   const cur = new URL(window.location.href);
   const samePath = cur.pathname === url.pathname;
   const sameDay = (cur.searchParams.get('day') || '') === (url.searchParams.get('day') || '');
+
   if (samePath && sameDay) {
     window.location.reload();
     return;
   }
   window.location.assign(url.pathname + url.search);
+}
+
+/** After a demo soft mutation, keep the in-page DOM (SSR would wipe the overlay). */
+function keepDemoSessionMutation() {
+  if (document.documentElement.dataset.demo !== '1') return false;
+  showStatus('Demo · kept for this session', false);
+  return true;
+}
+
+/** Reorder day stop rows in the DOM (demo session soft-write). */
+function applyDayListOrder(list, listingIdsInOrder) {
+  if (!(list instanceof HTMLElement)) return;
+  const byId = new Map();
+  list.querySelectorAll('[data-listing-id]').forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    const id = el.getAttribute('data-listing-id');
+    if (id) byId.set(id, el.closest('li') || el);
+  });
+  for (const id of listingIdsInOrder) {
+    const row = byId.get(id);
+    if (row) list.appendChild(row);
+  }
+}
+
+/** Remove stop rows for listing ids (demo soft unassign). */
+function removeListingRows(listingIds) {
+  const idSet = new Set(listingIds);
+  document.querySelectorAll('[data-listing-id]').forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    const id = el.getAttribute('data-listing-id');
+    if (!id || !idSet.has(id)) return;
+    const row = el.closest('li') || el;
+    if (row.getAttribute('data-drag-kind') === 'listing' || row.querySelector('[data-drag-kind="listing"]')) {
+      row.remove();
+    }
+  });
 }
 
 function weekShift(deltaWeeks) {
@@ -397,6 +477,18 @@ async function runAssign(listingIds, tourDate, mode) {
     if (result.optimizeError && !/at least 2 geocoded/i.test(result.optimizeError)) {
       showStatus(result.optimizeError, true);
     }
+    if (keepDemoSessionMutation()) {
+      const cfg = seed();
+      if (cfg?.selectedDate === tourDate) {
+        // Stops stay on page; soft success already recorded. Bump cell count if present.
+        const cell = document.querySelector(`[data-tour-date="${tourDate}"]`);
+        if (cell) {
+          const n = cellStopCount(cell) + listingIds.length;
+          cell.setAttribute('data-stop-count', String(n));
+        }
+      }
+      return;
+    }
     reloadForDay(tourDate);
   } catch (e) {
     showStatus(e instanceof Error ? e.message : 'Assign failed', true);
@@ -417,6 +509,7 @@ async function runMoveDay(fromDate, toDate, mode) {
     if (result.optimizeError && !/at least 2 geocoded/i.test(result.optimizeError)) {
       showStatus(result.optimizeError, true);
     }
+    if (keepDemoSessionMutation()) return;
     reloadForDay(toDate);
   } catch (e) {
     showStatus(e instanceof Error ? e.message : 'Move failed', true);
@@ -682,6 +775,11 @@ function bindDayReorder(root, signal) {
         if (result.optimizeError && !/at least 2 geocoded/i.test(result.optimizeError)) {
           showStatus(result.optimizeError, true);
         }
+        if (document.documentElement.dataset.demo === '1') {
+          applyDayListOrder(list, nextIds);
+          showStatus('Demo · kept for this session', false);
+          return;
+        }
         reloadForDay(cfg.selectedDate);
       } catch (e) {
         showStatus(e instanceof Error ? e.message : 'Reorder failed', true);
@@ -795,6 +893,7 @@ function bindDropTargets(root, signal) {
             } else if (!cfg.selectedDate || cfg.selectedDate === payload.fromDate) {
               nextDay = payload.fromDate;
             }
+            if (keepDemoSessionMutation()) return;
             reloadForDay(nextDay);
           } catch (e) {
             showStatus(e instanceof Error ? e.message : 'Clear day failed', true);
@@ -818,6 +917,10 @@ function bindDropTargets(root, signal) {
           }
           selectedListingIds = [];
           selectionAnchorId = null;
+          if (keepDemoSessionMutation()) {
+            removeListingRows(ids);
+            return;
+          }
           reloadForDay(cfg.selectedDate);
         } catch (e) {
           showStatus(e instanceof Error ? e.message : 'Unassign failed', true);
@@ -961,6 +1064,10 @@ function bindDaySelectionToolbar(root, signal) {
         );
         selectedListingIds = [];
         selectionAnchorId = null;
+        if (keepDemoSessionMutation()) {
+          removeListingRows(ids);
+          return;
+        }
         reloadForDay(cfg.selectedDate);
       } catch (e) {
         showStatus(e instanceof Error ? e.message : 'Unassign failed', true);
@@ -1007,6 +1114,7 @@ function bindDaySelectionToolbar(root, signal) {
             false,
           );
         }
+        if (keepDemoSessionMutation()) return;
         reloadForDay(cfg.selectedDate);
       } catch (e) {
         showStatus(e instanceof Error ? e.message : 'Could not clear times', true);
@@ -1171,6 +1279,10 @@ async function boot() {
             listingIds: [listingId],
             tourDayId,
           });
+          if (keepDemoSessionMutation()) {
+            removeListingRows([listingId]);
+            return;
+          }
           reloadForDay(cfg.selectedDate);
         } catch (e) {
           showStatus(e instanceof Error ? e.message : 'Unassign failed', true);
@@ -1216,6 +1328,7 @@ async function boot() {
           if (data.optimizeError) {
             showStatus(data.optimizeError, true);
           }
+          if (keepDemoSessionMutation()) return;
           reloadForDay(cfg.selectedDate);
         } catch (e) {
           showStatus(e instanceof Error ? e.message : 'Could not save time', true);
@@ -1260,6 +1373,7 @@ async function boot() {
           if (data.optimizeError) {
             showStatus(data.optimizeError, true);
           }
+          if (keepDemoSessionMutation()) return;
           reloadForDay(cfg.selectedDate);
         } catch (err) {
           showStatus(err instanceof Error ? err.message : 'Could not clear time', true);
@@ -1309,6 +1423,7 @@ async function boot() {
             which === 'start' ? 'Removed custom start.' : 'Removed custom end.',
             false,
           );
+          if (keepDemoSessionMutation()) return;
           reloadForDay(cfg.selectedDate);
         } catch (e) {
           showStatus(e instanceof Error ? e.message : 'Could not remove endpoint', true);
@@ -1381,6 +1496,7 @@ async function boot() {
           }
         }
 
+        if (keepDemoSessionMutation()) return;
         reloadForDay(cfg.selectedDate || undefined);
       } catch (e) {
         showStatus(e instanceof Error ? e.message : 'Save failed', true);

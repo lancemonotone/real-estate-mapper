@@ -234,4 +234,7 @@ document.addEventListener("astro:page-load", () => bootTourMap());
 document.addEventListener("wayhome:tour-map-refresh", () =>
   bootTourMap({ immediate: true }),
 );
+document.addEventListener("wayhome:favorites-filter-changed", () =>
+  bootTourMap({ immediate: true }),
+);
 bootTourMap();

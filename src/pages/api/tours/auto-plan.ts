@@ -1,16 +1,13 @@
-import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { buildFillPreview } from '../../../lib/tours/fill-date-range-db';
 
-export const POST: APIRoute = async ({request, cookies, locals}) => {
-  const denied = forbidDemoMutation(locals);
-  if (denied) return denied;
-
-  const supabase = createSupabaseServerClient(request, cookies);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+/** Read-only preview; allowed for demo sessions (no durable writes). */
+export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const supabase =
+    locals.supabase ?? createSupabaseServerClient(request, cookies);
+  const user =
+    locals.user ?? (await supabase.auth.getUser()).data.user;
   if (!user) return new Response('Unauthorized', { status: 401 });
 
   const body = (await request.json()) as {

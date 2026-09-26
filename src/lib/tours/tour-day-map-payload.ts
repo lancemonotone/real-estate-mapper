@@ -21,6 +21,9 @@ export type TourDayMapPayload = {
     glyph: string;
     role: 'start' | 'end' | 'stop';
     kind: 'listing';
+    favorite: boolean;
+    hasAppointment: boolean;
+    appointmentTime: string | null;
   }[];
   orderedListingIds: string[];
   customStart: {
@@ -54,7 +57,9 @@ export async function loadTourDayMapPayload(
 
   const { data: stops, error: stopsError } = await supabase
     .from('tour_stops')
-    .select('listing_id, sort_order, leg_duration_sec, is_start, listings(name, address, lat, lng, photo_url)')
+    .select(
+      'listing_id, sort_order, leg_duration_sec, is_start, appointment_time, listings(name, address, lat, lng, photo_url, is_favorite)',
+    )
     .eq('tour_day_id', tourDayId)
     .order('sort_order', { ascending: true, nullsFirst: false });
 
@@ -81,6 +86,10 @@ export async function loadTourDayMapPayload(
         index,
         listingCount,
       });
+      const appointmentTime =
+        typeof stop.appointment_time === 'string' && stop.appointment_time.trim()
+          ? stop.appointment_time
+          : null;
       return {
         id: stop.listing_id,
         name: listing.name || listing.address || 'Stop',
@@ -94,6 +103,9 @@ export async function loadTourDayMapPayload(
         glyph,
         role,
         kind: 'listing' as const,
+        favorite: Boolean(listing.is_favorite),
+        hasAppointment: Boolean(appointmentTime),
+        appointmentTime,
       };
     });
 

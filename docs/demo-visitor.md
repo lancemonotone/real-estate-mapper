@@ -40,18 +40,21 @@ Replace the `v` value if you rotate `DEMO_VISITOR_TOKEN`. Owner updates rusmille
 
 ## Behavior
 
-1. Logged out + matching `?v=` → login theater (~1.2s) → **Demo visitor** session.
+1. Logged out + matching `?v=` → splash animation → simulated Sign in → login theater → **Demo visitor** session.
 2. Banner: **Demo · changes won’t save**.
-3. Routine edits (listing autosave, favorite/passed) update the open UI only; refresh restores server data.
-4. Destructive / settings / Places / proximity spend → **Demo · not saved** (server fail-closed).
-5. Tour **route optimize** is allowed for the demo Nest (Google Routes + cache write on that Nest only). Favorites in demo stay session-only and do not remove tour stops.
-6. Already signed in as a real user → `v` is ignored (no kick into demo).
-7. Agent API is unchanged; the hash never grants a real auth user or admin powers.
+3. **Session overlay:** routine edits (theme, borders, favorites/passed, listing fields, tour calendar actions, etc.) are intercepted in the client. They appear to save and stick across in-app navigation. **Hard refresh** clears the overlay and restores server data. Nothing routine is written to the DB.
+4. Destructive / Places autocomplete-details / proximity spend / create-delete / auto-plan-apply → toast **Demo · not saved** (no network write). Place **photo** GETs for already-known place ids (proximity thumbs) are allowed.
+5. Tour **route optimize** may run for the demo Nest (Google Routes + cache on that Nest only).
+6. Auto-plan **preview** is allowed (read-only). Apply remains blocked.
+7. Already signed in as a real user → `v` is ignored.
+8. Logout clears the demo cookie and the overlay.
 
 ## Manual checklist
 
-- [ ] Cold start with hash → theater → demo session + banner
+- [ ] Cold start with `?v=` → splash → theater → demo session + banner
 - [ ] Normal login without hash → real user, no banner
-- [ ] Demo listing field / favorite → UI ok → hard refresh restores server data
-- [ ] Delete / Places autocomplete (or settings write) → toast **Demo · not saved**, nothing durable / no Google spend
-- [ ] Logged-in real session + `?v=` in URL → stays real, no demo kick
+- [ ] Theme / borders / favorite / listing field → appear saved → soft-nav keeps them → hard refresh restores server data
+- [ ] Tour calendar routine edits → appear kept for session (no sticky route error after soft success)
+- [ ] Delete / Places / invite rotate / proximity spend → toast **Demo · not saved**, nothing durable
+- [ ] Tour optimize on demo Nest → allowed (Google Routes + cache on that Nest)
+- [ ] Logged-in real session + `?v=` → stays real, no demo kick

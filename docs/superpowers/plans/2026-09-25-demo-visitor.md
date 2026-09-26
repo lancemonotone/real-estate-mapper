@@ -370,7 +370,8 @@ For handlers that build their own supabase before locals exist, call after readi
 |-------|--------|
 | `listings/create.ts`, `update.ts`, `delete.ts`, `favorite.ts`, `passed.ts`, `geocode.ts`, `import-url.ts` | geocode = paid |
 | `locales/create.ts`, `update.ts`, `delete.ts`, `preview-place.ts` | preview-place may call Places |
-| `places/autocomplete.ts`, `details.ts`, `photo.ts` (GET) | paid |
+| `places/autocomplete.ts`, `details.ts` | paid |
+| `places/photo.ts` (GET) | **allow** — display thumbs for known place ids (design: serving stored proximity UI) |
 | `profile/theme.ts`, `borders.ts`, `dev-hunt-pass-preview.ts` | settings-class |
 | `proximity/*` mutators + compute/refresh/one-off/criteria writes/exclude/lock/listing-places writes | paid + durable |
 | `tours/*` all POST mutators listed in inventory | |
@@ -382,7 +383,7 @@ For handlers that build their own supabase before locals exist, call after readi
 
 - [ ] **Step 2: Grep verification**
 
-Run: `rg -L "forbidDemoMutation" src/pages/api -g "*.ts"` and reconcile: only `auth/logout.ts`, `auth/demo-start.ts`, and pure read GETs (e.g. surface GET, criteria GET if read-only) may omit. `places/photo.ts` must include.
+Run: `rg -L "forbidDemoMutation" src/pages/api -g "*.ts"` and reconcile: only `auth/logout.ts`, `auth/demo-start.ts`, `tours/optimize.ts` (demo Nest exception), `tours/auto-plan.ts` (read-only preview), `places/photo.ts` (display thumbs), and pure read GETs may omit. Autocomplete/details/proximity/geocode must include.
 
 - [ ] **Step 3: Commit**
 
@@ -393,59 +394,15 @@ git commit -m "feat(demo): fail-closed mutation and paid API gate"
 
 ---
 
-### Task 6: Banner, toast, client short-circuits
+### Task 6: Banner, toast, session overlay (client)
 
 **Files:**
-- Create: `public/scripts/demo.js`
+- Create: `public/scripts/demo.js`, `public/scripts/demo-overlay.js`
 - Modify: `src/layouts/AppLayout.astro`
-- Modify: `src/styles/chrome.css` (demo banner styles)
-- Modify: `src/client/listing-form-autosave.ts`
-- Modify: `public/scripts/listing-favorite.js`
-- Modify: high-traffic writers: `listing-detail.js` (delete), `tours-calendar.js`, `tours-day.js`, `proximity-compare.js`, `listing-proximity.js`, `place-search.js`, `locale-form.js`, `settings-invite.js`, settings inline fetches in `settings.astro`
+- Modify: `src/styles/chrome.css` (demo banner / toast styles)
+- Modify: writers as needed so demo soft mutations do not hard-reload away the overlay (`tours-calendar.js`, settings theme/borders status)
 
-**Interfaces:**
-- Produces:
-  - `window` or module: `isDemoSession()`, `showDemoToast()`, `demoReadonlyResponse()`
-  - `document.documentElement.dataset.demo === '1'` when demo
-  - Banner text exactly `Demo · changes won’t save`
-
-- [ ] **Step 1: demo.js + banner**
-
-Load `demo.js` from AppLayout when `isDemo` (or always; no-ops if no `data-demo`). Chip in header nav near badges:
-
-```html
-{isDemo && (
-  <span class="badge demo-banner" role="status">{DEMO_BANNER_TEXT}</span>
-)}
-```
-
-Show display name **Demo visitor** near logout if there is an account label; otherwise banner is enough.
-
-Toast: fixed subtle status element, auto-hide ~3s, text `Demo · not saved`.
-
-- [ ] **Step 2: Routine short-circuits (Briefboard)**
-
-When `isDemoSession()`:
-
-- `listing-form-autosave` `saveForm`: do not `fetch`; mark saved; status `Saved` (session-only).
-- `listing-favorite` / passed: toggle UI only; no POST.
-- Tour calendar routine assign/move where UI can stay local: skip fetch and update DOM; if too coupled, allow fetch → server 403 → toast (acceptable for v1 on complex calendars). Prefer short-circuit for favorite + listing autosave at minimum.
-
-- [ ] **Step 3: Destructive / paid**
-
-On `demo_readonly` or message includes `Demo · not saved` → `showDemoToast()`. Do not claim success for delete/upload/invite/Places.
-
-- [ ] **Step 4: CSS**
-
-Mobile-first subtle chip; do not clone full button chrome (extend `.badge`).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add public/scripts src/client src/layouts/AppLayout.astro src/styles/chrome.css src/pages/app/settings.astro
-git commit -m "feat(demo): banner, toast, and client soft-writes"
-```
-
+**Approach (whole app):** one fetch interceptor classifies `/api/**` mutations as `allow` | `routine` | `destructive`. Routine → soft JSON success + `sessionStorage` overlay (theme, borders, reactions, listing fields). Destructive / paid → toast, no network. Soft ClientRouter navigations re-apply overlay; hard refresh clears it.
 ---
 
 ### Task 7: Owner docs + local/prod env values

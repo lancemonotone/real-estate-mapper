@@ -104,6 +104,9 @@ const mapStops = (stops ?? [])
       glyph,
       role,
       kind: 'listing',
+      favorite: Boolean(s.listings!.is_favorite),
+      hasAppointment: Boolean(s.appointment_time),
+      appointmentTime: s.appointment_time ?? null,
     };
   });
 

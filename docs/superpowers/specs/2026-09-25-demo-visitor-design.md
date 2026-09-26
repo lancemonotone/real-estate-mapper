@@ -100,10 +100,12 @@ Portfolio visitors (rusmiller.com) need a one-click path into live Wayhome that 
 
 | Kind | Examples | Demo behavior |
 |------|----------|----------------|
-| Routine (client) | listing field edits, favorite/passed, tour assign/order, routine prefs | Client short-circuits; **does not** call write APIs. Optimistic UI only. |
-| Destructive / settings | delete listing/locale, invite rotate, publish-class, durable profile/settings | Server `403 demo_readonly`; toast **Demo · not saved**. |
+| Routine (client) | listing field edits, favorite/passed, tour assign/order, theme/borders prefs | Client fetch interceptor soft-oks into session overlay; **does not** write DB. Soft-nav keeps overlay; hard refresh clears it. |
+| Destructive / invite | delete listing/locale, invite rotate, publish-class, unpaid durable profile toggles (e.g. Hunt Pass preview) | Server `403 demo_readonly` (and client toast); no network write when intercepted. |
 | Paid | Places autocomplete/details/text, proximity compute/refresh/fill, geocode | No Google call, no usage counters, no writes; same `demo_readonly` toast. |
+| Place photo display | `/api/places/photo` GET for already-known place ids | Allowed (show stored proximity / endpoint thumbs). |
 | Auth | logout, demo-start | Allowed (session cookie only). |
+| Tour optimize | `/api/tours/optimize` for the demo Nest | Allowed (Places spend exception for portfolio route theater). |
 
 **Unclassified mutator:** treat as deny (`demo_readonly`), never as a real write.
 
@@ -116,8 +118,8 @@ Portfolio visitors (rusmiller.com) need a one-click path into live Wayhome that 
 When auth/demo flag is true:
 
 1. **Banner/chip** always visible: **Demo · changes won’t save**
-2. **Routine edits:** do **not** call write APIs; optimistic client state only. Full refresh → server canonical data.
-3. **Destructive / invite / settings / paid:** may call API; on `demo_readonly` → toast **Demo · not saved**
+2. **Routine edits:** fetch interceptor records into `sessionStorage` overlay and returns soft success. Soft ClientRouter navigations re-apply the overlay. Hard refresh clears overlay → server canonical data.
+3. **Destructive / invite / paid:** no network write; toast **Demo · not saved**
 4. Account chrome shows **Demo visitor**; hide change-password flows that imply a real account
 5. Normal login without hash unchanged; no banner
 

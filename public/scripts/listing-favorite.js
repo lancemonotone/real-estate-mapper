@@ -89,10 +89,6 @@ async function onReactionClick(e) {
   syncReactionButtons(listingId, optimistic);
 
   try {
-    if (document.documentElement.dataset.demo === '1') {
-      syncReactionButtons(listingId, optimistic);
-      return;
-    }
     const reaction =
       kind === 'favorite'
         ? await postReaction('/api/listings/favorite', { listingId, favorite: next })

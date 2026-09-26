@@ -1,3 +1,12 @@
+import {
+  applyDemoOverlayToDocument,
+  classifyDemoApi,
+  clearDemoOverlay,
+  clearOverlayIfHardReload,
+  jsonResponse,
+  recordRoutineMutation,
+} from './demo-overlay.js';
+
 const DEMO_TOAST_MS = 3200;
 
 export function isDemoSession() {
@@ -33,34 +42,122 @@ export function isDemoReadonlyError(error) {
   return false;
 }
 
-export async function readDemoError(res) {
-  const data = await res.clone().json().catch(() => null);
-  if (data && (data.code === 'demo_readonly' || String(data.error || '').includes('Demo · not saved'))) {
-    return data;
-  }
-  if (res.status === 403) {
-    return { code: 'demo_readonly', error: 'Demo · not saved' };
-  }
-  return null;
+function requestUrl(input) {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.href;
+  if (input && typeof input === 'object' && 'url' in input) return String(input.url);
+  return '';
 }
 
-/** Wrap fetch: demo sessions toast on demo_readonly responses. */
+function requestMethod(input, init) {
+  if (init?.method) return init.method;
+  if (input && typeof input === 'object' && 'method' in input) return String(input.method);
+  return 'GET';
+}
+
+/** Wrap fetch once: routine → overlay soft success; destructive → toast, no network. */
 export function installDemoFetchGuard() {
   if (!isDemoSession() || window.__wayhomeDemoFetch) return;
   window.__wayhomeDemoFetch = true;
   const original = window.fetch.bind(window);
+
   window.fetch = async (input, init) => {
-    const res = await original(input, init);
-    if (!isDemoSession()) return res;
-    const method = (init?.method || 'GET').toUpperCase();
-    if (method === 'GET' || method === 'HEAD') return res;
-    if (res.status !== 403) return res;
-    const demoErr = await readDemoError(res);
-    if (demoErr) showDemoToast(demoErr.error || 'Demo · not saved');
-    return res;
+    if (!isDemoSession()) return original(input, init);
+
+    const href = requestUrl(input);
+    let pathname = href;
+    try {
+      pathname = new URL(href, window.location.origin).pathname;
+    } catch {
+      /* keep href */
+    }
+    const method = requestMethod(input, init);
+    const kind = classifyDemoApi(pathname, method);
+
+    if (pathname === '/api/auth/logout') {
+      clearDemoOverlay();
+      return original(input, init);
+    }
+
+    if (kind === 'allow') {
+      return original(input, init);
+    }
+
+    if (kind === 'destructive') {
+      showDemoToast('Demo · not saved');
+      return jsonResponse(
+        { ok: false, error: 'Demo · not saved', code: 'demo_readonly', demo: true },
+        403,
+      );
+    }
+
+    const payload = await recordRoutineMutation(pathname, method, init || {});
+    return jsonResponse(payload, 200);
   };
 }
 
-if (isDemoSession()) {
-  installDemoFetchGuard();
+/** Block demo form POSTs that mutate without going through fetch. */
+function installDemoFormGuard() {
+  if (!isDemoSession() || window.__wayhomeDemoForms) return;
+  window.__wayhomeDemoForms = true;
+
+  document.addEventListener(
+    'submit',
+    (event) => {
+      if (!isDemoSession()) return;
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement)) return;
+
+      const action = (form.getAttribute('action') || '').trim();
+      let pathname = action;
+      try {
+        pathname = action ? new URL(action, window.location.origin).pathname : window.location.pathname;
+      } catch {
+        pathname = action || window.location.pathname;
+      }
+
+      const method = (form.getAttribute('method') || 'GET').toUpperCase();
+      if (method === 'GET') return;
+
+      if (pathname === '/api/auth/logout' || action.includes('/api/auth/logout')) {
+        clearDemoOverlay();
+        return;
+      }
+
+      // Settings invite rotate (same-page POST) and any other non-API mutate forms
+      if (pathname.startsWith('/api/')) {
+        const kind = classifyDemoApi(pathname, method);
+        if (kind === 'allow') return;
+        event.preventDefault();
+        showDemoToast('Demo · not saved');
+        return;
+      }
+
+      // Same-document POSTs (settings invite)
+      event.preventDefault();
+      showDemoToast('Demo · not saved');
+    },
+    true,
+  );
 }
+
+export function bootDemoOverlay() {
+  if (!isDemoSession()) return;
+  installDemoFetchGuard();
+  installDemoFormGuard();
+  applyDemoOverlayToDocument();
+}
+
+if (isDemoSession()) {
+  // Hard reload clears once per document load (not on every ClientRouter page-load).
+  clearOverlayIfHardReload();
+  bootDemoOverlay();
+}
+
+document.addEventListener('astro:page-load', () => {
+  if (!isDemoSession()) return;
+  applyDemoOverlayToDocument();
+  // Re-bind guards if a full document swap reset window flags (rare).
+  installDemoFetchGuard();
+  installDemoFormGuard();
+});

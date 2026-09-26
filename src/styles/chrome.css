@@ -812,7 +812,7 @@ table.compare {
 .compare-header__title-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 0.35rem 1rem;
   min-block-size: 0;
 }
@@ -824,14 +824,20 @@ table.compare {
 
 .compare-header__status {
   margin: 0;
-  flex: 1 1 12rem;
+  flex: 0 1 auto;
   min-inline-size: 0;
   font-size: 0.9rem;
   line-height: 1.35;
+  /* Success / info: not the global .alert danger ink */
+  color: color-mix(in oklab, var(--text, #e8eef7) 68%, transparent);
 
   &.is-empty,
   &:empty {
     visibility: hidden;
+  }
+
+  &.alert--error {
+    color: var(--danger);
   }
 
   &.is-plan-limit {
@@ -841,6 +847,7 @@ table.compare {
       color-mix(in oklab, var(--accent, #0d9488) 35%, transparent);
     background: color-mix(in oklab, var(--accent, #0d9488) 8%, transparent);
     visibility: visible;
+    color: var(--danger);
   }
 }
 
@@ -1873,6 +1880,7 @@ button.tour-stop-set-start {
 
 .gm-style-iw-c:has(.map-pin-info) {
   --info-photo: 100px;
+  --pin-info-bg: #ffffff;
 
   /* Hover tooltips only: do not steal pointer from the pin underneath. */
   pointer-events: none;
@@ -1882,6 +1890,13 @@ button.tour-stop-set-start {
   max-inline-size: calc(var(--info-photo) + 16px) !important;
   min-inline-size: 0 !important;
   box-sizing: border-box !important;
+  /* Vector / mapId InfoWindows can ship with a transparent shell. */
+  background: var(--pin-info-bg) !important;
+  background-color: var(--pin-info-bg) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.16) !important;
+  border-radius: 0.5rem !important;
 }
 
 .gm-style-iw-c:has(.map-pin-info) .gm-style-iw-ch,
@@ -1898,14 +1913,26 @@ button.tour-stop-set-start {
   inline-size: 100% !important;
   max-inline-size: 100% !important;
   white-space: normal !important;
+  background: transparent !important;
+}
+
+/* Tail under the bubble — keep opaque so the map does not show through. */
+.gm-style-iw-t:has(.map-pin-info)::after {
+  background: #ffffff !important;
+  box-shadow: none !important;
 }
 
 .map-pin-info {
   --info-photo: 100px;
+  --pin-info-bg: #ffffff;
 
   box-sizing: border-box;
   inline-size: var(--info-photo);
   max-inline-size: var(--info-photo);
+  margin: 0;
+  padding: 0;
+  background: var(--pin-info-bg);
+  background-color: var(--pin-info-bg);
   font:
     0.8125rem/1.35 system-ui,
     sans-serif;
@@ -1935,6 +1962,7 @@ button.tour-stop-set-start {
     object-fit: cover;
     border-radius: 0.375rem;
     margin-block-end: 0.35rem;
+    background: #e8eaed;
   }
 
   & .map-pin-info__title,
@@ -4015,6 +4043,10 @@ body.directions-overlay-open {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-accent);
   background: var(--bg-1);
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 .matrix-listing__thumb--empty {

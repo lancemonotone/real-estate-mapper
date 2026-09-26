@@ -30,7 +30,11 @@ Prefer Supabase MCP for listing field updates (fewer tokens, no browser session)
 
 ### Supabase
 
-Migrations and remote DB: use **`npm run db:push`** / **`npm run db:status`** (see `package.json`) and the **Supabase MCP** — do not default to “paste this into the SQL editor.” Details: `docs/agents/supabase.md`.
+Migrations and remote DB: use **`npm run db:push`** / **`npm run db:status`** (see `package.json`) and the **Supabase MCP** — do not default to “paste this into the SQL editor.” Details: `docs/agents/supabase.md`. Vercel deploys do **not** apply migrations.
+
+### Vercel
+
+App hosting only (prod: `https://wayhome.rusmiller.com`). Prefer read-only inspect; do not change env, domains, or deploy unless asked. Details: `docs/agents/vercel.md`.
 
 ### Working tree
 

@@ -20,12 +20,6 @@ async function saveForm(form: HTMLFormElement): Promise<void> {
   if (status) status.textContent = 'Saving…';
 
   try {
-    if (document.documentElement.dataset.demo === '1') {
-      markSaved(form);
-      if (status) status.textContent = 'Saved';
-      return;
-    }
-
     const res = await fetch(form.action, {
       method: 'POST',
       headers: { Accept: 'application/json' },
@@ -41,16 +35,20 @@ async function saveForm(form: HTMLFormElement): Promise<void> {
     }
     markSaved(form);
     if (status) {
-      const dropped =
-        data && typeof data.photos_dropped === 'number' && data.photos_dropped > 0
-          ? data.photos_dropped
-          : 0;
-      const limit =
-        data && typeof data.photo_limit === 'number' ? data.photo_limit : null;
-      if (dropped > 0 && limit != null) {
-        status.textContent = `Saved. ${dropped} photo${dropped === 1 ? '' : 's'} over the ${limit}-photo Free limit were not saved.`;
+      if (document.documentElement.dataset.demo === '1' || data?.demo === true) {
+        status.textContent = 'Demo · kept for this session';
       } else {
-        status.textContent = 'Saved';
+        const dropped =
+          data && typeof data.photos_dropped === 'number' && data.photos_dropped > 0
+            ? data.photos_dropped
+            : 0;
+        const limit =
+          data && typeof data.photo_limit === 'number' ? data.photo_limit : null;
+        if (dropped > 0 && limit != null) {
+          status.textContent = `Saved. ${dropped} photo${dropped === 1 ? '' : 's'} over the ${limit}-photo Free limit were not saved.`;
+        } else {
+          status.textContent = 'Saved';
+        }
       }
     }
     const savedUrls =

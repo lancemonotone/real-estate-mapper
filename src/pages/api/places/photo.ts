@@ -1,4 +1,3 @@
-import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import {
   fetchPlacePhotoBytes,
@@ -6,10 +5,12 @@ import {
 } from '../../../lib/google/places-photo';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
+/**
+ * Proxy a Place Photo for display of already-known place_ids (proximity thumbs, tour endpoints).
+ * Allowed in demo: serving stored proximity UI (design); does call Google Photo media when shown.
+ * Autocomplete / details / proximity compute remain demo-blocked.
+ */
 export const GET: APIRoute = async ({ request, cookies, locals, url }) => {
-  const denied = forbidDemoMutation(locals);
-  if (denied) return denied;
-
   const supabase =
     locals.supabase ?? createSupabaseServerClient(request, cookies);
   const user =

@@ -204,6 +204,7 @@ const mapStops = selectedStops
       kind: 'listing',
       favorite: Boolean(s.listings!.is_favorite),
       hasAppointment: Boolean(s.appointment_time),
+      appointmentTime: s.appointment_time ?? null,
     };
   });
 
@@ -283,13 +284,13 @@ const seed = {
           <div class="locale-hero__heading">
             <h1 class="compare-header__title">Tours</h1>
             <ListingsCount total={visibleListings.length} favorited={favoritedCount} />
+            <p
+              id="tours-calendar-status"
+              class="alert compare-header__status is-empty"
+              role="status"
+              aria-live="polite"
+            ></p>
           </div>
-          <p
-            id="tours-calendar-status"
-            class="alert compare-header__status is-empty"
-            role="status"
-            aria-live="polite"
-          ></p>
         </div>
       </div>
       <div class="compare-header__actions">

@@ -2,6 +2,8 @@
 
 Do **not** ask the user to paste migration SQL into the dashboard when these tools are available.
 
+Vercel hosts the Astro app only. Schema changes still go through this doc (`db:push` / MCP), not a Vercel deploy. See [`vercel.md`](./vercel.md).
+
 ## CLI (`package.json`)
 
 | Script | Purpose |
