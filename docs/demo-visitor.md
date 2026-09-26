@@ -22,17 +22,19 @@ See also `.env.example`. Requires existing `SUPABASE_SECRET_KEY` for demo reads 
 
 ## Entry URL
 
-Query param: **`v`**
+Query param: **`v`** (same as Briefboard)
 
-Pattern: `{PUBLIC_SITE_URL}/login?v={DEMO_VISITOR_TOKEN}`
+Pattern: `{PUBLIC_SITE_URL}/?v={DEMO_VISITOR_TOKEN}`
+
+`/?v=…` redirects into the login theater (Briefboard-style). `/login?v=…` also works.
 
 **Local entry URL** (token from local `.env`):
 
-http://localhost:4321/login?v=e39a2a4064e24585bb290734787229e4f57bf2b90b428e7124bafa37cf465a94
+http://localhost:4321/?v=e39a2a4064e24585bb290734787229e4f57bf2b90b428e7124bafa37cf465a94
 
 **Production** (set the same three env vars on Vercel, then):
 
-https://wayhome.rusmiller.com/login?v=e39a2a4064e24585bb290734787229e4f57bf2b90b428e7124bafa37cf465a94
+https://wayhome.rusmiller.com/?v=e39a2a4064e24585bb290734787229e4f57bf2b90b428e7124bafa37cf465a94
 
 Replace the `v` value if you rotate `DEMO_VISITOR_TOKEN`. Owner updates rusmiller.com portfolio links (not edited in this repo).
 

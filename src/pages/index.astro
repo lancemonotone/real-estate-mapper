@@ -3,12 +3,34 @@ import '../styles/tokens.css';
 import '../styles/chrome.css';
 import SpeedInsights from '@vercel/speed-insights/astro';
 import SiteFavicon from '../components/SiteFavicon.astro';
+import { DEMO_COOKIE_NAME } from '../lib/demo/constants';
+import { getDemoSessionSecret } from '../lib/demo/nest';
+import { verifyDemoCookie } from '../lib/demo/session';
 import { DEFAULT_UI_THEME_ID } from '../lib/ui/themes';
+import { createSupabaseServerClient } from '../lib/supabase/server';
 
 const supabaseConfigured = Boolean(
   import.meta.env.PUBLIC_SUPABASE_URL &&
     import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
+
+const entryToken = Astro.url.searchParams.get('v')?.trim() ?? '';
+if (entryToken && supabaseConfigured) {
+  const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    return Astro.redirect('/app');
+  }
+  const sessionSecret = getDemoSessionSecret();
+  const demoRaw = Astro.cookies.get(DEMO_COOKIE_NAME)?.value ?? '';
+  if (sessionSecret && demoRaw && verifyDemoCookie(demoRaw, sessionSecret)) {
+    return Astro.redirect('/app');
+  }
+  // Briefboard-style entry: /?v=… → login theater
+  return Astro.redirect(`/login?v=${encodeURIComponent(entryToken)}`);
+}
 ---
 <!doctype html>
 <html lang="en" data-theme={DEFAULT_UI_THEME_ID}>
