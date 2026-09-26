@@ -22,7 +22,7 @@ let errorMessage = '';
 let notice = '';
 
 let currentThemeId = resolveUiThemeId(null);
-let bordersOn = true;
+let bordersOn = false;
 let huntPassPreviewOn = false;
 if (!isDemo) {
   const { data: profile } = await supabase
@@ -70,7 +70,7 @@ const swatchVars: Record<string, { primary: string; accent: string }> = {
 type SettingsTab = 'theme' | 'members' | 'invite' | 'developer';
 const defaultTab: SettingsTab = inviteUrl || notice ? 'invite' : 'theme';
 ---
-<AppLayout title="Settings" crumbs={[{ href: '/app', label: 'Home' }, { label: 'Settings' }]}>
+<AppLayout title="Settings" crumbs={[{ href: '/app', label: 'Home' }, { label: 'Settings' }]} contentMeasure="narrow">
   <h1>Settings</h1>
   {errorMessage && <p class="alert" role="alert">{errorMessage}</p>}
 

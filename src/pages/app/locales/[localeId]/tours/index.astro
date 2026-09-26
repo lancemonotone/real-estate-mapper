@@ -277,31 +277,6 @@ const seed = {
   nestId={locale.nest_id}
   entitlementUi={entitlementUi}
 >
-  <header class="compare-header">
-    <div class="compare-header__top">
-      <div class="compare-header__titles">
-        <div class="compare-header__title-row">
-          <div class="locale-hero__heading">
-            <h1 class="compare-header__title">Tours</h1>
-            <ListingsCount total={visibleListings.length} favorited={favoritedCount} />
-            <p
-              id="tours-calendar-status"
-              class="alert compare-header__status is-empty"
-              role="status"
-              aria-live="polite"
-            ></p>
-          </div>
-        </div>
-      </div>
-      <div class="compare-header__actions">
-        <FavoriteFilterButton />
-      </div>
-    </div>
-    <p class="muted compare-header__sub">
-      Drag listings onto tour days and set the stop order for each day.
-    </p>
-  </header>
-
   <p class="muted compare-empty-hint" data-favorites-empty hidden>
     No favorited listings. Heart a listing or turn off the favorites filter.
   </p>
@@ -434,6 +409,31 @@ const seed = {
     </aside>
 
     <div class="tours-workspace__center">
+      <header class="compare-header tours-workspace__page-head">
+        <div class="compare-header__top">
+          <div class="compare-header__titles">
+            <div class="compare-header__title-row">
+              <div class="locale-hero__heading">
+                <h1 class="compare-header__title">Tours</h1>
+                <ListingsCount total={visibleListings.length} favorited={favoritedCount} />
+                <p
+                  id="tours-calendar-status"
+                  class="alert compare-header__status is-empty"
+                  role="status"
+                  aria-live="polite"
+                ></p>
+              </div>
+            </div>
+          </div>
+          <div class="compare-header__actions">
+            <FavoriteFilterButton />
+          </div>
+        </div>
+        <p class="muted compare-header__sub">
+          Drag listings onto tour days and set the stop order for each day.
+        </p>
+      </header>
+
       <div class="tours-workspace__week">
         <TourWeekCalendar
           weekKeys={weekKeys}

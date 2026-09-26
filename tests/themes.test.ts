@@ -4,12 +4,14 @@ import {
   listUiThemes,
   resolveUiThemeId,
 } from '../src/lib/ui/themes';
+import { resolveUiBorders } from '../src/lib/ui/borders';
 
 describe('resolveUiThemeId', () => {
-  it('defaults null/empty to sea', () => {
+  it('defaults null/empty to Warm sand', () => {
     expect(resolveUiThemeId(null)).toBe(DEFAULT_UI_THEME_ID);
-    expect(resolveUiThemeId(undefined)).toBe('sea');
-    expect(resolveUiThemeId('')).toBe('sea');
+    expect(resolveUiThemeId(undefined)).toBe('sand');
+    expect(resolveUiThemeId('')).toBe('sand');
+    expect(DEFAULT_UI_THEME_ID).toBe('sand');
   });
 
   it('returns known ids', () => {
@@ -18,8 +20,23 @@ describe('resolveUiThemeId', () => {
     expect(resolveUiThemeId('sea')).toBe('sea');
   });
 
-  it('falls back unknown ids to sea', () => {
-    expect(resolveUiThemeId('neon')).toBe('sea');
+  it('falls back unknown ids to Warm sand', () => {
+    expect(resolveUiThemeId('neon')).toBe('sand');
+  });
+});
+
+describe('resolveUiBorders', () => {
+  it('defaults missing / falsey values to off', () => {
+    expect(resolveUiBorders(undefined)).toBe('off');
+    expect(resolveUiBorders(null)).toBe('off');
+    expect(resolveUiBorders(false)).toBe('off');
+    expect(resolveUiBorders('off')).toBe('off');
+  });
+
+  it('enables only explicit on values', () => {
+    expect(resolveUiBorders(true)).toBe('on');
+    expect(resolveUiBorders('on')).toBe('on');
+    expect(resolveUiBorders(1)).toBe('on');
   });
 });
 

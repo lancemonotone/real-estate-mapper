@@ -29,6 +29,11 @@ interface Props {
   /** Load entitlement banner for this Nest when ui is not passed. */
   nestId?: string;
   entitlementUi?: NestEntitlementUi | null;
+  /**
+   * Cap header + main panel on wide desktops (Nest, Settings, Upgrade).
+   * Tours / maps / matrices omit this and keep the full shell.
+   */
+  contentMeasure?: 'narrow';
 }
 
 const {
@@ -38,6 +43,7 @@ const {
   localeSection = 'listings',
   nestId,
   entitlementUi: entitlementUiProp,
+  contentMeasure,
 } = Astro.props;
 const user = Astro.locals.user;
 const supabase = Astro.locals.supabase;
@@ -57,7 +63,7 @@ if (!entitlementUi && nestId && user && supabase) {
 }
 
 let themeId = resolveUiThemeId(null);
-let bordersMode = resolveUiBorders(true);
+let bordersMode = resolveUiBorders(false);
 const profile = Astro.locals.profile;
 if (profile) {
   themeId = resolveUiThemeId(profile.ui_theme_id);
@@ -86,72 +92,76 @@ if (profile) {
     <title>{title} — Wayhome</title>
     <ClientRouter />
   </head>
-  <body class="app-shell">
+  <body class:list={['app-shell', contentMeasure === 'narrow' && 'app-shell--narrow']}>
     <header class="app-header glass">
-      <a class="app-header__brand" href="/app">Wayhome</a>
-      {
-        crumbs.length > 0 && (
-          <nav class="app-header__crumbs" aria-label="Breadcrumb">
-            {crumbs.map((c, i) => (
-              <>
-                {i > 0 && <span class="app-header__crumbs-sep" aria-hidden="true"> / </span>}
-                {c.href ? (
-                  <a href={c.href}>{c.label}</a>
-                ) : (
-                  <span class="app-header__crumbs-current">{c.label}</span>
-                )}
-              </>
-            ))}
-          </nav>
-        )
-      }
-      <nav class="app-header__nav" aria-label="App">
-        {
-          isDemo && (
-            <span class="badge demo-banner" role="status">
-              {DEMO_BANNER_TEXT}
-            </span>
-          )
-        }
-        {
-          isDemo && (
-            <span class="app-header__demo-name" title={DEMO_DISPLAY_NAME}>
-              {DEMO_DISPLAY_NAME}
-            </span>
-          )
-        }
-        {
-          devHuntPassPreview && (
-            <a
-              class="badge badge--accent app-header__dev-preview"
-              href="/app/settings"
-              title="Hunt Pass preview is on. Open Settings to turn off."
-              aria-label="Hunt Pass preview is on. Open Settings to turn off."
-            >
-              <span class="app-header__dev-preview-short">Hunt</span>
-              <span class="app-header__dev-preview-full">Hunt Pass preview</span>
-            </a>
-          )
-        }
-        <a
-          class="secondary icon-btn"
-          href="/app/settings"
-          title="Settings"
-          aria-label="Settings"
-        >
-          <IconGlyph name="settings" />
-        </a>
-        <form method="post" action="/api/auth/logout" class="app-header__logout">
-          <button
-            type="submit"
+      <div class="app-header__inner">
+        <div class="app-header__start">
+          <a class="app-header__brand" href="/app">Wayhome</a>
+          {
+            crumbs.length > 0 && (
+              <nav class="app-header__crumbs" aria-label="Breadcrumb">
+                {crumbs.map((c, i) => (
+                  <>
+                    {i > 0 && <span class="app-header__crumbs-sep" aria-hidden="true"> / </span>}
+                    {c.href ? (
+                      <a href={c.href}>{c.label}</a>
+                    ) : (
+                      <span class="app-header__crumbs-current">{c.label}</span>
+                    )}
+                  </>
+                ))}
+              </nav>
+            )
+          }
+        </div>
+        <nav class="app-header__nav" aria-label="App">
+          {
+            isDemo && (
+              <span class="badge demo-banner" role="status">
+                {DEMO_BANNER_TEXT}
+              </span>
+            )
+          }
+          {
+            isDemo && (
+              <span class="app-header__demo-name" title={DEMO_DISPLAY_NAME}>
+                {DEMO_DISPLAY_NAME}
+              </span>
+            )
+          }
+          {
+            devHuntPassPreview && (
+              <a
+                class="badge badge--accent app-header__dev-preview"
+                href="/app/settings"
+                title="Hunt Pass preview is on. Open Settings to turn off."
+                aria-label="Hunt Pass preview is on. Open Settings to turn off."
+              >
+                <span class="app-header__dev-preview-short">Hunt</span>
+                <span class="app-header__dev-preview-full">Hunt Pass preview</span>
+              </a>
+            )
+          }
+          <a
             class="secondary icon-btn"
-            title="Sign out"
-            aria-label="Sign out"
+            href="/app/settings"
+            title="Settings"
+            aria-label="Settings"
           >
-            <IconGlyph name="logOut" />
-          </button>
-        </form>
-      </nav>
+            <IconGlyph name="settings" />
+          </a>
+          <form method="post" action="/api/auth/logout" class="app-header__logout">
+            <button
+              type="submit"
+              class="secondary icon-btn"
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <IconGlyph name="logOut" />
+            </button>
+          </form>
+        </nav>
+      </div>
     </header>
     <main class="app-main glass panel">
       {
@@ -174,6 +184,7 @@ if (profile) {
       </div>
     </main>
     {locale && <script src="/scripts/locale-nav.js" type="module"></script>}
+    <script src="/scripts/app-header-pin.js" type="module"></script>
     <script src="/scripts/demo.js" type="module"></script>
     <script src="/scripts/listing-favorite.js" type="module"></script>
     {locale && <script src="/scripts/favorites-filter.js" type="module"></script>}

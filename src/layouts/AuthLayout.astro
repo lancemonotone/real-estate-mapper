@@ -19,13 +19,18 @@ const { title } = Astro.props;
     <SiteFavicon />
     <title>{title} — Wayhome</title>
   </head>
-  <body class="app-shell">
+  <body class="app-shell app-shell--narrow">
     <header class="app-header glass">
-      <a class="app-header__brand" href="/">Wayhome</a>
+      <div class="app-header__inner">
+        <div class="app-header__start">
+          <a class="app-header__brand" href="/">Wayhome</a>
+        </div>
+      </div>
     </header>
     <main class="app-main glass panel">
       <slot />
     </main>
+    <script src="/scripts/app-header-pin.js" type="module"></script>
     <SpeedInsights />
   </body>
 </html>

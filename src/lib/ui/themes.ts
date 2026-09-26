@@ -1,4 +1,4 @@
-export const DEFAULT_UI_THEME_ID = 'sea';
+export const DEFAULT_UI_THEME_ID = 'sand';
 
 export type UiThemeId = 'sea' | 'steel' | 'sand';
 
@@ -40,7 +40,7 @@ export function isUiThemeId(id: string): id is UiThemeId {
   return Object.prototype.hasOwnProperty.call(UI_THEME_CATALOG, id);
 }
 
-/** Fail Fast default: unknown / missing → sea (never invent a theme). */
+/** Fail Fast default: unknown / missing → Warm sand (never invent a theme). */
 export function resolveUiThemeId(raw: string | null | undefined): UiThemeId {
   if (!raw || !isUiThemeId(raw)) {
     return DEFAULT_UI_THEME_ID;

@@ -98,35 +98,6 @@ const criterionRows = criteria ?? [];
           </div>
         </div>
         <div class="matrix-panel__actions compare-header__actions">
-          {
-            listingRows.length > 0 && criterionRows.length > 0 ? (
-              <>
-                {
-                  routeSearchPlan.refreshStatusMessage ? (
-                    <p
-                      class:list={[
-                        'compare-header__refresh-status',
-                        'muted',
-                        { 'is-plan-limit': !routeSearchPlan.canRefresh },
-                      ]}
-                      data-compare-refresh-status
-                    >
-                      {routeSearchPlan.refreshStatusMessage}
-                    </p>
-                  ) : null
-                }
-                <button
-                  type="button"
-                  class="button secondary compare-header__refresh"
-                  data-compare-refresh-stale
-                  disabled={!routeSearchPlan.canRefresh}
-                  title="Recompute stale travel times for this Locale"
-                >
-                  Refresh stale
-                </button>
-              </>
-            ) : null
-          }
           <button
             type="button"
             class="button icon-btn compare-header__add"

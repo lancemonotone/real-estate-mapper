@@ -93,6 +93,7 @@ const localeCapMessage = entitlementSnapshot
   crumbs={[{ label: nestName }]}
   nestId={nestId}
   entitlementUi={entitlementUi}
+  contentMeasure="narrow"
 >
   <header class="locale-hero__heading nest-hero">
     <h1 class="locale-hero__name">{nestName}</h1>
@@ -154,7 +155,7 @@ const localeCapMessage = entitlementSnapshot
       aria-labelledby="nest-tab-locales"
       data-nest-tab-panel="locales"
     >
-      <div class="nest-tabs__panel-head stack">
+      <div class="nest-tabs__panel-head">
         {
           localeCapReached && entitlementUi && entitlementSnapshot && (
             <PlanNotice
