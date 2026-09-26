@@ -26,7 +26,7 @@ Query param: **`v`** (same as Briefboard)
 
 Pattern: `{PUBLIC_SITE_URL}/?v={DEMO_VISITOR_TOKEN}`
 
-`/?v=…` keeps the marketing splash and runs the login theater on that page (Briefboard-style entry). `/login?v=…` also still works.
+`/?v=…` shows the marketing splash (route animation), simulates clicking **Sign in**, then runs the login credential theater and enters the app. `/login?v=…` still runs theater only.
 
 **Local entry URL** (token from local `.env`):
 

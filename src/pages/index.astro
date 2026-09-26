@@ -40,7 +40,7 @@ if (entryToken && supabaseConfigured) {
 <html
   lang="en"
   data-theme={DEFAULT_UI_THEME_ID}
-  data-demo-entry={demoEntryOk ? '1' : undefined}
+  data-demo-splash={demoEntryOk ? '1' : undefined}
 >
   <head>
     <meta charset="utf-8" />
@@ -55,39 +55,16 @@ if (entryToken && supabaseConfigured) {
         <p class="marketing-hero__lede">
           Organize listings in your Nest by Locale and plan efficient driving tours.
         </p>
-        {
-          demoEntryOk ? (
-            <div class="marketing-hero__demo stack">
-              <p
-                class="alert"
-                role="alert"
-                data-login-error
-                hidden
-              ></p>
-              <form class="stack" data-login-form>
-                <label>
-                  Email
-                  <input type="email" name="email" autocomplete="username" required />
-                </label>
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    name="password"
-                    autocomplete="current-password"
-                    required
-                  />
-                </label>
-                <button type="submit">Sign in</button>
-              </form>
-            </div>
-          ) : (
-            <div class="marketing-hero__cta">
-              <a class="button" href="/signup">Sign up</a>
-              <a class="button secondary" href="/login">Sign in</a>
-            </div>
-          )
-        }
+        <div class="marketing-hero__cta">
+          <a class="button" href="/signup">Sign up</a>
+          <a
+            class="button secondary"
+            href={demoEntryOk ? `/login?v=${encodeURIComponent(entryToken)}` : '/login'}
+            data-demo-sign-in
+          >
+            Sign in
+          </a>
+        </div>
         {
           !supabaseConfigured && (
             <p class="alert marketing-hero__alert" role="alert">
@@ -142,7 +119,7 @@ if (entryToken && supabaseConfigured) {
     {
       demoEntryOk && (
         <script>
-          import '../client/login-demo-theater';
+          import '../client/demo-splash-entry';
         </script>
       )
     }
