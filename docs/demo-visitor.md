@@ -26,7 +26,7 @@ Query param: **`v`** (same as Briefboard)
 
 Pattern: `{PUBLIC_SITE_URL}/?v={DEMO_VISITOR_TOKEN}`
 
-`/?v=…` redirects into the login theater (Briefboard-style). `/login?v=…` also works.
+`/?v=…` keeps the marketing splash and runs the login theater on that page (Briefboard-style entry). `/login?v=…` also still works.
 
 **Local entry URL** (token from local `.env`):
 

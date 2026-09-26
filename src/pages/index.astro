@@ -4,8 +4,11 @@ import '../styles/chrome.css';
 import SpeedInsights from '@vercel/speed-insights/astro';
 import SiteFavicon from '../components/SiteFavicon.astro';
 import { DEMO_COOKIE_NAME } from '../lib/demo/constants';
-import { getDemoSessionSecret } from '../lib/demo/nest';
-import { verifyDemoCookie } from '../lib/demo/session';
+import {
+  getDemoSessionSecret,
+  getDemoVisitorToken,
+} from '../lib/demo/nest';
+import { tokensMatch, verifyDemoCookie } from '../lib/demo/session';
 import { DEFAULT_UI_THEME_ID } from '../lib/ui/themes';
 import { createSupabaseServerClient } from '../lib/supabase/server';
 
@@ -15,6 +18,8 @@ const supabaseConfigured = Boolean(
 );
 
 const entryToken = Astro.url.searchParams.get('v')?.trim() ?? '';
+let demoEntryOk = false;
+
 if (entryToken && supabaseConfigured) {
   const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
   const {
@@ -28,12 +33,15 @@ if (entryToken && supabaseConfigured) {
   if (sessionSecret && demoRaw && verifyDemoCookie(demoRaw, sessionSecret)) {
     return Astro.redirect('/app');
   }
-  // Briefboard-style entry: /?v=… → login theater
-  return Astro.redirect(`/login?v=${encodeURIComponent(entryToken)}`);
+  demoEntryOk = tokensMatch(getDemoVisitorToken(), entryToken);
 }
 ---
 <!doctype html>
-<html lang="en" data-theme={DEFAULT_UI_THEME_ID}>
+<html
+  lang="en"
+  data-theme={DEFAULT_UI_THEME_ID}
+  data-demo-entry={demoEntryOk ? '1' : undefined}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
@@ -47,10 +55,39 @@ if (entryToken && supabaseConfigured) {
         <p class="marketing-hero__lede">
           Organize listings in your Nest by Locale and plan efficient driving tours.
         </p>
-        <div class="marketing-hero__cta">
-          <a class="button" href="/signup">Sign up</a>
-          <a class="button secondary" href="/login">Sign in</a>
-        </div>
+        {
+          demoEntryOk ? (
+            <div class="marketing-hero__demo stack">
+              <p
+                class="alert"
+                role="alert"
+                data-login-error
+                hidden
+              ></p>
+              <form class="stack" data-login-form>
+                <label>
+                  Email
+                  <input type="email" name="email" autocomplete="username" required />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    name="password"
+                    autocomplete="current-password"
+                    required
+                  />
+                </label>
+                <button type="submit">Sign in</button>
+              </form>
+            </div>
+          ) : (
+            <div class="marketing-hero__cta">
+              <a class="button" href="/signup">Sign up</a>
+              <a class="button secondary" href="/login">Sign in</a>
+            </div>
+          )
+        }
         {
           !supabaseConfigured && (
             <p class="alert marketing-hero__alert" role="alert">
@@ -102,6 +139,13 @@ if (entryToken && supabaseConfigured) {
         </svg>
       </div>
     </main>
+    {
+      demoEntryOk && (
+        <script>
+          import '../client/login-demo-theater';
+        </script>
+      )
+    }
     <SpeedInsights />
   </body>
 </html>
