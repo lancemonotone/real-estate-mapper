@@ -11,7 +11,6 @@ async function refreshRouteIfNeeded() {
   const root = driveRoot();
   if (!(root instanceof HTMLElement)) return;
   if (root.dataset.needsAutoroute !== '1') return;
-  if (document.documentElement.dataset.demo === '1') return;
 
   const tourDayId = root.dataset.tourDayId?.trim();
   if (!tourDayId) return;

@@ -42,8 +42,9 @@ Replace the `v` value if you rotate `DEMO_VISITOR_TOKEN`. Owner updates rusmille
 2. Banner: **Demo · changes won’t save**.
 3. Routine edits (listing autosave, favorite/passed) update the open UI only; refresh restores server data.
 4. Destructive / settings / Places / proximity spend → **Demo · not saved** (server fail-closed).
-5. Already signed in as a real user → `v` is ignored (no kick into demo).
-6. Agent API is unchanged; the hash never grants a real auth user or admin powers.
+5. Tour **route optimize** is allowed for the demo Nest (Google Routes + cache write on that Nest only). Favorites in demo stay session-only and do not remove tour stops.
+6. Already signed in as a real user → `v` is ignored (no kick into demo).
+7. Agent API is unchanged; the hash never grants a real auth user or admin powers.
 
 ## Manual checklist
 

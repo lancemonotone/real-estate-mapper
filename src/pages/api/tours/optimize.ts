@@ -1,4 +1,3 @@
-import { forbidDemoMutation } from '../../../lib/demo/forbid';
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { buildOptimizePlan } from '../../../lib/google/optimize-request';
@@ -21,14 +20,46 @@ function readEndpoint(
   return { lat, lng };
 }
 
-export const POST: APIRoute = async ({request, cookies, locals}) => {
-  const denied = forbidDemoMutation(locals);
-  if (denied) return denied;
+async function assertDemoTourDayAllowed(
+  locals: App.Locals,
+  tourDayId: string,
+): Promise<Response | null> {
+  if (!locals.isDemo) return null;
+  const nestId = locals.demoNestId;
+  const supabase = locals.supabase;
+  if (!nestId || !supabase) {
+    return Response.json(
+      { ok: false, error: 'Demo · not saved', code: 'demo_readonly' },
+      { status: 403 },
+    );
+  }
+  const { data: tour, error } = await supabase
+    .from('tour_days')
+    .select('id, locales!inner(nest_id)')
+    .eq('id', tourDayId)
+    .maybeSingle();
+  if (error) {
+    return Response.json({ error: error.message }, { status: 400 });
+  }
+  const locale = tour?.locales;
+  const tourNestId =
+    locale && typeof locale === 'object' && 'nest_id' in locale
+      ? String((locale as { nest_id: string }).nest_id)
+      : null;
+  if (!tourNestId || tourNestId !== nestId) {
+    return Response.json(
+      { ok: false, error: 'Demo · not saved', code: 'demo_readonly' },
+      { status: 403 },
+    );
+  }
+  return null;
+}
 
-  const supabase = createSupabaseServerClient(request, cookies);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const POST: APIRoute = async ({ request, cookies, locals }) => {
+  const supabase =
+    locals.supabase ?? createSupabaseServerClient(request, cookies);
+  const user =
+    locals.user ?? (await supabase.auth.getUser()).data.user;
   if (!user) return new Response('Unauthorized', { status: 401 });
 
   const body = (await request.json()) as Record<string, unknown>;
@@ -49,6 +80,9 @@ export const POST: APIRoute = async ({request, cookies, locals}) => {
     typeof body.customEndAddress === 'string' ? body.customEndAddress.trim() : '';
 
   if (tourDayId) {
+    const denied = await assertDemoTourDayAllowed(locals, tourDayId);
+    if (denied) return denied;
+
     const preserveOrder = body.preserveOrder === true;
     const opt = await optimizeTourDay(supabase, tourDayId, {
       startListingId,
@@ -59,6 +93,14 @@ export const POST: APIRoute = async ({request, cookies, locals}) => {
     }
     const mapPayload = await loadTourDayMapPayload(supabase, tourDayId);
     return Response.json({ ok: true, map: mapPayload });
+  }
+
+  // Scratch optimize returns JSON only (no tour_days row). Demo may use it.
+  if (locals.isDemo && !scratchListingIds?.length) {
+    return Response.json(
+      { ok: false, error: 'Demo · not saved', code: 'demo_readonly' },
+      { status: 403 },
+    );
   }
 
   if (!scratchListingIds?.length) {
