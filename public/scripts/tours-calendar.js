@@ -1034,11 +1034,13 @@ async function boot() {
   signal.addEventListener('abort', () => clearActiveDrag(root));
 
   if (cfg.needsAutoroute && cfg.selectedTourId) {
-    // v2: prior guard was set before optimize succeeded, leaving days stuck when
-    // route_signature mismatched the stop set.
     const arKey = `wayhome:tours-ar:v2:${cfg.selectedTourId}`;
     const stopSig = cfg.routeStopSignature ?? '';
-    if (sessionStorage.getItem(arKey) === stopSig) {
+
+    // Demo: no durable optimize / Google Routes. Do not sticky-fail the day.
+    if (document.documentElement.dataset.demo === '1') {
+      sessionStorage.removeItem(arKey);
+    } else if (sessionStorage.getItem(arKey) === stopSig) {
       showStatus('Could not build a route for this day', true);
     } else {
       try {
